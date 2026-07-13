@@ -2254,40 +2254,127 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783964874"></script>
+<script src="app.js?v=1783965214"></script>
 <script>
-/* ── v2.0 UI Helpers ─────────────────────────────────────── */
-/* NOTE: toggleStage, switchAdvTab, switchPropTab, switchDelTab, switchDepTab,
-   showModal, hideModal, closeModalOnOverlay, showToast, downloadText,
-   exportHldText, exportAtpText, exportBcdrRunbook, exportFirewallMatrix,
-   exportAllDocuments are all defined in app.js. Only HTML-specific helpers below. */
+/* ── GLOBAL UI BRIDGE: all onclick-needed functions defined here ── */
+
+/* ── Navigation ──────────────────────────────────────────── */
+function switchStep(n){
+  var total=10;
+  if(n<1||n>total)return;
+  document.querySelectorAll('.wizard-panel').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.step-item').forEach(function(s){s.classList.remove('active');});
+  var panel=document.getElementById('panel-'+n);
+  if(panel)panel.classList.add('active');
+  var item=document.querySelector('.step-item[data-step="'+n+'"]');
+  if(item)item.classList.add('active');
+  if(window._appSwitchStep)window._appSwitchStep(n);
+  var ind=document.getElementById('current-step-indicator');
+  if(ind)ind.textContent=n;
+}
+function navigateStep(dir){
+  var cur=parseInt((document.getElementById('current-step-indicator')||{}).textContent||1);
+  switchStep(cur+dir);
+}
+function markDirty(){if(typeof pushUndoState==='function')pushUndoState();}
+function saveConfig(){if(typeof _saveConfig==='function')_saveConfig();}
+function newConfig(){if(confirm('Start a new blank configuration? Unsaved changes will be lost.'))location.reload();}
+function undo(){if(typeof _undo==='function')_undo();}
+function redo(){if(typeof _redo==='function')_redo();}
+function showCheckpoints(){var p=document.getElementById('checkpoints-panel');if(p)p.classList.toggle('open');}
+function saveCheckpoint(){if(typeof _saveCheckpoint==='function')_saveCheckpoint();}
+
+/* ── Modal ───────────────────────────────────────────────── */
+function showModal(id){
+  var ov=document.getElementById('modal-overlay');
+  if(ov)ov.classList.add('active');
+  document.querySelectorAll('.modal').forEach(function(m){m.style.display='none';});
+  var tgt=document.getElementById(id);
+  if(tgt)tgt.style.display='flex';
+}
+function hideModal(id){
+  var tgt=document.getElementById(id);
+  if(tgt)tgt.style.display='none';
+  var any=[].slice.call(document.querySelectorAll('.modal')).some(function(m){return m.style.display!=='none';});
+  if(!any){var ov=document.getElementById('modal-overlay');if(ov)ov.classList.remove('active');}
+}
+function closeModalOnOverlay(e){
+  if(e.target===document.getElementById('modal-overlay')){
+    document.querySelectorAll('.modal').forEach(function(m){m.style.display='none';});
+    var ov=document.getElementById('modal-overlay');if(ov)ov.classList.remove('active');
+  }
+}
+
+/* ── Toast ───────────────────────────────────────────────── */
+function showToast(msg,type){
+  var t=document.getElementById('toast');
+  var tx=document.getElementById('toast-text');
+  if(t&&tx){tx.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2800);}
+}
+
+/* ── Stage collapse ──────────────────────────────────────── */
 function toggleStage(id){var el=document.getElementById(id);if(el)el.classList.toggle('collapsed');}
+
+/* ── Tab switchers ───────────────────────────────────────── */
 function switchAdvTab(t){
   document.querySelectorAll('.adv-tab-btn').forEach(function(b){b.classList.remove('active');});
   document.querySelectorAll('.adv-content').forEach(function(c){c.classList.remove('active');});
-  var btn=document.getElementById('adv-tab-'+t), pnl=document.getElementById('adv-content-'+t);
-  if(btn)btn.classList.add('active'); if(pnl)pnl.classList.add('active');
+  var btn=document.getElementById('adv-tab-'+t),pnl=document.getElementById('adv-content-'+t);
+  if(btn)btn.classList.add('active');if(pnl)pnl.classList.add('active');
 }
 function switchPropTab(t){
   document.querySelectorAll('.prop-tab-btn').forEach(function(b){b.classList.remove('active');});
   document.querySelectorAll('.prop-content').forEach(function(c){c.classList.remove('active');});
-  var btn=document.getElementById('prop-tab-'+t), pnl=document.getElementById('prop-content-'+t);
-  if(btn)btn.classList.add('active'); if(pnl)pnl.classList.add('active');
+  var btn=document.getElementById('prop-tab-'+t),pnl=document.getElementById('prop-content-'+t);
+  if(btn)btn.classList.add('active');if(pnl)pnl.classList.add('active');
 }
 function switchDelTab(t){
   document.querySelectorAll('.del-tab-btn').forEach(function(b){b.classList.remove('active');});
   document.querySelectorAll('.del-content').forEach(function(c){c.classList.remove('active');});
-  var btn=document.getElementById('del-tab-'+t), pnl=document.getElementById('del-content-'+t);
-  if(btn)btn.classList.add('active'); if(pnl)pnl.classList.add('active');
+  var btn=document.getElementById('del-tab-'+t),pnl=document.getElementById('del-content-'+t);
+  if(btn)btn.classList.add('active');if(pnl)pnl.classList.add('active');
 }
 function switchDepTab(t){
   document.querySelectorAll('.dep-tab-btn').forEach(function(b){b.classList.remove('active');});
   document.querySelectorAll('.dep-content').forEach(function(c){c.classList.remove('active');});
-  var btn=document.getElementById('dep-tab-'+t), pnl=document.getElementById('dep-content-'+t);
-  if(btn)btn.classList.add('active'); if(pnl)pnl.classList.add('active');
+  var btn=document.getElementById('dep-tab-'+t),pnl=document.getElementById('dep-content-'+t);
+  if(btn)btn.classList.add('active');if(pnl)pnl.classList.add('active');
 }
 
-/* showModal/hideModal/closeModalOnOverlay defined in app.js */
+/* ── Presets & Use Cases (delegate to app.js) ────────────── */
+function applyPreset(name){if(typeof _applyPreset==='function')_applyPreset(name);}
+function togglePreset(name){if(typeof _togglePreset==='function')_togglePreset(name);}
+function clearAllPresets(){if(typeof _clearAllPresets==='function')_clearAllPresets();}
+function updateUseCaseAnalysis(){if(typeof _updateUseCaseAnalysis==='function')_updateUseCaseAnalysis();}
+
+/* ── Export & Downloads ──────────────────────────────────── */
+function downloadText(fn,ct){var a=document.createElement('a');a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(ct);a.download=fn;a.click();}
+function exportHldText(){if(typeof _exportHldText==='function')_exportHldText();else downloadText('VAST_HLD.txt',document.getElementById('del-content-hld-doc')?document.getElementById('del-content-hld-doc').innerText:'');}
+function exportAtpText(){if(typeof _exportAtpText==='function')_exportAtpText();else downloadText('VAST_ATP.txt',document.getElementById('dep-content-atp-doc')?document.getElementById('dep-content-atp-doc').innerText:'');}
+function exportBcdrRunbook(){if(typeof _exportBcdrRunbook==='function')_exportBcdrRunbook();else downloadText('VAST_BCDR_Runbook.txt',document.getElementById('dep-content-bcdr-doc')?document.getElementById('dep-content-bcdr-doc').innerText:'');}
+function exportFirewallMatrix(){var rows=[].slice.call(document.querySelectorAll('#firewall-tbody tr'));var csv=rows.map(function(r){return [].slice.call(r.querySelectorAll('td')).map(function(td){return '"'+td.textContent.trim()+'"';}).join(',');}).join('\n');downloadText('VAST_Firewall_Matrix.csv','Source,Destination,Protocol,Ports,Service,Direction\n'+csv);}
+function exportAllDocuments(){exportHldText();setTimeout(function(){exportAtpText();},200);setTimeout(function(){exportBcdrRunbook();},400);showToast('Exporting all documents...');}
+function exportJsonConfig(){if(typeof _exportJsonConfig==='function')_exportJsonConfig();}
+
+/* ── Sizing & Network delegates ──────────────────────────── */
+function calculateSizing(){if(typeof _calculateSizing==='function')_calculateSizing();}
+function generateVcliCommands(){if(typeof _generateVcliCommands==='function')_generateVcliCommands();}
+function generateNetworkConfig(){if(typeof _generateNetworkConfig==='function')_generateNetworkConfig();}
+function updateReadSlider(){if(typeof _updateReadSlider==='function')_updateReadSlider();}
+function updateWriteSlider(){if(typeof _updateWriteSlider==='function')_updateWriteSlider();}
+function updateReductionSlider(){if(typeof _updateReductionSlider==='function')_updateReductionSlider();}
+function filterCatalog(q){document.querySelectorAll('#catalog-tbody tr').forEach(function(r){r.style.display=r.textContent.toLowerCase().indexOf(q.toLowerCase())>-1?'':'none';});}
+
+/* ── After app.js loads, wire up real implementations ────── */
+document.addEventListener('DOMContentLoaded',function(){
+  /* Wire app.js implementations to bridge functions */
+  if(typeof window.switchStep==='function'){window._appSwitchStep=window.switchStep;}
+  if(typeof window.saveConfig==='function'||typeof saveConfig==='function'){
+    if(typeof saveConfig==='function'&&saveConfig!==window.saveConfig)window._saveConfig=saveConfig;
+  }
+  /* Delegate calculateSizing to app.js version */
+  if(typeof window.calculateSizing==='function'){window._calculateSizing=window.calculateSizing;}
+});
 
 function toggleColdTier(){
   const en=document.getElementById('cold-tier-enabled').checked;
