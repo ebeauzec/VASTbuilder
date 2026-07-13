@@ -4,7 +4,6 @@
 // === Targets index.html (6-panel wizard) ===
 // ============================================================
 
-'use strict';
 
 // ============================================================
 // === SECTION 1: DB MODULE (IndexedDB) ===
@@ -2774,4 +2773,68 @@ async function initApp() {
   console.log('%cVastOS 5.4.1-SP4 | DASE CBOX+DBOX | RoCEv2/IB backends | 150+4 EC (2.67% overhead)','color:#38BDF8;');
 }
 
+
+
+// === GLOBAL EXPOSURE: make all functions accessible from onclick handlers ===
+if (typeof switchStep !== "undefined") window["switchStep"] = switchStep;
+if (typeof navigateStep !== "undefined") window["navigateStep"] = navigateStep;
+if (typeof markStepCompleted !== "undefined") window["markStepCompleted"] = markStepCompleted;
+if (typeof calculateSizing !== "undefined") window["calculateSizing"] = calculateSizing;
+if (typeof showToast !== "undefined") window["showToast"] = showToast;
+if (typeof saveConfig !== "undefined") window["saveConfig"] = saveConfig;
+if (typeof loadConfig !== "undefined") window["loadConfig"] = loadConfig;
+if (typeof newConfig !== "undefined") window["newConfig"] = newConfig;
+if (typeof exportJsonConfig !== "undefined") window["exportJsonConfig"] = exportJsonConfig;
+if (typeof applyPreset !== "undefined") window["applyPreset"] = applyPreset;
+if (typeof togglePreset !== "undefined") window["togglePreset"] = togglePreset;
+if (typeof clearAllPresets !== "undefined") window["clearAllPresets"] = clearAllPresets;
+if (typeof updateUseCaseAnalysis !== "undefined") window["updateUseCaseAnalysis"] = updateUseCaseAnalysis;
+if (typeof generateVcliCommands !== "undefined") window["generateVcliCommands"] = generateVcliCommands;
+if (typeof generateNetworkConfig !== "undefined") window["generateNetworkConfig"] = generateNetworkConfig;
+if (typeof updateReadSlider !== "undefined") window["updateReadSlider"] = updateReadSlider;
+if (typeof updateWriteSlider !== "undefined") window["updateWriteSlider"] = updateWriteSlider;
+if (typeof updateReductionSlider !== "undefined") window["updateReductionSlider"] = updateReductionSlider;
+if (typeof saveStateSnapshot !== "undefined") window["saveStateSnapshot"] = saveStateSnapshot;
+if (typeof undo !== "undefined") window["undo"] = undo;
+if (typeof redo !== "undefined") window["redo"] = redo;
+if (typeof showCheckpoints !== "undefined") window["showCheckpoints"] = showCheckpoints;
+if (typeof renderCheckpointsList !== "undefined") window["renderCheckpointsList"] = renderCheckpointsList;
+if (typeof saveCheckpoint !== "undefined") window["saveCheckpoint"] = saveCheckpoint;
+if (typeof showModal !== "undefined") window["showModal"] = showModal;
+if (typeof hideModal !== "undefined") window["hideModal"] = hideModal;
+if (typeof closeModalOnOverlay !== "undefined") window["closeModalOnOverlay"] = closeModalOnOverlay;
+if (typeof renderProductCatalog !== "undefined") window["renderProductCatalog"] = renderProductCatalog;
+if (typeof renderIntegrationConfigs !== "undefined") window["renderIntegrationConfigs"] = renderIntegrationConfigs;
+if (typeof switchAdvTab !== "undefined") window["switchAdvTab"] = switchAdvTab;
+if (typeof switchPropTab !== "undefined") window["switchPropTab"] = switchPropTab;
+if (typeof switchDelTab !== "undefined") window["switchDelTab"] = switchDelTab;
+if (typeof switchDepTab !== "undefined") window["switchDepTab"] = switchDepTab;
+if (typeof switchTab !== "undefined") window["switchTab"] = switchTab;
+if (typeof _switchTab !== "undefined") window["_switchTab"] = _switchTab;
+if (typeof toggleStage !== "undefined") window["toggleStage"] = toggleStage;
+if (typeof toggleRemoteAutoSize !== "undefined") window["toggleRemoteAutoSize"] = toggleRemoteAutoSize;
+if (typeof toggleColdTier !== "undefined") window["toggleColdTier"] = toggleColdTier;
+if (typeof updateKBStatus !== "undefined") window["updateKBStatus"] = updateKBStatus;
+if (typeof updateSidebarProgress !== "undefined") window["updateSidebarProgress"] = updateSidebarProgress;
+if (typeof generateDeploymentGuide !== "undefined") window["generateDeploymentGuide"] = generateDeploymentGuide;
+if (typeof generateHLD !== "undefined") window["generateHLD"] = generateHLD;
+if (typeof generateLLD !== "undefined") window["generateLLD"] = generateLLD;
+if (typeof exportHldText !== "undefined") window["exportHldText"] = exportHldText;
+if (typeof exportLldText !== "undefined") window["exportLldText"] = exportLldText;
+if (typeof exportDeploymentGuideText !== "undefined") window["exportDeploymentGuideText"] = exportDeploymentGuideText;
+if (typeof exportBomCsv !== "undefined") window["exportBomCsv"] = exportBomCsv;
+if (typeof exportFirewallMatrix !== "undefined") window["exportFirewallMatrix"] = exportFirewallMatrix;
+if (typeof exportAllDocuments !== "undefined") window["exportAllDocuments"] = exportAllDocuments;
+if (typeof exportBcdrRunbook !== "undefined") window["exportBcdrRunbook"] = exportBcdrRunbook;
+if (typeof exportAtpText !== "undefined") window["exportAtpText"] = exportAtpText;
+if (typeof downloadText !== "undefined") window["downloadText"] = downloadText;
+if (typeof exportJsonConfig !== "undefined") window["exportJsonConfig"] = exportJsonConfig;
+if (typeof adjustWorkloadDefaults !== "undefined") window["adjustWorkloadDefaults"] = adjustWorkloadDefaults;
+if (typeof markDirty !== "undefined") window["markDirty"] = markDirty;
+if (typeof initApp !== "undefined") window["initApp"] = initApp;
+if (typeof AppState !== "undefined") window.AppState = AppState;
+if (typeof PRODUCT_CATALOG !== "undefined") window.PRODUCT_CATALOG = PRODUCT_CATALOG;
+if (typeof PRESET_CONFIGS !== "undefined") window.PRESET_CONFIGS = PRESET_CONFIGS;
+if (typeof UC_IDS !== "undefined") window.UC_IDS = UC_IDS;
+if (typeof UC_DETAILS !== "undefined") window.UC_DETAILS = UC_DETAILS;
 document.addEventListener('DOMContentLoaded', initApp);
