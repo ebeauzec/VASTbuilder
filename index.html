@@ -460,6 +460,7 @@
 
       <div class="glass-panel">
         <h3>Compliance &amp; Governance</h3>
+        <div id="industry-compliance-hint" style="display:none;flex-wrap:wrap;gap:.4rem;align-items:center;margin-bottom:.75rem;padding:.5rem .75rem;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:8px;"></div>
         <p style="font-size:.85rem;color:var(--color-text-secondary);margin-bottom:.75rem;">Select all regulatory frameworks this deployment must adhere to.</p>
         <div class="checkbox-grid-2">
           <label class="check-card"><input type="checkbox" id="comp-hipaa" onchange="updateComplianceBadges()"> HIPAA (Healthcare)</label>
@@ -590,26 +591,30 @@
 
       <div class="glass-panel">
         <h3>Data Temperature Distribution</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+          <span style="font-size:.78rem;color:var(--color-text-muted)">Sliders are linked — always sum to 100%</span>
+          <span id="tier-total-badge" style="font-size:.78rem;font-weight:700;padding:.2rem .65rem;border-radius:20px;background:rgba(16,185,129,.15);color:#34d399;border:1px solid rgba(16,185,129,.3)">Total: 100%</span>
+        </div>
         <div class="grid-3">
           <div class="form-group">
             <div style="display:flex;justify-content:space-between;margin-bottom:.25rem;">
               <label>Hot Data (%)</label><span class="slider-val" id="wl-pct-hot-val">30%</span>
             </div>
-            <input type="range" id="wl-pct-hot" min="0" max="100" value="30" oninput="document.getElementById('wl-pct-hot-val').textContent=this.value+'%';markDirty();" style="width:100%;accent-color:var(--accent-teal);">
+            <input type="range" id="wl-pct-hot" min="0" max="100" value="30" oninput="tierSlider('hot',this.value)" style="width:100%;accent-color:var(--accent-teal);">
             <div class="input-desc">Frequently accessed &mdash; stays in flash tier</div>
           </div>
           <div class="form-group">
             <div style="display:flex;justify-content:space-between;margin-bottom:.25rem;">
               <label>Warm Data (%)</label><span class="slider-val" id="wl-pct-warm-val">40%</span>
             </div>
-            <input type="range" id="wl-pct-warm" min="0" max="100" value="40" oninput="document.getElementById('wl-pct-warm-val').textContent=this.value+'%';markDirty();" style="width:100%;accent-color:var(--accent-amber);">
+            <input type="range" id="wl-pct-warm" min="0" max="100" value="40" oninput="tierSlider('warm',this.value)" style="width:100%;accent-color:var(--accent-amber);">
             <div class="input-desc">Periodic access &mdash; primary capacity tier</div>
           </div>
           <div class="form-group">
             <div style="display:flex;justify-content:space-between;margin-bottom:.25rem;">
               <label>Cold Data (%)</label><span class="slider-val" id="wl-pct-cold-val">30%</span>
             </div>
-            <input type="range" id="wl-pct-cold" min="0" max="100" value="30" oninput="document.getElementById('wl-pct-cold-val').textContent=this.value+'%';markDirty();" style="width:100%;accent-color:var(--accent-violet);">
+            <input type="range" id="wl-pct-cold" min="0" max="100" value="30" oninput="tierSlider('cold',this.value)" style="width:100%;accent-color:var(--accent-violet);">
             <div class="input-desc">Rarely accessed &mdash; candidate for object tier</div>
           </div>
         </div>
@@ -1322,6 +1327,7 @@
               <div class="form-group">
                 <label for="bc-wan-bandwidth">WAN Available (Gbps)</label>
                 <input type="number" id="bc-wan-bandwidth" value="10" min="1" oninput="markDirty()">
+            <div id="bc-wan-hint" style="font-size:.75rem;color:var(--accent-teal);margin-top:.3rem;font-style:italic;"></div>
               </div>
             </div>
           </div>
@@ -2263,7 +2269,7 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783966878"></script>
+<script src="app.js?v=1783967693"></script>
 <script>
 /* ── v2.0 UI Helpers ─────────────────────────────────────── */
 function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}
@@ -2455,14 +2461,424 @@ function navigateStep(dir){
   switchStep((ind?parseInt(ind.textContent,10)||1:1)+dir);
 }
 
+/* ═══════════════════════════════════════════════════════════
+   VAST ARCHITECT — CENTRAL INTERCONNECTION ENGINE v2.0
+   Every field change cascades through all 10 panels.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Tier sliders: always sum to 100% ─────────────────────── */
+function tierSlider(changed, rawVal) {
+  var val = Math.max(0, Math.min(100, parseInt(rawVal,10)||0));
+  var ids = {hot:'wl-pct-hot', warm:'wl-pct-warm', cold:'wl-pct-cold'};
+  var keys = Object.keys(ids);
+  var others = keys.filter(function(k){return k!==changed;});
+  var eA = document.getElementById(ids[others[0]]);
+  var eB = document.getElementById(ids[others[1]]);
+  if(!eA||!eB) return;
+  var a = parseInt(eA.value,10)||0;
+  var b = parseInt(eB.value,10)||0;
+  var remaining = 100 - val;
+  var tot = a + b;
+  if(tot===0){ a=Math.round(remaining/2); b=remaining-a; }
+  else { a=Math.round(remaining*a/tot); b=remaining-a; }
+  a=Math.max(0,a); b=Math.max(0,b);
+  document.getElementById(ids[changed]).value = val;
+  eA.value = a; eB.value = b;
+  keys.forEach(function(t){
+    var lbl=document.getElementById('wl-pct-'+t+'-val');
+    if(lbl) lbl.textContent=document.getElementById(ids[t]).value+'%';
+  });
+  var badge=document.getElementById('tier-total-badge');
+  var sum=parseInt(document.getElementById(ids.hot).value||0)+
+          parseInt(document.getElementById(ids.warm).value||0)+
+          parseInt(document.getElementById(ids.cold).value||0);
+  if(badge){
+    badge.textContent='Total: '+sum+'%';
+    var ok=sum===100;
+    badge.style.background=ok?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)';
+    badge.style.color=ok?'#34d399':'#f87171';
+    badge.style.borderColor=ok?'rgba(16,185,129,.3)':'rgba(239,68,68,.3)';
+  }
+  updateAll();
+}
+
+/* ── Read every form field into a flat config ─────────────── */
+function _readCfg() {
+  function v(id){var e=document.getElementById(id);return e?e.value:'';}
+  function n(id,d){var e=document.getElementById(id);return e?(parseFloat(e.value)||d):d;}
+  function b(id){var e=document.getElementById(id);return !!(e&&e.checked);}
+  return {
+    industry:v('cust-industry'), engType:v('cust-engagement-type'),
+    orgName:v('cust-org-name'), region:v('cust-region'),
+    ucAiml:b('uc-aiml'), ucInference:b('uc-inference'), ucHpc:b('uc-hpc'),
+    ucNas:b('uc-nas'), ucBackup:b('uc-backup'), ucVmware:b('uc-vmware'),
+    ucK8s:b('uc-k8s'), ucAnalytics:b('uc-analytics'), ucMedia:b('uc-media'),
+    ucDatabase:b('uc-database'), ucCompliance:b('uc-compliance'), ucEda:b('uc-eda'),
+    rto:v('biz-rto'), rpo:v('biz-rpo'),
+    compHipaa:b('comp-hipaa'), compGdpr:b('comp-gdpr'), compPci:b('comp-pci'),
+    compSoc2:b('comp-soc2'), compFedramp:b('comp-fedramp'), compIso:b('comp-iso27001'),
+    dataGrowth:n('biz-data-growth',20), budget:v('biz-budget'),
+    hotPct:n('wl-pct-hot',30), warmPct:n('wl-pct-warm',40), coldPct:n('wl-pct-cold',30),
+    changeRate:n('wl-change-rate',10), concClients:n('wl-concurrent-clients',100),
+    gpuCount:n('wl-gpu-count',0), avgFileSize:v('wl-avg-file-size'),
+    protoNfs3:b('proto-mix-nfs3'), protoNfs4:b('proto-mix-nfs4'),
+    protoSmb:b('proto-mix-smb'), protoS3:b('proto-mix-s3'), protoNvme:b('proto-mix-nvme'),
+    targetUsable:n('target-usable',100), capacityUnit:v('capacity-unit'),
+    reductionRatio:n('reduction-ratio',3),
+    readTP:n('read-throughput',50), writeTP:n('write-throughput',25),
+    targetIops:n('target-iops',100),
+    deployType:v('deployment-type'), clientNet:v('client-net'),
+    fabricType:v('fabric-type'), haConfig:b('ha-config'),
+    growthYears:v('growth-years'), growthRate:n('growth-rate',20),
+    repTargetType:v('replication-target-type'),
+    coldTierEnabled:b('cold-tier-enabled'),
+    mgmtSubnet:v('net-mgmt-subnet'), backendSubnet:v('net-backend-subnet'),
+    frontendSubnet:v('net-frontend-subnet'),
+    vipStart:v('net-vip-start'), vipEnd:v('net-vip-end'),
+    vlanMgmt:v('vlan-mgmt'), vlanBackend:v('vlan-backend'), vlanFrontend:v('vlan-frontend'),
+    mtu:v('net-mtu'), swBackend:v('sw-backend-model'),
+    clusterName:v('prov-cluster-name'), dns:v('prov-dns'),
+    ntp:v('prov-ntp'), syslog:v('prov-syslog'),
+    provVipStart:v('prov-vip-start'), provVipEnd:v('prov-vip-end'),
+    protoNfs3prov:b('proto-nfs3'), protoNfs4prov:b('proto-nfs4'),
+    protoSmbProv:b('proto-smb'), protoS3prov:b('proto-s3'), protoNvmeProv:b('proto-nvme'),
+    authSource:v('prov-auth-source'), viewPath:v('prov-view-path'),
+    quotaGb:n('prov-quota-gb',0),
+    bcEnabled:b('bc-enable-replication'), bcRepType:v('bc-replication-type'),
+    bcRemoteSiteType:v('bc-remote-site-type'), bcRpoMinutes:n('bc-rpo-minutes',60),
+    bcWanBw:n('bc-wan-bandwidth',10),
+    secDare:b('sec-dare'), secWorm:b('sec-worm'), secKeyMgmt:v('sec-key-mgmt'),
+    secMultiTenant:b('sec-multi-tenant'), secAuditLog:b('sec-audit-log')
+  };
+}
+
+/* ── VAST sizing engine ──────────────────────────────────────
+   Based on public VAST Data hardware specs:
+   Ceres C-node: 40 GB/s read, 20 GB/s write, 2U
+   Ceres Pro:    100 GB/s read, 50 GB/s write, 2U
+   Voyager D-node: 1920 TB raw, 8 TB SCM, 4U
+   ─────────────────────────────────────────────────────────── */
+function _computeSizing(cfg) {
+  var usableTB = cfg.targetUsable * (cfg.capacityUnit==='PB'?1024:1);
+  var ratio = Math.max(1.5, cfg.reductionRatio);
+  var rawTB = (usableTB / ratio) * 1.25;
+
+  var DNODE_RAW = 1920, DNODE_SCM = 8, DNODE_RU = 4, DNODE_PWR = 3500;
+  var dnCount = Math.max(4, Math.ceil(rawTB / DNODE_RAW));
+  if(cfg.haConfig) dnCount = Math.ceil(dnCount/2)*2;
+
+  var CNODE_READ = 40, CNODE_WRITE = 20, CNODE_RU = 2, CNODE_PWR = 600;
+  var cnByRead  = Math.ceil(cfg.readTP / CNODE_READ);
+  var cnByWrite = Math.ceil(cfg.writeTP / CNODE_WRITE);
+  var cnByClients = Math.ceil(cfg.concClients / 200);
+  var cnByGpu   = cfg.gpuCount > 0 ? Math.ceil(cfg.gpuCount / 16) : 0;
+  var cnCount = Math.max(3, cnByRead, cnByWrite, cnByClients, cnByGpu);
+
+  var cnModel = 'Ceres', dnModel = 'Voyager';
+  if(cfg.readTP > 120 || cfg.writeTP > 60 || cfg.targetIops > 500 || cfg.gpuCount > 64) {
+    cnModel = 'Ceres Pro';
+    cnCount = Math.max(cnCount, Math.ceil(cfg.readTP / 100));
+  }
+
+  var swCount = Math.max(2, Math.ceil((cnCount + dnCount) / 32));
+  var swName = cfg.fabricType && cfg.fabricType.indexOf('InfiniBand')!==-1 ?
+    'NVIDIA QM8700 IB' : 'Arista 7050CX3';
+
+  var effectiveTB = rawTB * ratio;
+  var scmTB = dnCount * DNODE_SCM;
+  var gr = cfg.growthRate / 100;
+  var grow1 = usableTB * (1 + gr);
+  var grow3 = usableTB * Math.pow(1+gr, 3);
+  var grow5 = usableTB * Math.pow(1+gr, 5);
+  var totalRU = cnCount*CNODE_RU + dnCount*DNODE_RU + swCount*2;
+  var totalPwrKw = (cnCount*CNODE_PWR + dnCount*DNODE_PWR) / 1000;
+  var vipCount = Math.ceil(cnCount * 1.5);
+
+  var recFabric = (cfg.gpuCount > 64 || cfg.readTP > 200) ? 'InfiniBand HDR' : 'RoCEv2 Ethernet';
+  var recClientNet = (cfg.readTP > 80 || cfg.gpuCount > 0) ? '100GbE' : '25GbE';
+
+  return {
+    cnCount:cnCount, cnModel:cnModel, dnCount:dnCount, dnModel:dnModel,
+    swCount:swCount, swName:swName,
+    effectiveTB:effectiveTB, physicalTB:rawTB*1.0, rawTB:rawTB, scmTB:scmTB,
+    grow1yr:grow1, grow3yr:grow3, grow5yr:grow5,
+    totalRU:totalRU, totalPwrKw:totalPwrKw,
+    vipCount:vipCount, recFabric:recFabric, recClientNet:recClientNet
+  };
+}
+
+function _fmtTB(tb){
+  if(tb>=1024) return (tb/1024).toFixed(1)+' PB';
+  return Math.round(tb)+' TB';
+}
+function _setEl(id,val){var e=document.getElementById(id);if(e)e.textContent=val;}
+function _setInput(id,val){var e=document.getElementById(id);if(e&&!e.dataset.userSet)e.value=val;}
+function _checkIf(id,cond){var e=document.getElementById(id);if(e&&!e.dataset.userSet)e.checked=!!cond;}
+function _selectOpt(id,substr){
+  var e=document.getElementById(id);if(!e||e.dataset.userSet)return;
+  for(var i=0;i<e.options.length;i++){
+    if(e.options[i].text.indexOf(substr)!==-1){e.selectedIndex=i;return;}
+  }
+}
+
+/* ── Step 1 → Step 2: industry compliance suggestions ────── */
+function _cascadeIndustry(cfg) {
+  var map = {
+    'Healthcare/Life Sciences':['comp-hipaa','comp-soc2','comp-gdpr'],
+    'Financial Services':['comp-pci','comp-soc2'],
+    'Government/Defense':['comp-fedramp','comp-iso27001'],
+    'Retail/E-commerce':['comp-pci','comp-gdpr'],
+    'Telecommunications':['comp-iso27001','comp-soc2'],
+    'Academia/Research':['comp-gdpr'],
+    'Energy/Oil & Gas':['comp-iso27001']
+  };
+  var labs={'comp-hipaa':'HIPAA','comp-soc2':'SOC 2','comp-pci':'PCI-DSS',
+            'comp-gdpr':'GDPR','comp-fedramp':'FedRAMP','comp-iso27001':'ISO 27001'};
+  var sugg = map[cfg.industry] || [];
+  var hint = document.getElementById('industry-compliance-hint');
+  if(hint) {
+    if(sugg.length===0){hint.style.display='none';}
+    else{
+      hint.style.display='flex';
+      hint.innerHTML='<span style="font-size:.76rem;color:var(--color-text-muted);margin-right:.4rem">'
+        +'&#x26A0; Suggested for '+cfg.industry+':</span>'
+        +sugg.map(function(id){return '<span class="rec-tag sec">'+labs[id]+'</span>';}).join(' ');
+    }
+  }
+}
+
+/* ── Step 2 SLA → Step 7: BC/DR defaults ─────────────────── */
+function _cascadeSla(cfg) {
+  var rtoNeedsRep = (cfg.rto==='<15 Minutes'||cfg.rto==='Near-Zero'||cfg.rto==='<1 Hour');
+  var rpoNeedsRep = (cfg.rpo==='Near-Zero'||cfg.rpo==='1hr');
+  _checkIf('bc-enable-replication', rtoNeedsRep||rpoNeedsRep);
+  if(cfg.rto==='Near-Zero'||cfg.rpo==='Near-Zero') _selectOpt('bc-replication-type','Synchronous');
+  var rpoMinMap={'Near-Zero':'5','1hr':'60','4hr':'240','24hr':'1440'};
+  if(rpoMinMap[cfg.rpo]) _setInput('bc-rpo-minutes', rpoMinMap[cfg.rpo]);
+  /* Show/hide remote site summary in Panel 4 */
+  var rss = document.getElementById('remote-site-summary');
+  if(rss) rss.style.display=(rtoNeedsRep||rpoNeedsRep)?'block':'none';
+}
+
+/* ── Step 2 Compliance → Step 7: security defaults ───────── */
+function _cascadeCompliance(cfg) {
+  var needsDare = cfg.compHipaa||cfg.compPci||cfg.compFedramp||cfg.compIso||cfg.compSoc2;
+  var needsWorm = cfg.ucCompliance||cfg.ucBackup||cfg.compFedramp;
+  var needsAudit = needsDare||cfg.compGdpr||cfg.compSoc2||cfg.ucCompliance;
+  var needsKerb = cfg.compHipaa||cfg.compFedramp||cfg.ucHpc||cfg.ucEda;
+  _checkIf('sec-dare', needsDare);
+  _checkIf('sec-worm', needsWorm);
+  _checkIf('sec-audit-log', needsAudit);
+  _checkIf('sec-nfs-kerberos', needsKerb);
+  _checkIf('sec-smb-signing', cfg.compPci||cfg.compSoc2);
+  var wg=document.getElementById('worm-retention-group');
+  if(wg) wg.style.display=needsWorm?'block':'none';
+  if(typeof updateComplianceBadges==='function') updateComplianceBadges();
+}
+
+/* ── Step 2/3 use-cases → Step 3: suggest presets ────────── */
+function _cascadeUseCasesToPresets(cfg) {
+  var ucPresetMap = {
+    ucAiml:'ai-ml-training', ucInference:'ai-ml-training', ucHpc:'hpc-genomics',
+    ucNas:'vmware-vsphere', ucBackup:'backup-archive', ucVmware:'vmware-vsphere',
+    ucK8s:'kubernetes-csi', ucAnalytics:'hpc-genomics', ucMedia:'media-vfx',
+    ucDatabase:'vmware-vsphere', ucCompliance:'backup-archive', ucEda:'hpc-genomics'
+  };
+  /* Highlight (but don't force-select) suggested presets */
+  document.querySelectorAll('.preset-card').forEach(function(c){
+    c.classList.remove('suggested');
+  });
+  Object.keys(ucPresetMap).forEach(function(uc){
+    if(cfg[uc]) {
+      var preset = ucPresetMap[uc];
+      var card = document.querySelector('[data-preset="'+preset+'"]');
+      if(card && !card.classList.contains('selected')) card.classList.add('suggested');
+    }
+  });
+}
+
+/* ── Step 3 workload → Step 4: performance/sizing defaults ── */
+function _cascadeWorkload(cfg) {
+  /* GPU count drives network and protocol */
+  if(cfg.gpuCount > 0) {
+    _checkIf('proto-mix-nvme', true);
+    _checkIf('proto-nvme', true);
+    _selectOpt('client-net', '100GbE');
+    _selectOpt('fabric-type', 'RoCEv2');
+  }
+  /* High cold % → suggest cold tier */
+  if(cfg.coldPct > 30) {
+    _checkIf('cold-tier-enabled', true);
+    var det=document.getElementById('cold-tier-details-group');
+    if(det) det.style.display='block';
+  }
+  /* Media workload → suggest high throughput fabric */
+  if(cfg.ucMedia || cfg.ucAiml) {
+    _selectOpt('client-net', '100GbE');
+  }
+  /* Concurrent clients → update VIP pool suggestion */
+  if(cfg.concClients > 500) {
+    _selectOpt('fabric-type', 'RoCEv2');
+  }
+  /* Backup/archive → suggest S3 protocol */
+  if(cfg.ucBackup || cfg.ucCompliance) {
+    _checkIf('proto-mix-s3', true);
+    _checkIf('proto-s3', true);
+  }
+  /* VMware → suggest NFS4 */
+  if(cfg.ucVmware) {
+    _checkIf('proto-mix-nfs4', true);
+    _checkIf('proto-nfs4', true);
+  }
+  /* EDA/HPC → NFS3 */
+  if(cfg.ucEda || cfg.ucHpc) {
+    _checkIf('proto-mix-nfs3', true);
+    _checkIf('proto-nfs3', true);
+  }
+  /* K8s → NFS4 + S3 */
+  if(cfg.ucK8s) {
+    _checkIf('proto-mix-nfs4', true); _checkIf('proto-nfs4', true);
+    _checkIf('proto-mix-s3', true); _checkIf('proto-s3', true);
+  }
+}
+
+/* ── Step 4 sizing → Step 5: network defaults ────────────── */
+function _cascadeNetworkFromSizing(sz, cfg) {
+  /* Recommend fabric based on sizing */
+  if(!document.getElementById('fabric-type').dataset.userSet)
+    _selectOpt('fabric-type', sz.recFabric);
+  if(!document.getElementById('client-net').dataset.userSet)
+    _selectOpt('client-net', sz.recClientNet);
+  /* MTU recommendation for high-throughput */
+  if(cfg.readTP > 50 || cfg.writeTP > 25) _selectOpt('net-mtu', '9000');
+  /* VIP pool auto-fill from frontend subnet if empty */
+  var vipS = document.getElementById('net-vip-start');
+  var vipE = document.getElementById('net-vip-end');
+  var pvipS = document.getElementById('prov-vip-start');
+  var pvipE = document.getElementById('prov-vip-end');
+  var fs = cfg.frontendSubnet || '10.100.20.0/24';
+  var base = fs.split('/')[0].split('.');
+  if(base.length===4 && !parseInt(base[3])) {
+    base[3]='100';
+    var start=base.join('.');
+    base[3]=String(100+sz.vipCount-1);
+    var end=base.join('.');
+    if(vipS&&!vipS.dataset.userSet) vipS.value=start;
+    if(vipE&&!vipE.dataset.userSet) vipE.value=end;
+    if(pvipS&&!pvipS.dataset.userSet) pvipS.value=start;
+    if(pvipE&&!pvipE.dataset.userSet) pvipE.value=end;
+    var vm = document.getElementById('net-vip-mask');
+    if(vm&&!vm.dataset.userSet) vm.value='24';
+    var pvm = document.getElementById('prov-vip-mask');
+    if(pvm&&!pvm.dataset.userSet) pvm.value='24';
+  }
+  /* Switch model recommendation */
+  var swm = document.getElementById('sw-backend-model');
+  if(swm && !swm.dataset.userSet) {
+    if(sz.recFabric.indexOf('InfiniBand')!==-1) _selectOpt('sw-backend-model','QM8700');
+    else _selectOpt('sw-backend-model','Arista 7050');
+  }
+}
+
+/* ── Step 7 BC/DR: WAN bandwidth calculation ─────────────── */
+function _updateBcdrCalc(cfg) {
+  var hint = document.getElementById('bc-wan-hint');
+  if(!hint) return;
+  var usableTB = cfg.targetUsable * (cfg.capacityUnit==='PB'?1024:1);
+  var dailyChangeTB = usableTB * (cfg.changeRate/100);
+  var rpoHrs = cfg.bcRpoMinutes / 60;
+  if(rpoHrs>0 && dailyChangeTB>0) {
+    var reqGbps = (dailyChangeTB * 1024 * 8) / (rpoHrs * 3600);
+    hint.textContent = 'Required WAN link for '+cfg.bcRpoMinutes+'-min RPO with '+
+      cfg.changeRate+'% daily change rate: '+reqGbps.toFixed(2)+' Gbps minimum.'+
+      (reqGbps>cfg.bcWanBw?' ⚠ Current '+cfg.bcWanBw+' Gbps is INSUFFICIENT.':' ✓ '+cfg.bcWanBw+' Gbps OK.');
+    hint.style.color = reqGbps>cfg.bcWanBw ? '#f87171' : '#34d399';
+  } else { hint.textContent=''; }
+}
+
+/* ── Update Panel 4 summary boxes ────────────────────────── */
+function _updateSummary(sz, cfg) {
+  _setEl('cnode-count', sz.cnCount);
+  _setEl('cnode-model', sz.cnModel);
+  _setEl('dnode-count', sz.dnCount);
+  _setEl('dnode-model', sz.dnModel);
+  _setEl('switch-count', sz.swCount);
+  _setEl('switch-fabric-name', sz.swName);
+  _setEl('sum-effective', _fmtTB(sz.effectiveTB));
+  _setEl('sum-physical', _fmtTB(sz.physicalTB));
+  _setEl('sum-raw', _fmtTB(sz.rawTB));
+  _setEl('sum-scm', Math.round(sz.scmTB)+' TB');
+  _setEl('sum-read-tp', cfg.readTP+' GB/s');
+  _setEl('sum-write-tp', cfg.writeTP+' GB/s');
+  _setEl('sum-read-iops', cfg.targetIops+'K');
+  _setEl('sum-write-iops', Math.round(cfg.targetIops*0.6)+'K');
+  _setEl('grow-1yr', _fmtTB(sz.grow1yr));
+  _setEl('grow-3yr', _fmtTB(sz.grow3yr));
+  _setEl('grow-5yr', _fmtTB(sz.grow5yr));
+  _setEl('footprint-ru', sz.totalRU+' U');
+  _setEl('footprint-power', sz.totalPwrKw.toFixed(1)+' kW');
+  _setEl('footprint-heat', Math.round(sz.totalPwrKw*3412)+' BTU/hr');
+  _setEl('footprint-weight', Math.round(sz.cnCount*25+sz.dnCount*120+sz.swCount*15)+' kg');
+  /* Slider labels */
+  ['hot','warm','cold'].forEach(function(t){
+    var el=document.getElementById('wl-pct-'+t);
+    var lb=document.getElementById('wl-pct-'+t+'-val');
+    if(el&&lb) lb.textContent=el.value+'%';
+  });
+  var rdv=document.getElementById('reduction-val'), rde=document.getElementById('reduction-ratio');
+  if(rdv&&rde) rdv.textContent=rde.value+'x';
+  var rtv=document.getElementById('read-throughput-val'), rte=document.getElementById('read-throughput');
+  if(rtv&&rte) rtv.textContent=rte.value+' GB/s';
+  var wtv=document.getElementById('write-throughput-val'), wte=document.getElementById('write-throughput');
+  if(wtv&&wte) wtv.textContent=wte.value+' GB/s';
+}
+
+/* ── MASTER updateAll: called on every field change ─────── */
+function updateAll() {
+  try {
+    var cfg = _readCfg();
+    var sz  = _computeSizing(cfg);
+    _cascadeIndustry(cfg);
+    _cascadeCompliance(cfg);
+    _cascadeSla(cfg);
+    _cascadeUseCasesToPresets(cfg);
+    _cascadeWorkload(cfg);
+    _cascadeNetworkFromSizing(sz, cfg);
+    _updateBcdrCalc(cfg);
+    _updateSummary(sz, cfg);
+    if(typeof updateComplianceBadges==='function') updateComplianceBadges();
+    if(typeof generateVcliCommands==='function') generateVcliCommands();
+  } catch(err) {
+    /* Silent fail — never break the UI */
+    console.warn('[VAST updateAll]', err);
+  }
+}
+
 document.addEventListener('DOMContentLoaded',function(){
   calculateRoi();
   updateComplianceBadges();
+
+  /* Wire EVERY form element to updateAll */
+  document.querySelectorAll('input,select,textarea').forEach(function(el){
+    var evt=(el.type==='checkbox'||el.type==='radio'
+             ||el.tagName==='SELECT')?'change':'input';
+    el.addEventListener(evt, function(){
+      el.dataset.userSet='1'; /* mark as explicitly user-set */
+      updateAll();
+    });
+  });
+
+  /* Initial run to populate all summary boxes */
+  updateAll();
+
+  /* Add suggested CSS for preset cards */
+  var style=document.createElement('style');
+  style.textContent='.preset-card.suggested{border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.05)}';
+  document.head.appendChild(style);
+
   if(!localStorage.getItem('vast-onboarded')){
     setTimeout(function(){showModal('modal-onboarding');},700);
   }
-  /* run app.js init if available */
-  if(typeof initApp==='function')initApp();
 });
 
 /* ═══════════════════════════════════════════════════════════════
