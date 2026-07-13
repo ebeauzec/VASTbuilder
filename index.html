@@ -2269,7 +2269,7 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783968006"></script>
+<script src="app.js?v=1783968713"></script>
 <script>
 /* ── v2.0 UI Helpers ─────────────────────────────────────── */
 function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}
@@ -2455,6 +2455,19 @@ function switchStep(n){
   if(ind)ind.textContent=n;
   var pb=document.getElementById('prev-btn'),nb=document.getElementById('next-btn');
   if(pb)pb.disabled=(n===1);if(nb)nb.disabled=(n===10);
+  /* Trigger panel-specific generators */
+  if(n===5){if(typeof generateNetworkConfig==='function')generateNetworkConfig();}
+  if(n===6){if(typeof generateVcliCommands==='function')generateVcliCommands();}
+  if(n===7){if(typeof renderIntegrationConfigs==='function')renderIntegrationConfigs();}
+  if(n>=8){_triggerDeliverables();}
+}
+function _triggerDeliverables(){
+  /* Call app.js generator if available, else use inline fallback */
+  if(typeof generateAllDocuments==='function'){
+    try{generateAllDocuments();}catch(e){console.warn('genAllDocs err',e);_buildInlineDeliverables();}
+  } else {
+    _buildInlineDeliverables();
+  }
 }
 function navigateStep(dir){
   var ind=document.getElementById('current-step-indicator');
@@ -2871,6 +2884,9 @@ document.addEventListener('DOMContentLoaded',function(){
 
   /* Initial run to populate all summary boxes */
   updateAll();
+
+  /* Populate deliverables after app.js has had time to init */
+  setTimeout(function(){_triggerDeliverables();}, 1200);
 
   /* Add suggested CSS for preset cards */
   var style=document.createElement('style');
@@ -3566,6 +3582,147 @@ function _rebuildIpAlloc(sz, cfg) {
 
   tbody.innerHTML = rows;
 }
+
+
+/* ── Inline deliverables fallback (used when app.js generateAllDocuments fails) */
+function _buildInlineDeliverables(){
+  try {
+    var cfg = _readCfg();
+    var sz  = _computeSizing(cfg);
+    var org  = cfg.orgName || 'Customer';
+    var date = new Date().toLocaleDateString('en-GB',{year:'numeric',month:'long',day:'numeric'});
+    var clN  = cfg.clusterName || 'vast-cluster-01';
+    var vipS = cfg.provVipStart || cfg.vipStart || '10.100.20.100';
+    var vipE = cfg.provVipEnd   || cfg.vipEnd   || '10.100.20.124';
+    var dns  = cfg.dns  || '10.100.20.10';
+    var ntp  = cfg.ntp  || '10.100.20.11';
+    var syslog = cfg.syslog || '10.100.20.12';
+    var fabric = cfg.fabricType || 'RoCEv2 Ethernet';
+    var protos = [];
+    if(cfg.protoNfs3prov||cfg.protoNfs3) protos.push('NFSv3');
+    if(cfg.protoNfs4prov||cfg.protoNfs4) protos.push('NFSv4.1');
+    if(cfg.protoSmbProv||cfg.protoSmb) protos.push('SMB 3.x');
+    if(cfg.protoS3prov||cfg.protoS3) protos.push('S3 API');
+    if(cfg.protoNvmeProv||cfg.protoNvme) protos.push('NVMe/TCP');
+    var protoStr = protos.length ? protos.join(', ') : 'NFSv3, NFSv4.1, SMB 3.x, S3';
+
+    /* HLD */
+    var hld = document.getElementById('del-content-hld-doc');
+    if(hld){
+      var h='';
+      h+='<h1>High-Level Design &mdash; VAST Enterprise Storage</h1>';
+      h+='<p class="doc-meta">Customer: <strong>'+_esc2(org)+'</strong> &nbsp;|&nbsp; Date: '+date+' &nbsp;|&nbsp; Version: 1.0 &nbsp;|&nbsp; Classification: Confidential</p>';
+      h+='<div class="doc-section"><h2>1. Introduction</h2>';
+      h+='<p>This HLD describes the VAST Data Disaggregated Shared-Everything (DASE) architecture proposed for <strong>'+_esc2(org)+'</strong>. '
+        +'The cluster delivers <strong>'+_fmtTB(sz.effectiveTB)+'</strong> effective capacity at <strong>'
+        +cfg.readTP+' GB/s</strong> read / <strong>'+cfg.writeTP+' GB/s</strong> write throughput '
+        +'with a global '+cfg.reductionRatio+':1 data reduction ratio.</p></div>';
+      h+='<div class="doc-section"><h2>2. DASE Architecture</h2>';
+      h+='<p>VAST\'s DASE model separates stateless C-Nodes (protocol processing, data reduction) from D-Node storage enclosures. '
+        +'All '+sz.cnCount+' C-Nodes connect to all '+sz.dnCount+' D-Nodes over '+fabric+' with MTU 9000. '
+        +'150+4 erasure coding provides resilience with only ~2.67% storage overhead.</p></div>';
+      h+='<div class="doc-section"><h2>3. Bill of Materials (Summary)</h2>';
+      h+='<table class="cabling-table"><thead><tr><th>Component</th><th>Model</th><th>Qty</th><th>Role</th></tr></thead><tbody>';
+      h+='<tr><td>C-Nodes (CBox)</td><td>VAST '+sz.cnModel+'</td><td>'+sz.cnCount+'</td><td>Protocol &amp; data reduction</td></tr>';
+      h+='<tr><td>D-Nodes (DBox)</td><td>VAST '+sz.dnModel+'</td><td>'+sz.dnCount+'</td><td>NVMe flash + SCM buffers ('+_fmtTB(1920)+' raw each)</td></tr>';
+      h+='<tr><td>Fabric Switches</td><td>'+sz.swName+'</td><td>'+sz.swCount+'</td><td>'+fabric+' backend fabric</td></tr>';
+      h+='<tr><td>VAST AI OS</td><td>v5.4.1-SP4</td><td>&mdash;</td><td>Included with hardware</td></tr>';
+      h+='</tbody></table></div>';
+      h+='<div class="doc-section"><h2>4. Network Architecture</h2>';
+      h+='<p><strong>Frontend:</strong> '+cfg.clientNet+' client access via VIP pool ('+vipS+' &ndash; '+vipE+'). Protocols: '+protoStr+'.</p>';
+      h+='<p><strong>Backend:</strong> '+fabric+', MTU 9000, PFC CoS3, ECN enabled. Dual-rail for redundancy.</p>';
+      h+='<p><strong>Management:</strong> OOB 1GbE network. VLANs &mdash; Mgmt: '+cfg.vlanMgmt+', Backend: '+cfg.vlanBackend+', Frontend: '+cfg.vlanFrontend+'.</p></div>';
+      h+='<div class="doc-section"><h2>5. Capacity &amp; Performance</h2>';
+      h+='<table class="cabling-table"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>';
+      h+='<tr><td>Target Usable Capacity</td><td>'+_fmtTB(sz.effectiveTB)+'</td></tr>';
+      h+='<tr><td>Raw Capacity</td><td>'+_fmtTB(sz.rawTB)+'</td></tr>';
+      h+='<tr><td>SCM Write Buffers</td><td>'+sz.scmTB+' TB</td></tr>';
+      h+='<tr><td>Data Reduction Ratio</td><td>'+cfg.reductionRatio+':1</td></tr>';
+      h+='<tr><td>Read Throughput</td><td>'+cfg.readTP+' GB/s</td></tr>';
+      h+='<tr><td>Write Throughput</td><td>'+cfg.writeTP+' GB/s</td></tr>';
+      h+='<tr><td>Target IOPS</td><td>'+cfg.targetIops+'K</td></tr>';
+      h+='<tr><td>1-Year Capacity ('+cfg.growthRate+'% growth)</td><td>'+_fmtTB(sz.grow1yr)+'</td></tr>';
+      h+='<tr><td>3-Year Capacity</td><td>'+_fmtTB(sz.grow3yr)+'</td></tr>';
+      h+='<tr><td>5-Year Capacity</td><td>'+_fmtTB(sz.grow5yr)+'</td></tr>';
+      h+='</tbody></table></div>';
+      h+='<div class="doc-section"><h2>6. Security &amp; Compliance</h2>';
+      h+='<p>Data-at-Rest Encryption (DARE): <strong>'+(cfg.secDare?'Enabled (AES-256-XTS)':'Not enabled')+'</strong>. ';
+      h+='WORM Immutability: <strong>'+(cfg.secWorm?'Enabled':'Not enabled')+'</strong>. ';
+      h+='Audit Logging: <strong>'+(cfg.secAuditLog?'Enabled':'Not enabled')+'</strong>.</p>';
+      if(cfg.compHipaa||cfg.compGdpr||cfg.compPci||cfg.compSoc2||cfg.compFedramp||cfg.compIso){
+        h+='<p>Compliance frameworks in scope: ';
+        var cf=[];
+        if(cfg.compHipaa)cf.push('HIPAA'); if(cfg.compGdpr)cf.push('GDPR');
+        if(cfg.compPci)cf.push('PCI-DSS'); if(cfg.compSoc2)cf.push('SOC 2');
+        if(cfg.compFedramp)cf.push('FedRAMP'); if(cfg.compIso)cf.push('ISO 27001');
+        h+=cf.join(', ')+'.</p>';
+      }
+      h+='</div>';
+      h+='<div style="margin-top:2rem;padding:1rem;border:1px dashed rgba(99,102,241,0.4);border-radius:8px;background:rgba(99,102,241,0.04);font-size:0.82rem;color:var(--color-text-muted);">';
+      h+='<strong style="color:#6366F1;">CONFIDENTIALITY NOTICE:</strong> Prepared exclusively for '+_esc2(org)+'. Distribution without written consent of VAST Data prohibited.</div>';
+      hld.innerHTML=h;
+    }
+
+    /* LLD */
+    var lld = document.getElementById('del-content-lld-doc');
+    if(lld){
+      var h='';
+      h+='<h1>Low-Level Design &mdash; VAST Enterprise Storage</h1>';
+      h+='<p class="doc-meta">Customer: <strong>'+_esc2(org)+'</strong> &nbsp;|&nbsp; Date: '+date+'</p>';
+      h+='<div class="doc-section"><h2>1. Cluster Identity</h2>';
+      h+='<table class="cabling-table"><tbody>';
+      h+='<tr><td>Cluster Name</td><td><code>'+_esc2(clN)+'</code></td></tr>';
+      h+='<tr><td>DNS Server</td><td><code>'+_esc2(dns)+'</code></td></tr>';
+      h+='<tr><td>NTP Server</td><td><code>'+_esc2(ntp)+'</code></td></tr>';
+      h+='<tr><td>Syslog Server</td><td><code>'+_esc2(syslog)+'</code></td></tr>';
+      h+='<tr><td>Authentication</td><td>'+_esc2(cfg.authSource||'Local')+'</td></tr>';
+      h+='</tbody></table></div>';
+      h+='<div class="doc-section"><h2>2. IP Address Plan</h2>';
+      h+='<table class="cabling-table"><thead><tr><th>Network</th><th>Subnet</th><th>VLAN</th><th>Purpose</th></tr></thead><tbody>';
+      h+='<tr><td>Management</td><td><code>'+_esc2(cfg.mgmtSubnet||'192.168.10.0/24')+'</code></td><td>'+cfg.vlanMgmt+'</td><td>OOB BMC/IPMI</td></tr>';
+      h+='<tr><td>Backend Storage</td><td><code>'+_esc2(cfg.backendSubnet||'172.16.100.0/22')+'</code></td><td>'+cfg.vlanBackend+'</td><td>NVMe-oF fabric</td></tr>';
+      h+='<tr><td>Frontend Client</td><td><code>'+_esc2(cfg.frontendSubnet||'10.100.20.0/24')+'</code></td><td>'+cfg.vlanFrontend+'</td><td>Client access</td></tr>';
+      h+='<tr><td>VIP Pool</td><td><code>'+_esc2(vipS)+' &ndash; '+_esc2(vipE)+'</code></td><td>'+cfg.vlanFrontend+'</td><td>Client floating IPs ('+sz.vipCount+' VIPs for '+sz.cnCount+' C-Nodes)</td></tr>';
+      h+='</tbody></table></div>';
+      h+='<div class="doc-section"><h2>3. Switch Configuration</h2>';
+      h+='<table class="cabling-table"><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>';
+      h+='<tr><td>Backend Switch</td><td>'+_esc2(cfg.swBackend||'Arista 7050CX3')+'</td></tr>';
+      h+='<tr><td>Fabric Type</td><td>'+_esc2(fabric)+'</td></tr>';
+      h+='<tr><td>MTU</td><td>9000 (Jumbo Frames &mdash; mandatory)</td></tr>';
+      h+='<tr><td>PFC</td><td>Enabled on CoS3 / DSCP24</td></tr>';
+      h+='<tr><td>ECN</td><td>Enabled (min threshold: 100KB, max: 400KB)</td></tr>';
+      h+='<tr><td>Flow Control</td><td>PFC only &mdash; no Ethernet pause frames</td></tr>';
+      h+='</tbody></table></div>';
+      h+='<div class="doc-section"><h2>4. Port Map Summary</h2>';
+      h+='<p>Each C-Node: 2&times; '+_esc2(cfg.clientNet||'100GbE')+' frontend + 8&times; backend (dual-rail) + 1&times; 1GbE OOB.<br>';
+      h+='Each D-Node: 8&times; backend (dual-rail) + 1&times; 1GbE OOB.<br>';
+      h+='See Panel 5 Port Assignment Table for full per-port details.</p></div>';
+      lld.innerHTML=h;
+    }
+
+    /* BOM table */
+    var bom = document.getElementById('bom-tbody');
+    if(bom){
+      var rows='';
+      rows+='<tr><td>VAST-CN-'+sz.cnModel.replace(' ','-').toUpperCase()+'</td><td>VAST '+sz.cnModel+' C-Node — AMD EPYC, 2U</td><td>Compute</td><td>'+sz.cnCount+'</td><td>Node</td><td>Protocol processing, data reduction</td></tr>';
+      rows+='<tr><td>VAST-DN-'+sz.dnModel.toUpperCase()+'-1920</td><td>VAST '+sz.dnModel+' D-Node — 1920TB raw QLC NVMe, 4U</td><td>Storage</td><td>'+sz.dnCount+'</td><td>Node</td><td>'+_fmtTB(1920)+' raw each, 8TB SCM buffers</td></tr>';
+      rows+='<tr><td>SW-'+sz.swName.replace(/\s+/g,'-').toUpperCase()+'-BACKEND</td><td>'+sz.swName+' — Backend Fabric Switch</td><td>Network</td><td>'+sz.swCount+'</td><td>Switch</td><td>'+fabric+' storage fabric</td></tr>';
+      rows+='<tr><td>SW-FE-CLIENT</td><td>Customer L3 Frontend Switch ('+cfg.clientNet+')</td><td>Network</td><td>1+</td><td>Switch</td><td>Client access network</td></tr>';
+      rows+='<tr><td>SW-OOB-1G</td><td>1GbE OOB Management Switch</td><td>Network</td><td>1</td><td>Switch</td><td>IPMI/BMC management</td></tr>';
+      rows+='<tr><td>CABLE-DAC-BACKEND</td><td>100G DAC/AOC Backend Cables</td><td>Cabling</td><td>'+(sz.cnCount+sz.dnCount)*8+'</td><td>Cable</td><td>C-Node &amp; D-Node to fabric switches</td></tr>';
+      rows+='<tr><td>CABLE-25G-CLIENT</td><td>'+cfg.clientNet+' Client Cables</td><td>Cabling</td><td>'+sz.cnCount*2+'</td><td>Cable</td><td>C-Node frontend ports to client switch</td></tr>';
+      rows+='<tr><td>CABLE-1G-OOB</td><td>1GbE Cat6 OOB Cables</td><td>Cabling</td><td>'+(sz.cnCount+sz.dnCount+sz.swCount)+'</td><td>Cable</td><td>All nodes to OOB management switch</td></tr>';
+      rows+='<tr><td>RACK-42U</td><td>42U Server Rack with PDU</td><td>Rack</td><td>'+Math.ceil(sz.totalRU/38)+'</td><td>Rack</td><td>'+sz.totalRU+'U total footprint</td></tr>';
+      rows+='<tr><td>VAST-OS-LICENSE</td><td>VAST AI OS v5.4.1 — Software License</td><td>Software</td><td>1</td><td>Cluster</td><td>Included with hardware</td></tr>';
+      rows+='<tr><td>VAST-SUPPORT-3Y</td><td>VAST 24/7 Support — 3-Year Subscription</td><td>Support</td><td>1</td><td>Contract</td><td>24/7 phone, on-site, software updates</td></tr>';
+      bom.innerHTML=rows;
+      var ti=document.getElementById('bom-total-items');
+      if(ti) ti.textContent=bom.querySelectorAll('tr').length+' line items';
+    }
+
+  } catch(e){ console.warn('_buildInlineDeliverables error',e); }
+}
+function _esc2(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 </script>
 </body>
