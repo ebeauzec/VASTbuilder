@@ -2207,7 +2207,6 @@ function _buildBCDRRunbook() {
   var p    = cfg.provisioning || {};
   var r    = cfg.results || {};
   var s    = cfg.sizing || {};
-  var n    = cfg.network || {};
   var org  = (cfg.customer && cfg.customer.orgName) ? _esc(cfg.customer.orgName) : 'Customer';
   var clN  = p.clusterName || 'vast-cluster-01';
   var vipS = p.vipStart    || '10.100.20.100';
@@ -2215,7 +2214,7 @@ function _buildBCDRRunbook() {
   var date = new Date().toLocaleDateString('en-GB', {year:'numeric',month:'long',day:'numeric'});
   var repl      = adv.bcEnabled || false;
   var replType  = adv.bcReplicationType || 'async';
-  var remoteIP  = adv.bcRemoteClusterIP || '&lt;DR-CLUSTER-IP&gt;';
+  var remoteIP  = adv.bcRemoteClusterIP || '<DR-CLUSTER-IP>';
   var remoteClN = adv.bcRemoteClusterName || clN + '-dr';
   var rpoMin    = adv.bcRPOMinutes || 60;
   var snapSch   = adv.bcSnapshotSchedule || 'hourly';
@@ -2225,173 +2224,71 @@ function _buildBCDRRunbook() {
   var dailyChg  = (cfg.workload && cfg.workload.changeRate) || 10;
   var dailyGB   = Math.round(eTB * dailyChg / 100 * 1024);
   var wanReqGbps= (dailyGB / (24 * 3600) * 8).toFixed(2);
-  var snapSchedVCLI = snapSch === 'hourly' ? '1 hour' : (snapSch.indexOf('4') !== -1 ? '4 hours' : (snapSch === 'daily' ? '1 day' : '1 week'));
-  var rtoStr    = rpoMin <= 15 ? '&lt;15 minutes' : (rpoMin <= 60 ? '&lt;1 Hour' : '&lt;4 Hours');
-
-  var cb   = function(c) { return '<pre style="background:#040608;border:1px solid rgba(99,102,241,0.25);border-radius:6px;padding:0.9rem 1.1rem;font-family:JetBrains Mono,monospace;font-size:0.79rem;color:#10B981;line-height:1.65;margin:0.5rem 0;overflow-x:auto;white-space:pre;">' + c + '</pre>'; };
-  var warn = function(t) { return '<div style="background:rgba(239,68,68,0.07);border-left:3px solid #EF4444;border-radius:0 6px 6px 0;padding:0.75rem 1rem;margin:0.75rem 0;font-size:0.84rem;color:#FCA5A5;">' + t + '</div>'; };
-  var note = function(t) { return '<div style="background:rgba(245,158,11,0.07);border-left:3px solid #F59E0B;border-radius:0 6px 6px 0;padding:0.75rem 1rem;margin:0.75rem 0;font-size:0.84rem;color:#FCD34D;">' + t + '</div>'; };
-  var info = function(t) { return '<div style="background:rgba(16,185,129,0.06);border-left:3px solid #10B981;border-radius:0 6px 6px 0;padding:0.75rem 1rem;margin:0.75rem 0;font-size:0.84rem;color:#A7F3D0;">' + t + '</div>'; };
-  var h2   = function(t) { return '<h2 style="color:#10B981;font-size:1.15rem;font-weight:700;margin:2rem 0 0.75rem;padding-bottom:0.5rem;border-bottom:1px solid rgba(255,255,255,0.07);">' + t + '</h2>'; };
-  var h3   = function(t) { return '<h3 style="color:#A7F3D0;font-size:1rem;font-weight:600;margin:1.25rem 0 0.5rem;">' + t + '</h3>'; };
-
-  var wanWarn = (parseFloat(wanReqGbps) > wanGbps)
-    ? warn('<strong>WARNING:</strong> Required WAN bandwidth (' + wanReqGbps + ' Gbps) exceeds available WAN (' + wanGbps + ' Gbps). Replication lag may exceed RPO target.')
-    : info('WAN bandwidth sufficient for continuous replication with headroom.');
-
+  var snapSchedVCLI = (snapSch === 'hourly') ? '1 hour' : (snapSch.indexOf('4') !== -1 ? '4 hours' : (snapSch === 'daily' ? '1 day' : '1 week'));
+  var rtoStr    = rpoMin <= 15 ? '<15 min' : (rpoMin <= 60 ? '<1 Hour' : '<4 Hours');
+  var cc = r.cnodeCount || 4;
+  var dc = r.dnodeCount || 2;
+  function cb(c) { return '<pre style="background:#040608;border:1px solid rgba(99,102,241,0.25);border-radius:6px;padding:0.9rem 1.1rem;font-family:JetBrains Mono,monospace;font-size:0.79rem;color:#10B981;line-height:1.65;margin:0.5rem 0;overflow-x:auto;white-space:pre;">' + c + '</pre>'; }
+  function warn(t) { return '<div style="background:rgba(239,68,68,0.07);border-left:3px solid #EF4444;border-radius:0 6px 6px 0;padding:0.75rem 1rem;margin:0.75rem 0;font-size:0.84rem;color:#FCA5A5;">' + t + '</div>'; }
+  function note(t) { return '<div style="background:rgba(245,158,11,0.07);border-left:3px solid #F59E0B;border-radius:0 6px 6px 0;padding:0.75rem 1rem;margin:0.75rem 0;font-size:0.84rem;color:#FCD34D;">' + t + '</div>'; }
+  function info(t) { return '<div style="background:rgba(16,185,129,0.06);border-left:3px solid #10B981;border-radius:0 6px 6px 0;padding:0.75rem 1rem;margin:0.75rem 0;font-size:0.84rem;color:#A7F3D0;">' + t + '</div>'; }
+  function h2(t)   { return '<h2 style="color:#10B981;font-size:1.15rem;font-weight:700;margin:2rem 0 0.75rem;padding-bottom:0.5rem;border-bottom:1px solid rgba(255,255,255,0.07);">' + t + '</h2>'; }
+  function h3(t)   { return '<h3 style="color:#A7F3D0;font-size:1rem;font-weight:600;margin:1.25rem 0 0.5rem;">' + t + '</h3>'; }
+  var wanWarn = (parseFloat(wanReqGbps) > wanGbps) ? warn('WAN required (' + wanReqGbps + ' Gbps) exceeds available (' + wanGbps + ' Gbps). Replication lag may exceed RPO.') : info('WAN bandwidth sufficient for continuous replication.');
   var out = '';
   out += '<h1>BC/DR Operational Runbook &mdash; VAST Enterprise Storage</h1>';
-  out += '<p class="doc-meta">Customer: ' + org + ' &nbsp;|&nbsp; Primary Cluster: ' + clN + ' &nbsp;|&nbsp; Date: ' + date + ' &nbsp;|&nbsp; Version: 1.0</p>';
-  out += '<p style="font-size:0.85rem;color:#9CA3AF;margin-bottom:2rem;">This runbook documents BC/DR procedures for the VAST storage cluster. Covers monitoring, planned failover, unplanned DR, failback, and monthly DR tests.<br><strong style="color:#A7F3D0;">Reference:</strong> VAST AI OS Admin Guide &rarr; Protection Policies &bull; https://kb.vastdata.com/</p>';
-
+  out += '<p class="doc-meta">Customer: ' + org + ' &nbsp;|&nbsp; Cluster: ' + clN + ' &nbsp;|&nbsp; Date: ' + date + '</p>';
+  out += '<p style="font-size:0.85rem;color:#9CA3AF;margin-bottom:2rem;">BC/DR procedures: monitoring, planned failover, unplanned DR, failback, monthly DR tests. Reference: VAST Admin Guide | https://kb.vastdata.com/</p>';
   out += '<div class="doc-section">';
   out += h2('1. BC/DR Architecture Overview');
   out += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>';
-  out += '<tr><td>Primary Site</td><td><strong>' + clN + '</strong> (' + (r.cnodeCount||4) + 'x CNodes, ' + (r.dnodeCount||2) + 'x DNodes)</td></tr>';
-  out += '<tr><td>DR Site</td><td><strong>' + (repl ? remoteClN + ' at ' + remoteIP : 'Not configured &mdash; configure in Panel 7 &rarr; BC/DR') + '</strong></td></tr>';
-  out += '<tr><td>Replication Type</td><td>' + (replType === 'sync' ? '&#10003; Synchronous Mirror (Active-Active, RPO = 0)' : '&#10003; Asynchronous Mirror (RPO = ~' + rpoMin + ' min)') + '</td></tr>';
+  out += '<tr><td>Primary Site</td><td><strong>' + clN + '</strong> (' + cc + 'x CNodes, ' + dc + 'x DNodes)</td></tr>';
+  out += '<tr><td>DR Site</td><td><strong>' + (repl ? remoteClN + ' at ' + remoteIP : 'Not configured') + '</strong></td></tr>';
+  out += '<tr><td>Replication Type</td><td>' + (replType === 'sync' ? 'Synchronous Mirror (RPO=0)' : 'Asynchronous Mirror (RPO=~' + rpoMin + ' min)') + '</td></tr>';
   out += '<tr><td>RPO Target</td><td><strong>' + rpoMin + ' minutes</strong></td></tr>';
   out += '<tr><td>RTO Target</td><td><strong>' + rtoStr + '</strong></td></tr>';
   out += '<tr><td>Snapshot Schedule</td><td>' + snapSch + ' (' + snapRet + ' days retention)</td></tr>';
   out += '<tr><td>Dataset Size</td><td>' + eTB.toFixed(1) + ' TB usable</td></tr>';
   out += '<tr><td>Daily Change Rate</td><td>' + dailyChg + '% = ~' + dailyGB.toLocaleString() + ' GB/day</td></tr>';
-  out += '<tr><td>WAN Bandwidth Required</td><td><strong>' + wanReqGbps + ' Gbps</strong> continuous &bull; Available: ' + wanGbps + ' Gbps</td></tr>';
+  out += '<tr><td>WAN Required</td><td><strong>' + wanReqGbps + ' Gbps</strong> continuous | Available: ' + wanGbps + ' Gbps</td></tr>';
   out += '</tbody></table>';
   out += wanWarn;
   out += '</div>';
-
   out += '<div class="doc-section">';
   out += h2('2. Daily Monitoring Checks');
-  out += cb('# Check cluster health
-vcli admin> cluster list
-
-# Check replication status and lag
-vcli admin> protectedpath list
-# Key field: Replication Lag should be < ' + rpoMin + ' minutes
-
-# Check snapshot inventory
-vcli admin> snapshot list --policy-name "' + clN + '-snap-policy"
-
-# Verify DR site connectivity
-vcli admin> remoteserver list   # Status should be CONNECTED');
-  out += note('VAST REST API at https://' + vipS + '/api &mdash; integrate with Prometheus/Grafana, Zabbix, or Datadog via VMS REST API for automated monitoring.');
+  out += cb('# Check cluster health\nvcli admin> cluster list\n\n# Check replication status and lag\nvcli admin> protectedpath list\n# Replication Lag should be < ' + rpoMin + ' minutes\n\n# Check snapshot inventory\nvcli admin> snapshot list --policy-name "' + clN + '-snap-policy"\n\n# Verify DR site connectivity\nvcli admin> remoteserver list');
+  out += note('VAST REST API at https://' + vipS + '/api &mdash; integrate with Prometheus/Grafana, Zabbix, or Datadog.');
   out += '</div>';
-
   out += '<div class="doc-section">';
   out += h2('3. Planned Failover Procedure');
   out += note('Use for scheduled primary site maintenance. Both sites must be healthy and in-sync.');
   out += h3('3.1 Pre-Failover Checks');
-  out += cb('# Verify replication in sync (lag should be near 0)
-vcli admin> protectedpath list
-
-# Notify users of planned maintenance window
-# Quiesce applications (stop all writes to primary)
-
-# Force a final snapshot
-vcli admin> snapshot create \
-  --policy-name "' + clN + '-snap-policy" \
-  --comment "Pre-planned-failover-snapshot"');
+  out += cb('# Verify replication in sync (lag near 0)\nvcli admin> protectedpath list\n\n# Notify users of planned maintenance window\n# Quiesce applications (stop all writes to primary)\n\n# Force a final snapshot\nvcli admin> snapshot create \\\n  --policy-name "' + clN + '-snap-policy" \\\n  --comment "Pre-planned-failover-snapshot"');
   out += h3('3.2 Initiate Planned Failover');
-  out += cb('# On PRIMARY cluster:
-vcli admin> protectedpath promote \
-  --name "' + clN + '-data-snap" \
-  --planned
-
-# Monitor status transition: SYNCED -> FAILING_OVER -> FAILED_OVER
-vcli admin> protectedpath list
-
-# When FAILED_OVER: re-mount clients at DR site VIP (' + remoteIP + ')');
+  out += cb('# On PRIMARY cluster:\nvcli admin> protectedpath promote \\\n  --name "' + clN + '-data-snap" \\\n  --planned\n\n# Monitor: SYNCED -> FAILING_OVER -> FAILED_OVER\nvcli admin> protectedpath list\n\n# When FAILED_OVER: re-mount clients at DR site VIP (' + remoteIP + ')');
   out += h3('3.3 Client Re-mount at DR Site');
-  out += cb('# Linux:
-umount /mnt/vast
-mount -t nfs -o vers=3,proto=tcp,nconnect=8,rsize=1048576,wsize=1048576,hard \
-  ' + remoteIP + ':' + vPath + ' /mnt/vast
-
-# Update /etc/fstab and DNS to point to DR site VIP');
+  out += cb('# Linux:\numount /mnt/vast\nmount -t nfs -o vers=3,proto=tcp,nconnect=8,rsize=1048576,wsize=1048576,hard \\\n  ' + remoteIP + ':' + vPath + ' /mnt/vast\n\n# Update /etc/fstab and DNS to point to DR site VIP');
   out += '</div>';
-
   out += '<div class="doc-section">';
   out += h2('4. Unplanned Failover (Disaster Recovery)');
-  out += warn('<strong>EMERGENCY PROCEDURE:</strong> Only invoke when primary site is genuinely unreachable. Forced failover may result in data loss up to the last replication cycle (RPO = ' + rpoMin + ' min).');
+  out += warn('<strong>EMERGENCY:</strong> Only invoke when primary site is genuinely unreachable. May result in data loss up to last replication cycle (RPO = ' + rpoMin + ' min).');
   out += h3('4.1 Declare Disaster and Force Failover');
-  out += cb('# STEP 1: Confirm primary is unrecoverable (check with DC ops team)
-
-# STEP 2: On DR CLUSTER at ' + remoteIP + ':
-vcli admin> protectedpath force-failover \
-  --name "' + clN + '-data-snap"
-
-# WARNING: Breaks replication relationship - resync needed after recovery
-# Status: FORCED_FAILOVER
-
-# STEP 3: Verify data on DR site
-vcli admin> view list
-vcli admin> view show --name "' + remoteClN + '-data"');
+  out += cb('# STEP 1: Confirm primary is unrecoverable (check with DC ops team)\n\n# STEP 2: On DR CLUSTER at ' + remoteIP + ':\nvcli admin> protectedpath force-failover \\\n  --name "' + clN + '-data-snap"\n\n# WARNING: Breaks replication - resync needed after recovery\n# STEP 3: Verify data on DR site\nvcli admin> view list');
   out += h3('4.2 Client Re-mount at DR Site');
-  out += cb('mount -t nfs -o vers=3,proto=tcp,nconnect=8,rsize=1048576,wsize=1048576,hard \
-  ' + remoteIP + ':' + vPath + ' /mnt/vast
-
-# Kubernetes: Update VAST CSI VIP pool to DR site
-# VMware: Update NFS datastore IP in vCenter to ' + remoteIP);
+  out += cb('mount -t nfs -o vers=3,proto=tcp,nconnect=8,rsize=1048576,wsize=1048576,hard \\\n  ' + remoteIP + ':' + vPath + ' /mnt/vast\n\n# Kubernetes: Update VAST CSI VIP pool to DR site\n# VMware: Update NFS datastore IP in vCenter to ' + remoteIP);
   out += h3('4.3 Incident Record');
-  out += cb('#   Disaster declared:    _________________ (UTC)
-#   DR services online:   _________________ (UTC)
-#   RTO achieved:         _________________ hours/minutes
-#   Data loss (RPO):      _________________ minutes (from last snapshot)
-#   Root cause:           _________________ (hardware/network/software/power)');
+  out += cb('#   Disaster declared:    _________________ (UTC)\n#   DR services online:   _________________ (UTC)\n#   RTO achieved:         _________________ hours/minutes\n#   Data loss (RPO):      _________________ minutes\n#   Root cause:           _________________ (hardware/network/software/power)');
   out += '</div>';
-
   out += '<div class="doc-section">';
   out += h2('5. Failback Procedure');
   out += note('Failback after primary site is restored. Primary must be rebuilt/repaired first.');
-  out += cb('# STEP 1: Restore primary infrastructure
-# STEP 2: Re-register primary as replication target from DR site
-
-# On DR cluster (current primary):
-vcli admin> remoteserver create \
-  --name "' + clN + '-primary-recovered" \
-  --mgmt-ip <PRIMARY-RECOVERED-IP>
-
-# STEP 3: Create reverse replication policy
-vcli admin> protectionpolicy create \
-  --name "' + clN + '-failback-policy" \
-  --frame "' + snapSchedVCLI + '" \
-  --keep-local 7d --keep-remote 30d \
-  --remote-server-name "' + clN + '-primary-recovered" \
-  --remote-dir ' + vPath + '
-
-# STEP 4: Wait for sync, then perform planned failover back (Section 3)
-# STEP 5: Verify clients re-mounted to primary VIP ' + vipS);
+  out += cb('# STEP 1: Restore primary infrastructure\n# STEP 2: Re-register primary as replication target from DR site\n\n# On DR cluster (current primary):\nvcli admin> remoteserver create \\\n  --name "' + clN + '-primary-recovered" \\\n  --mgmt-ip <PRIMARY-RECOVERED-IP>\n\n# STEP 3: Create reverse replication policy\nvcli admin> protectionpolicy create \\\n  --name "' + clN + '-failback-policy" \\\n  --frame "' + snapSchedVCLI + '" \\\n  --keep-local 7d --keep-remote 30d \\\n  --remote-server-name "' + clN + '-primary-recovered" \\\n  --remote-dir ' + vPath + '\n\n# STEP 4: Wait for sync, then perform planned failover back (Section 3)\n# STEP 5: Verify clients re-mounted to primary VIP ' + vipS);
   out += '</div>';
-
   out += '<div class="doc-section">';
   out += h2('6. Monthly DR Test (Non-Disruptive)');
   out += info('VAST recommends monthly DR tests. This procedure tests DR data accessibility without interrupting production.');
-  out += cb('# List latest snapshots replicated to DR site:
-vcli admin> snapshot list --remote Yes
-
-# Mount latest snapshot as read-only test volume at DR site:
-vcli admin> view create \
-  --name "dr-test-view" \
-  --path ' + vPath + '/dr-test \
-  --source-snapshot-name <LATEST-SNAPSHOT-NAME> \
-  --policy-name "' + clN + '-nfs-policy" \
-  --vip-pool-name "<DR-VIP-POOL>"
-
-# Mount from test client at DR site (read-only):
-mount -t nfs -o vers=3,nconnect=8,ro ' + remoteIP + ':' + vPath + '/dr-test /mnt/dr-test
-ls -la /mnt/dr-test/
-
-# Clean up:
-umount /mnt/dr-test
-vcli admin> view delete --name "dr-test-view"
-
-# Test Record:
-#   Test Date:             _________________
-#   Snapshot Age (vs RPO=' + rpoMin + 'min): ___________ minutes
-#   Data Accessible:       PASS / FAIL
-#   Tested By:             _________________');
+  out += cb('# List latest snapshots replicated to DR site:\nvcli admin> snapshot list --remote Yes\n\n# Mount latest snapshot as read-only test volume:\nvcli admin> view create \\\n  --name "dr-test-view" \\\n  --path ' + vPath + '/dr-test \\\n  --source-snapshot-name <LATEST-SNAPSHOT-NAME> \\\n  --policy-name "' + clN + '-nfs-policy" \\\n  --vip-pool-name "<DR-VIP-POOL>"\n\n# Mount from test client (read-only):\nmount -t nfs -o vers=3,nconnect=8,ro ' + remoteIP + ':' + vPath + '/dr-test /mnt/dr-test\nls -la /mnt/dr-test/\n\n# Clean up:\numount /mnt/dr-test\nvcli admin> view delete --name "dr-test-view"\n\n# Test Record:\n#   Test Date:             _________________\n#   Snapshot Age (vs RPO=' + rpoMin + 'min): _______\n#   Data Accessible:       PASS / FAIL\n#   Tested By:             _________________');
   out += '</div>';
-
   out += '<div class="doc-section">';
   out += h2('7. Escalation Contacts');
   out += '<table class="cabling-table"><thead><tr><th>Role</th><th>Name</th><th>Contact</th><th>Hours</th></tr></thead><tbody>';
@@ -2399,13 +2296,10 @@ vcli admin> view delete --name "dr-test-view"
   out += '<tr><td>VAST Solutions Engineer</td><td></td><td></td><td>Business hours + on-call</td></tr>';
   out += '<tr><td>Customer Storage Lead</td><td></td><td></td><td></td></tr>';
   out += '<tr><td>Customer IT Manager</td><td></td><td></td><td></td></tr>';
-  out += '<tr><td>Customer NOC / Helpdesk</td><td></td><td></td><td>24/7</td></tr>';
-  out += '<tr><td>Data Centre Ops</td><td></td><td></td><td>24/7</td></tr>';
+  out += '<tr><td>Customer NOC</td><td></td><td></td><td>24/7</td></tr>';
   out += '</tbody></table>';
   out += '</div>';
-
-  out += '<div class="highlight-box" style="margin-top:2rem;">Document Control: Reviewed and tested quarterly. Last reviewed: ' + date + '. Generated by VASTbuilder v2.0 &mdash; &copy; 2024&ndash;2026 Eugene Beauzec. All Rights Reserved.</div>';
-
+  out += '<div class="highlight-box" style="margin-top:2rem;">Document Control: Reviewed quarterly. Last reviewed: ' + date + '. Generated by VASTbuilder v2.0 &mdash; &copy; 2024&ndash;2026 Eugene Beauzec. All Rights Reserved.</div>';
   return out;
 }
 
