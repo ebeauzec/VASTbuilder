@@ -48,9 +48,9 @@
     .sidebar-footer{padding:1rem 1.25rem 1.5rem;font-size:.72rem;color:var(--color-text-muted);border-top:1px solid var(--panel-border);display:flex;flex-direction:column;gap:.35rem}
     /* Preset cards */
     .preset-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1.75rem}
-    .preset-card{background:rgba(255,255,255,.02);border:1px solid var(--panel-border);border-radius:10px;padding:.85rem .75rem;cursor:pointer;transition:var(--transition-smooth);display:flex;flex-direction:column;align-items:center;text-align:center;gap:.4rem;position:relative;}
+    .preset-card{background:rgba(255,255,255,.02);border:1px solid var(--panel-border);border-radius:10px;padding:.85rem .75rem;cursor:pointer;transition:var(--transition-smooth);display:flex;flex-direction:column;align-items:center;text-align:center;gap:.4rem}
     .preset-card:hover{border-color:var(--accent-teal);background:rgba(16,185,129,.06);transform:translateY(-2px)}
-    .preset-card.selected{border-color:var(--accent-teal);background:rgba(16,185,129,.12);box-shadow:0 0 0 2px rgba(16,185,129,.25);}
+    .preset-card.selected{border-color:var(--accent-teal);background:rgba(16,185,129,.1)}
     .preset-icon{font-size:1.5rem;line-height:1}
     .preset-title{font-size:.78rem;font-weight:600;color:#FFF}
     .preset-desc{font-size:.67rem;color:var(--color-text-muted)}
@@ -127,11 +127,7 @@
     .actions-bar{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-top:1px solid var(--panel-border);background:rgba(13,19,33,.5);flex-shrink:0}
     /* h2 gradient override */
     h2{font-size:1.85rem;font-weight:700;margin-bottom:.5rem;background:linear-gradient(135deg,#FFF 0%,#9CA3AF 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    /* Wizard panel visibility */
-    .wizard-panel{display:none}
-    .wizard-panel.active{display:flex;flex-direction:column;flex:1;min-height:0}
     /* Print */
-
     @media print{
       .sidebar,.global-toolbar,.actions-bar,.config-bar,#checkpoints-panel,#toast,#modal-overlay{display:none!important}
       .main-wrapper,.workspace{width:100%!important;padding:0!important;overflow:visible!important}
@@ -390,29 +386,23 @@
       <p class="panel-description">Capture use cases, SLA targets, compliance obligations, budget envelope, and decision timeline to drive the correct architecture.</p>
 
       <div class="glass-panel">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:.5rem;">
-          <h3 style="margin:0;">Use Cases</h3>
-          <span id="uc-count-badge" style="display:none;font-size:.72rem;font-family:var(--font-mono);color:var(--accent-violet);background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);padding:.2rem .65rem;border-radius:20px;">0 selected</span>
-        </div>
-        <p style="font-size:.82rem;color:var(--color-text-secondary);margin-bottom:.75rem;">Select <strong style="color:var(--accent-violet);">all workloads</strong> this VAST cluster must serve &mdash; recommendations and design details update automatically for the selected combination.</p>
+        <h3>Use Cases</h3>
+        <p style="font-size:.85rem;color:var(--color-text-secondary);margin-bottom:.75rem;">Select all workloads this VAST cluster must serve.</p>
         <div class="checkbox-grid">
-          <label class="check-card"><input type="checkbox" id="uc-aiml" onchange="markDirty();updateUseCaseAnalysis()"> AI/ML Training</label>
-          <label class="check-card"><input type="checkbox" id="uc-inference" onchange="markDirty();updateUseCaseAnalysis()"> AI/GPU Inference</label>
-          <label class="check-card"><input type="checkbox" id="uc-hpc" onchange="markDirty();updateUseCaseAnalysis()"> HPC &amp; Genomics</label>
-          <label class="check-card"><input type="checkbox" id="uc-nas" onchange="markDirty();updateUseCaseAnalysis()"> Enterprise NAS</label>
-          <label class="check-card"><input type="checkbox" id="uc-backup" onchange="markDirty();updateUseCaseAnalysis()"> Backup &amp; Archive</label>
-          <label class="check-card"><input type="checkbox" id="uc-vmware" onchange="markDirty();updateUseCaseAnalysis()"> VMware Storage</label>
-          <label class="check-card"><input type="checkbox" id="uc-k8s" onchange="markDirty();updateUseCaseAnalysis()"> Kubernetes/Containers</label>
-          <label class="check-card"><input type="checkbox" id="uc-analytics" onchange="markDirty();updateUseCaseAnalysis()"> OLAP &amp; Analytics</label>
-          <label class="check-card"><input type="checkbox" id="uc-media" onchange="markDirty();updateUseCaseAnalysis()"> Media &amp; VFX</label>
-          <label class="check-card"><input type="checkbox" id="uc-database" onchange="markDirty();updateUseCaseAnalysis()"> Database Storage</label>
-          <label class="check-card"><input type="checkbox" id="uc-compliance" onchange="markDirty();updateUseCaseAnalysis()"> Compliance/Archive</label>
-          <label class="check-card"><input type="checkbox" id="uc-eda" onchange="markDirty();updateUseCaseAnalysis()"> EDA / Design</label>
+          <label class="check-card"><input type="checkbox" id="uc-aiml" onchange="markDirty()"> AI/ML Training</label>
+          <label class="check-card"><input type="checkbox" id="uc-inference" onchange="markDirty()"> AI/GPU Inference</label>
+          <label class="check-card"><input type="checkbox" id="uc-hpc" onchange="markDirty()"> HPC &amp; Genomics</label>
+          <label class="check-card"><input type="checkbox" id="uc-nas" onchange="markDirty()"> Enterprise NAS</label>
+          <label class="check-card"><input type="checkbox" id="uc-backup" onchange="markDirty()"> Backup &amp; Archive</label>
+          <label class="check-card"><input type="checkbox" id="uc-vmware" onchange="markDirty()"> VMware Storage</label>
+          <label class="check-card"><input type="checkbox" id="uc-k8s" onchange="markDirty()"> Kubernetes/Containers</label>
+          <label class="check-card"><input type="checkbox" id="uc-analytics" onchange="markDirty()"> OLAP &amp; Analytics</label>
+          <label class="check-card"><input type="checkbox" id="uc-media" onchange="markDirty()"> Media &amp; VFX</label>
+          <label class="check-card"><input type="checkbox" id="uc-database" onchange="markDirty()"> Database Storage</label>
+          <label class="check-card"><input type="checkbox" id="uc-compliance" onchange="markDirty()"> Compliance/Archive</label>
+          <label class="check-card"><input type="checkbox" id="uc-eda" onchange="markDirty()"> EDA / Design</label>
         </div>
       </div>
-
-      <!-- Use Case Analysis Panel — populated by JS -->
-      <div id="uc-analysis-panel" style="display:none;"></div>
 
       <div class="glass-panel">
         <h3>SLA Requirements</h3>
@@ -496,59 +486,45 @@
       <p class="panel-description">Select a preset to auto-populate recommended parameters, then fine-tune for your specific environment.</p>
 
       <div class="glass-panel">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;flex-wrap:wrap;gap:.5rem;">
-          <h3 style="margin:0;">Workload Presets</h3>
-          <div style="display:flex;align-items:center;gap:.75rem;">
-            <span id="preset-selection-count" style="font-size:.75rem;font-family:var(--font-mono);color:var(--accent-teal);background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);padding:.2rem .65rem;border-radius:20px;display:none;">0 selected</span>
-            <button onclick="clearAllPresets()" style="font-size:.72rem;font-family:var(--font-sans);background:transparent;border:1px solid rgba(255,255,255,.12);color:var(--color-text-muted);padding:.25rem .65rem;border-radius:6px;cursor:pointer;" id="preset-clear-btn" style="display:none;">Clear all</button>
-          </div>
-        </div>
-        <p style="font-size:.82rem;color:var(--color-text-secondary);margin-bottom:1rem;">Select <strong style="color:var(--accent-teal);">one or more</strong> workloads &mdash; the tool blends sizing, protocols, and generates workload-specific best practice recommendations for the combined solution.</p>
-        <div class="preset-grid" id="preset-grid">
-          <div class="preset-card" data-preset="ai-ml-training" onclick="togglePreset('ai-ml-training')">
-            <div class="preset-check-badge" id="badge-ai-ml-training" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
+        <h3>Quick-Start Preset Architectures</h3>
+        <p style="font-size:.85rem;color:var(--color-text-secondary);margin-bottom:1rem;">Click a preset to auto-configure sizing, protocols, and performance defaults for this workload type.</p>
+        <div class="preset-grid">
+          <div class="preset-card" data-preset="ai-ml-training" onclick="applyPreset('ai-ml-training')">
             <div class="preset-icon">&#129504;</div>
             <div class="preset-title">AI/ML Training</div>
             <div class="preset-desc">GPU clusters, large sequential reads</div>
           </div>
-          <div class="preset-card" data-preset="hpc-genomics" onclick="togglePreset('hpc-genomics')">
-            <div class="preset-check-badge" id="badge-hpc-genomics" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
+          <div class="preset-card" data-preset="hpc-genomics" onclick="applyPreset('hpc-genomics')">
             <div class="preset-icon">&#128300;</div>
             <div class="preset-title">HPC/Genomics</div>
             <div class="preset-desc">High throughput, parallel I/O</div>
           </div>
-          <div class="preset-card" data-preset="vmware-vsphere" onclick="togglePreset('vmware-vsphere')">
-            <div class="preset-check-badge" id="badge-vmware-vsphere" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
+          <div class="preset-card" data-preset="vmware-vsphere" onclick="applyPreset('vmware-vsphere')">
             <div class="preset-icon">&#128421;</div>
             <div class="preset-title">VMware/vSphere</div>
             <div class="preset-desc">NFS datastores, VAAI offload</div>
           </div>
-          <div class="preset-card" data-preset="kubernetes-csi" onclick="togglePreset('kubernetes-csi')">
-            <div class="preset-check-badge" id="badge-kubernetes-csi" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
+          <div class="preset-card" data-preset="kubernetes-csi" onclick="applyPreset('kubernetes-csi')">
             <div class="preset-icon">&#9736;</div>
             <div class="preset-title">Kubernetes CSI</div>
             <div class="preset-desc">Dynamic PVC, RWX volumes</div>
           </div>
-          <div class="preset-card" data-preset="backup-archive" onclick="togglePreset('backup-archive')">
-            <div class="preset-check-badge" id="badge-backup-archive" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
+          <div class="preset-card" data-preset="backup-archive" onclick="applyPreset('backup-archive')">
             <div class="preset-icon">&#128230;</div>
             <div class="preset-title">Backup &amp; Archive</div>
             <div class="preset-desc">High reduction, object store</div>
           </div>
-          <div class="preset-card" data-preset="openstack" onclick="togglePreset('openstack')">
-            <div class="preset-check-badge" id="badge-openstack" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
+          <div class="preset-card" data-preset="openstack" onclick="applyPreset('openstack')">
             <div class="preset-icon">&#9729;</div>
             <div class="preset-title">OpenStack</div>
             <div class="preset-desc">Cinder/Manila backends</div>
           </div>
-          <div class="preset-card" data-preset="media-vfx" onclick="togglePreset('media-vfx')">
-            <div class="preset-check-badge" id="badge-media-vfx" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
+          <div class="preset-card" data-preset="media-vfx" onclick="applyPreset('media-vfx')">
             <div class="preset-icon">&#127916;</div>
             <div class="preset-title">Media/VFX</div>
             <div class="preset-desc">Ingest, render farm, streaming</div>
           </div>
-          <div class="preset-card" data-preset="hybrid-dr" onclick="togglePreset('hybrid-dr')">
-            <div class="preset-check-badge" id="badge-hybrid-dr" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
+          <div class="preset-card" data-preset="hybrid-dr" onclick="applyPreset('hybrid-dr')">
             <div class="preset-icon">&#128279;</div>
             <div class="preset-title">Hybrid/DR</div>
             <div class="preset-desc">Async mirror, cloud tiering</div>
@@ -579,9 +555,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Workload Analysis Panel — populated by JS when presets are selected -->
-      <div id="workload-analysis-panel" style="display:none;"></div>
 
       <div class="glass-panel">
         <h3>Data Temperature Distribution</h3>
@@ -2258,135 +2231,55 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783965644"></script>
+<script src="app.js?v=1783962733"></script>
 <script>
-/* ── GLOBAL UI BRIDGE: all onclick-needed functions defined here ── */
+/* ── v2.0 UI Helpers ─────────────────────────────────────── */
+function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}
 
-/* ── Navigation ──────────────────────────────────────────── */
-function switchStep(n){
-  n=parseInt(n,10);
-  if(isNaN(n)||n<1||n>10)return;
-  console.log('[VAST] switchStep',n);
-  document.querySelectorAll('.wizard-panel').forEach(function(p){
-    p.style.display='none'; p.classList.remove('active');
-  });
-  var target=document.getElementById('panel-'+n);
-  if(target){ target.style.display='block'; target.classList.add('active'); }
-  else{ console.warn('[VAST] panel-'+n+' NOT FOUND'); }
-  document.querySelectorAll('.step-item').forEach(function(s){s.classList.remove('active');});
-  var si=document.querySelector('[data-step="'+n+'"]');
-  if(si)si.classList.add('active');
-  var ind=document.getElementById('current-step-indicator');
-  if(ind)ind.textContent=n;
-  var pb=document.getElementById('prev-btn'),nb=document.getElementById('next-btn');
-  if(pb)pb.disabled=(n===1); if(nb)nb.disabled=(n===10);
-  if(window._appSwitchStep)window._appSwitchStep(n);
+function switchAdvTab(t){
+  document.querySelectorAll('.adv-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.adv-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('adv-tab-'+t).classList.add('active');
+  document.getElementById('adv-content-'+t).classList.add('active');
 }
-function navigateStep(dir){
-  var ind=document.getElementById('current-step-indicator');
-  var cur=ind?parseInt(ind.textContent,10)||1:1;
-  console.log('[VAST] navigateStep',dir,'from',cur);
-  switchStep(cur+dir);
+function switchPropTab(t){
+  document.querySelectorAll('.prop-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.prop-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('prop-tab-'+t).classList.add('active');
+  document.getElementById('prop-content-'+t).classList.add('active');
 }
-function markDirty(){if(typeof pushUndoState==='function')pushUndoState();}
-function saveConfig(){if(typeof _saveConfig==='function')_saveConfig();}
-function newConfig(){if(confirm('Start a new blank configuration? Unsaved changes will be lost.'))location.reload();}
-function undo(){if(typeof _undo==='function')_undo();}
-function redo(){if(typeof _redo==='function')_redo();}
-function showCheckpoints(){var p=document.getElementById('checkpoints-panel');if(p)p.classList.toggle('open');}
-function saveCheckpoint(){if(typeof _saveCheckpoint==='function')_saveCheckpoint();}
+function switchDelTab(t){
+  document.querySelectorAll('.del-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.del-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('del-tab-'+t).classList.add('active');
+  document.getElementById('del-content-'+t).classList.add('active');
+}
+function switchDepTab(t){
+  document.querySelectorAll('.dep-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.dep-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('dep-tab-'+t).classList.add('active');
+  document.getElementById('dep-content-'+t).classList.add('active');
+}
 
-/* ── Modal ───────────────────────────────────────────────── */
 function showModal(id){
-  var ov=document.getElementById('modal-overlay');
-  if(ov)ov.classList.add('active');
-  document.querySelectorAll('.modal').forEach(function(m){m.style.display='none';});
-  var tgt=document.getElementById(id);
-  if(tgt)tgt.style.display='flex';
+  const ov=document.getElementById('modal-overlay');
+  ov.classList.add('active');
+  document.querySelectorAll('.modal').forEach(m=>m.style.display='none');
+  const tgt=document.getElementById(id);
+  if(tgt) tgt.style.display='flex';
 }
 function hideModal(id){
-  var tgt=document.getElementById(id);
-  if(tgt)tgt.style.display='none';
-  var any=[].slice.call(document.querySelectorAll('.modal')).some(function(m){return m.style.display!=='none';});
-  if(!any){var ov=document.getElementById('modal-overlay');if(ov)ov.classList.remove('active');}
+  const tgt=document.getElementById(id);
+  if(tgt) tgt.style.display='none';
+  const any=[...document.querySelectorAll('.modal')].some(m=>m.style.display!=='none');
+  if(!any) document.getElementById('modal-overlay').classList.remove('active');
 }
 function closeModalOnOverlay(e){
   if(e.target===document.getElementById('modal-overlay')){
-    document.querySelectorAll('.modal').forEach(function(m){m.style.display='none';});
-    var ov=document.getElementById('modal-overlay');if(ov)ov.classList.remove('active');
+    document.querySelectorAll('.modal').forEach(m=>m.style.display='none');
+    document.getElementById('modal-overlay').classList.remove('active');
   }
 }
-
-/* ── Toast ───────────────────────────────────────────────── */
-function showToast(msg,type){
-  var t=document.getElementById('toast');
-  var tx=document.getElementById('toast-text');
-  if(t&&tx){tx.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2800);}
-}
-
-/* ── Stage collapse ──────────────────────────────────────── */
-function toggleStage(id){var el=document.getElementById(id);if(el)el.classList.toggle('collapsed');}
-
-/* ── Tab switchers ───────────────────────────────────────── */
-function switchAdvTab(t){
-  document.querySelectorAll('.adv-tab-btn').forEach(function(b){b.classList.remove('active');});
-  document.querySelectorAll('.adv-content').forEach(function(c){c.classList.remove('active');});
-  var btn=document.getElementById('adv-tab-'+t),pnl=document.getElementById('adv-content-'+t);
-  if(btn)btn.classList.add('active');if(pnl)pnl.classList.add('active');
-}
-function switchPropTab(t){
-  document.querySelectorAll('.prop-tab-btn').forEach(function(b){b.classList.remove('active');});
-  document.querySelectorAll('.prop-content').forEach(function(c){c.classList.remove('active');});
-  var btn=document.getElementById('prop-tab-'+t),pnl=document.getElementById('prop-content-'+t);
-  if(btn)btn.classList.add('active');if(pnl)pnl.classList.add('active');
-}
-function switchDelTab(t){
-  document.querySelectorAll('.del-tab-btn').forEach(function(b){b.classList.remove('active');});
-  document.querySelectorAll('.del-content').forEach(function(c){c.classList.remove('active');});
-  var btn=document.getElementById('del-tab-'+t),pnl=document.getElementById('del-content-'+t);
-  if(btn)btn.classList.add('active');if(pnl)pnl.classList.add('active');
-}
-function switchDepTab(t){
-  document.querySelectorAll('.dep-tab-btn').forEach(function(b){b.classList.remove('active');});
-  document.querySelectorAll('.dep-content').forEach(function(c){c.classList.remove('active');});
-  var btn=document.getElementById('dep-tab-'+t),pnl=document.getElementById('dep-content-'+t);
-  if(btn)btn.classList.add('active');if(pnl)pnl.classList.add('active');
-}
-
-/* ── Presets & Use Cases (delegate to app.js) ────────────── */
-function applyPreset(name){if(typeof _applyPreset==='function')_applyPreset(name);}
-function togglePreset(name){if(typeof _togglePreset==='function')_togglePreset(name);}
-function clearAllPresets(){if(typeof _clearAllPresets==='function')_clearAllPresets();}
-function updateUseCaseAnalysis(){if(typeof _updateUseCaseAnalysis==='function')_updateUseCaseAnalysis();}
-
-/* ── Export & Downloads ──────────────────────────────────── */
-function downloadText(fn,ct){var a=document.createElement('a');a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(ct);a.download=fn;a.click();}
-function exportHldText(){if(typeof _exportHldText==='function')_exportHldText();else downloadText('VAST_HLD.txt',document.getElementById('del-content-hld-doc')?document.getElementById('del-content-hld-doc').innerText:'');}
-function exportAtpText(){if(typeof _exportAtpText==='function')_exportAtpText();else downloadText('VAST_ATP.txt',document.getElementById('dep-content-atp-doc')?document.getElementById('dep-content-atp-doc').innerText:'');}
-function exportBcdrRunbook(){if(typeof _exportBcdrRunbook==='function')_exportBcdrRunbook();else downloadText('VAST_BCDR_Runbook.txt',document.getElementById('dep-content-bcdr-doc')?document.getElementById('dep-content-bcdr-doc').innerText:'');}
-function exportFirewallMatrix(){var rows=[].slice.call(document.querySelectorAll('#firewall-tbody tr'));var csv=rows.map(function(r){return [].slice.call(r.querySelectorAll('td')).map(function(td){return '"'+td.textContent.trim()+'"';}).join(',');}).join('\n');downloadText('VAST_Firewall_Matrix.csv','Source,Destination,Protocol,Ports,Service,Direction\n'+csv);}
-function exportAllDocuments(){exportHldText();setTimeout(function(){exportAtpText();},200);setTimeout(function(){exportBcdrRunbook();},400);showToast('Exporting all documents...');}
-function exportJsonConfig(){if(typeof _exportJsonConfig==='function')_exportJsonConfig();}
-
-/* ── Sizing & Network delegates ──────────────────────────── */
-function calculateSizing(){if(typeof _calculateSizing==='function')_calculateSizing();}
-function generateVcliCommands(){if(typeof _generateVcliCommands==='function')_generateVcliCommands();}
-function generateNetworkConfig(){if(typeof _generateNetworkConfig==='function')_generateNetworkConfig();}
-function updateReadSlider(){if(typeof _updateReadSlider==='function')_updateReadSlider();}
-function updateWriteSlider(){if(typeof _updateWriteSlider==='function')_updateWriteSlider();}
-function updateReductionSlider(){if(typeof _updateReductionSlider==='function')_updateReductionSlider();}
-function filterCatalog(q){document.querySelectorAll('#catalog-tbody tr').forEach(function(r){r.style.display=r.textContent.toLowerCase().indexOf(q.toLowerCase())>-1?'':'none';});}
-
-/* ── After app.js loads, wire up real implementations ────── */
-document.addEventListener('DOMContentLoaded',function(){
-  /* Wire app.js implementations to bridge functions */
-  if(typeof window.switchStep==='function'){window._appSwitchStep=window.switchStep;}
-  if(typeof window.saveConfig==='function'||typeof saveConfig==='function'){
-    if(typeof saveConfig==='function'&&saveConfig!==window.saveConfig)window._saveConfig=saveConfig;
-  }
-  /* Delegate calculateSizing to app.js version */
-  if(typeof window.calculateSizing==='function'){window._calculateSizing=window.calculateSizing;}
-});
 
 function toggleColdTier(){
   const en=document.getElementById('cold-tier-enabled').checked;
@@ -2483,9 +2376,32 @@ function readConfigFile(file){
   r.readAsText(file);
 }
 
-/* showToast defined in app.js */
+function showToast(msg,dur=2800){
+  const t=document.getElementById('toast');
+  const tx=document.getElementById('toast-text');
+  if(t&&tx){tx.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
+}
 
-/* exportHldText/exportAtpText/exportBcdrRunbook/exportFirewallMatrix/exportAllDocuments/downloadText defined in app.js */
+function exportHldText(){downloadText('VAST_HLD.txt',document.getElementById('del-content-hld-doc')?.innerText||'')}
+function exportAtpText(){downloadText('VAST_ATP.txt',document.getElementById('dep-content-atp-doc')?.innerText||'')}
+function exportBcdrRunbook(){downloadText('VAST_BCDR_Runbook.txt',document.getElementById('dep-content-bcdr-doc')?.innerText||'')}
+function exportFirewallMatrix(){
+  const rows=[...document.querySelectorAll('#firewall-tbody tr')];
+  const csv=rows.map(r=>[...r.querySelectorAll('td')].map(td=>`"${td.textContent.trim()}"`).join(',')).join('\n');
+  downloadText('VAST_Firewall_Matrix.csv','Source,Destination,Protocol,Ports,Service,Direction\n'+csv);
+}
+function exportAllDocuments(){
+  exportHldText();
+  setTimeout(()=>{if(typeof exportLldText==='function')exportLldText();},200);
+  setTimeout(()=>{if(typeof exportDeploymentGuideText==='function')exportDeploymentGuideText();},400);
+  setTimeout(()=>{if(typeof exportJsonConfig==='function')exportJsonConfig();},600);
+  showToast('Exporting all documents...');
+}
+function downloadText(fn,ct){
+  const a=document.createElement('a');
+  a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(ct);
+  a.download=fn;a.click();
+}
 function markDirty(){if(typeof pushUndoState==='function')pushUndoState();}
 
 document.addEventListener('DOMContentLoaded',()=>{

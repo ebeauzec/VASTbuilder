@@ -4,6 +4,7 @@
 // === Targets index.html (6-panel wizard) ===
 // ============================================================
 
+'use strict';
 
 // ============================================================
 // === SECTION 1: DB MODULE (IndexedDB) ===
@@ -164,8 +165,7 @@ const AppState = {
     },
     results: { cnodeCount:4, dnodeCount:2, cboxCount:1, switchCount:2, effectiveTB:500, physicalTB:166.7, rawTB:171.8, scmTB:12.8, ru:10, powerW:3200, heatBTU:10918, weightKg:136, readThroughputGBs:40, writeThroughputGBs:10, dboxModel:'ceres-df3015' }
   },
-  autoSaveTimer: null,
-  selectedPresets: []
+  autoSaveTimer: null
 };
 
 function switchStep(n) {
@@ -1607,290 +1607,46 @@ function toggleStage(stageId) {
   if (header) header.classList.toggle('collapsed', isOpen);
 }
 
-// ----- Pr// ============================================================
-// === MULTI-SELECT PRESET SYSTEM ===
-// ============================================================
+// ----- Preset Application -----
+function applyPreset(presetName) {
+  const preset = PRODUCT_CATALOG.workloadPresets[presetName];
+  if (!preset) { console.warn('Unknown preset:', presetName); return; }
 
-// Per-preset full config map
-var PRESET_CONFIGS = {
-  'ai-ml-training':  { nfs3:true,  nfs4:true,  smb:false, s3:false, nvme:true,  uc:{'uc-aiml':true,'uc-k8s':true,'uc-inference':false,'uc-hpc':false,'uc-nas':false,'uc-backup':false,'uc-vmware':false,'uc-analytics':false,'uc-media':false},   clientOs:'gpu',       gpu:8,  dp:'unstructured', hot:70, warm:25, cold:5,  cr:15, fs:'huge',   vmware:false, k8s:true,  worm:false, dare:true,  repl:false, read:200, write:40,  rr:2.5, net:'200', fab:'RoCEv2' },
-  'hpc-genomics':    { nfs3:true,  nfs4:true,  smb:false, s3:false, nvme:false, uc:{'uc-hpc':true,'uc-analytics':true,'uc-aiml':false,'uc-nas':false,'uc-backup':false,'uc-vmware':false,'uc-k8s':false,'uc-media':false,'uc-inference':false},    clientOs:'linux',     gpu:0,  dp:'unstructured', hot:50, warm:40, cold:10, cr:20, fs:'large',  vmware:false, k8s:false, worm:false, dare:true,  repl:false, read:150, write:50,  rr:3.0, net:'100', fab:'RoCEv2' },
-  'vmware-vsphere':  { nfs3:false, nfs4:true,  smb:false, s3:false, nvme:false, uc:{'uc-vmware':true,'uc-nas':true,'uc-database':true,'uc-aiml':false,'uc-backup':false,'uc-k8s':false,'uc-hpc':false,'uc-analytics':false,'uc-media':false},      clientOs:'mixed',     gpu:0,  dp:'mixed',        hot:40, warm:45, cold:15, cr:8,  fs:'large',  vmware:true,  k8s:false, worm:false, dare:true,  repl:false, read:40,  write:15,  rr:4.0, net:'25',  fab:'RoCEv2' },
-  'kubernetes-csi':  { nfs3:false, nfs4:true,  smb:false, s3:true,  nvme:false, uc:{'uc-k8s':true,'uc-aiml':true,'uc-analytics':true,'uc-nas':false,'uc-backup':false,'uc-vmware':false,'uc-hpc':false,'uc-media':false,'uc-inference':false},      clientOs:'container', gpu:4,  dp:'mixed',        hot:60, warm:30, cold:10, cr:12, fs:'large',  vmware:false, k8s:true,  worm:false, dare:true,  repl:false, read:60,  write:20,  rr:3.0, net:'100', fab:'RoCEv2' },
-  'backup-archive':  { nfs3:true,  nfs4:false, smb:false, s3:true,  nvme:false, uc:{'uc-backup':true,'uc-compliance':true,'uc-nas':false,'uc-aiml':false,'uc-vmware':false,'uc-k8s':false,'uc-hpc':false,'uc-analytics':false,'uc-media':false},    clientOs:'mixed',     gpu:0,  dp:'object',       hot:10, warm:30, cold:60, cr:30, fs:'huge',   vmware:false, k8s:false, worm:true,  dare:true,  repl:true,  read:20,  write:30,  rr:5.0, net:'25',  fab:'RoCEv2' },
-  'openstack':       { nfs3:true,  nfs4:true,  smb:false, s3:true,  nvme:true,  uc:{'uc-nas':true,'uc-analytics':true,'uc-aiml':false,'uc-backup':false,'uc-vmware':false,'uc-k8s':false,'uc-hpc':false,'uc-media':false,'uc-inference':false},      clientOs:'linux',     gpu:0,  dp:'mixed',        hot:45, warm:40, cold:15, cr:10, fs:'medium', vmware:false, k8s:false, worm:false, dare:true,  repl:false, read:50,  write:20,  rr:3.5, net:'100', fab:'RoCEv2' },
-  'media-vfx':       { nfs3:true,  nfs4:false, smb:true,  s3:false, nvme:false, uc:{'uc-media':true,'uc-nas':true,'uc-aiml':false,'uc-backup':false,'uc-vmware':false,'uc-k8s':false,'uc-hpc':false,'uc-analytics':false,'uc-inference':false},      clientOs:'mixed',     gpu:0,  dp:'unstructured', hot:60, warm:35, cold:5,  cr:25, fs:'huge',   vmware:false, k8s:false, worm:false, dare:true,  repl:false, read:100, write:30,  rr:1.5, net:'100', fab:'RoCEv2' },
-  'hybrid-dr':       { nfs3:true,  nfs4:true,  smb:true,  s3:true,  nvme:false, uc:{'uc-nas':true,'uc-backup':true,'uc-vmware':true,'uc-aiml':false,'uc-k8s':false,'uc-analytics':false,'uc-hpc':false,'uc-media':false,'uc-inference':false},       clientOs:'mixed',     gpu:0,  dp:'mixed',        hot:35, warm:40, cold:25, cr:5,  fs:'large',  vmware:false, k8s:false, worm:false, dare:true,  repl:true,  read:80,  write:30,  rr:3.0, net:'100', fab:'RoCEv2' }
-};
-
-function togglePreset(presetName) {
-  var idx = AppState.selectedPresets.indexOf(presetName);
-  if (idx === -1) {
-    AppState.selectedPresets.push(presetName);
-  } else {
-    AppState.selectedPresets.splice(idx, 1);
-  }
-  _refreshPresetUI();
-}
-
-function clearAllPresets() {
-  AppState.selectedPresets = [];
-  _refreshPresetUI();
-}
-
-function _refreshPresetUI() {
-  var sel = AppState.selectedPresets;
-  // Update card visuals
-  document.querySelectorAll('.preset-card').forEach(function(card) {
-    var k = card.dataset.preset;
-    var isSelected = sel.indexOf(k) !== -1;
-    card.classList.toggle('selected', isSelected);
-    card.classList.toggle('active', isSelected);
-    var badge = document.getElementById('badge-' + k);
-    if (badge) badge.style.display = isSelected ? 'flex' : 'none';
+  // Highlight the selected card
+  document.querySelectorAll('.preset-card').forEach(card => {
+    card.classList.toggle('active', card.dataset.preset === presetName);
   });
-  // Update count badge
-  var cntEl = document.getElementById('preset-selection-count');
-  var clrEl = document.getElementById('preset-clear-btn');
-  if (cntEl) { cntEl.textContent = sel.length + ' selected'; cntEl.style.display = sel.length > 0 ? 'inline-block' : 'none'; }
-  if (clrEl) clrEl.style.display = sel.length > 0 ? 'inline-block' : 'none';
-  // Apply blended config
-  if (sel.length > 0) {
-    _applyBlendedPresets(sel);
-    _renderWorkloadAnalysis(sel);
-  } else {
-    var panel = document.getElementById('workload-analysis-panel');
-    if (panel) panel.style.display = 'none';
+
+  // Update workload profile selects
+  _setVal('wl-primary-profile', presetName);
+  _setVal('workload-profile', presetName);
+  _setVal('deployment-type', 'on-prem');
+
+  // Apply performance defaults
+  const rtEl = document.getElementById('read-throughput');
+  const wtEl = document.getElementById('write-throughput');
+  const rrEl = document.getElementById('reduction-ratio');
+  if (rtEl) { rtEl.value = preset.readThroughputGBs; updateReadSlider(); }
+  if (wtEl) { wtEl.value = preset.writeThroughputGBs; updateWriteSlider(); }
+  if (rrEl) { rrEl.value = preset.reductionRatio;    updateReductionSlider(); }
+
+  // Apply network defaults
+  _setVal('client-net', preset.clientNet || '100');
+  _setVal('fabric-type', preset.fabricType || 'RoCEv2');
+
+  // Apply protocol defaults from preset
+  if (presetName === 'vmware-vsphere') {
+    _setCheck('proto-nfs4', true); _setCheck('proto-nfs3', false); _setCheck('proto-smb', false);
+  } else if (presetName === 'backup-archive') {
+    _setCheck('proto-s3', true); _setCheck('proto-nfs3', true); _setCheck('proto-nfs4', false);
+  } else if (presetName === 'media-vfx') {
+    _setCheck('proto-nfs3', true); _setCheck('proto-smb', true);
   }
+
   saveStateSnapshot();
   calculateSizing();
   generateVcliCommands();
-}
-
-function _applyBlendedPresets(sel) {
-  // Blend: take max performance, union protocols, union use-cases, weighted avg temps
-  var readMax = 0, writeMax = 0, rrMin = 99, gpuMax = 0;
-  var nfs3=false, nfs4=false, smb=false, s3=false, nvme=false;
-  var worm=false, dare=true, repl=false, vmware=false, k8s=false;
-  var ucUnion = {}; var hotSum=0, warmSum=0, coldSum=0, crSum=0;
-  var nets=[]; var n=sel.length;
-  sel.forEach(function(k) {
-    var c = PRESET_CONFIGS[k]; if (!c) return;
-    readMax  = Math.max(readMax, c.read);
-    writeMax = Math.max(writeMax, c.write);
-    rrMin    = Math.min(rrMin, c.rr);   // lowest ratio = most conservative
-    gpuMax   = Math.max(gpuMax, c.gpu);
-    if (c.nfs3) nfs3=true; if (c.nfs4) nfs4=true;
-    if (c.smb)  smb=true;  if (c.s3)   s3=true;
-    if (c.nvme) nvme=true;
-    if (c.worm)   worm=true;   if (c.repl)   repl=true;
-    if (c.vmware) vmware=true; if (c.k8s)    k8s=true;
-    if (c.uc) Object.keys(c.uc).forEach(function(id){ if(c.uc[id]) ucUnion[id]=true; });
-    hotSum+=c.hot; warmSum+=c.warm; coldSum+=c.cold; crSum+=c.cr;
-    nets.push(parseInt(c.net,10));
-  });
-  // Use highest network speed (max)
-  var netMax = nets.reduce(function(a,b){return Math.max(a,b);}, 25).toString();
-  // Set blended values
-  var rtEl = document.getElementById('read-throughput');
-  var wtEl = document.getElementById('write-throughput');
-  var rrEl = document.getElementById('reduction-ratio');
-  if (rtEl) { rtEl.value = readMax;  updateReadSlider();      }
-  if (wtEl) { wtEl.value = writeMax; updateWriteSlider();     }
-  if (rrEl) { rrEl.value = rrMin;    updateReductionSlider(); }
-  _setVal('client-net', netMax); _setVal('fabric-type', 'RoCEv2');
-  _setCheck('proto-nfs3', nfs3); _setCheck('proto-nfs4', nfs4);
-  _setCheck('proto-smb',  smb);  _setCheck('proto-s3',   s3);
-  _setCheck('proto-nvme', nvme);
-  _setCheck('proto-mix-nfs3', nfs3); _setCheck('proto-mix-nfs4', nfs4);
-  _setCheck('proto-mix-smb', smb);   _setCheck('proto-mix-s3', s3);
-  _setCheck('proto-mix-nvme', nvme);
-  Object.keys(ucUnion).forEach(function(id){ _setCheck(id, true); });
-  _setVal('wl-gpu-count', gpuMax);
-  if (worm)   _setCheck('sec-worm', true);
-  if (repl)   _setCheck('bc-enable-replication', true);
-  if (vmware) { _setCheck('int-vmware', true); if(typeof toggleIntegration==='function') toggleIntegration('vmware'); }
-  if (k8s)    { _setCheck('int-k8s',    true); if(typeof toggleIntegration==='function') toggleIntegration('k8s'); }
-  // Weighted avg temps
-  var hotA=Math.round(hotSum/n), warmA=Math.round(warmSum/n), coldA=Math.round(coldSum/n);
-  var hotEl=document.getElementById('wl-pct-hot'), warmEl=document.getElementById('wl-pct-warm'), coldEl=document.getElementById('wl-pct-cold');
-  var hotV=document.getElementById('wl-pct-hot-val'), warmV=document.getElementById('wl-pct-warm-val'), coldV=document.getElementById('wl-pct-cold-val');
-  if(hotEl){hotEl.value=hotA; if(hotV)hotV.textContent=hotA+'%';}
-  if(warmEl){warmEl.value=warmA; if(warmV)warmV.textContent=warmA+'%';}
-  if(coldEl){coldEl.value=coldA; if(coldV)coldV.textContent=coldA+'%';}
-  // Persist blended values into AppState
-  AppState.config.sizing.readThroughputGBs  = readMax;
-  AppState.config.sizing.writeThroughputGBs = writeMax;
-  AppState.config.sizing.reductionRatio     = rrMin;
-  AppState.config.sizing.workloadProfile    = sel[0];
-}
-
-// Keep applyPreset as an alias for backward compatibility
-function applyPreset(presetName) { togglePreset(presetName); }
-
-function _renderWorkloadAnalysis(sel) {
-  var panel = document.getElementById('workload-analysis-panel');
-  if (!panel) return;
-  panel.style.display = 'block';
-
-  var names = { 'ai-ml-training':'AI/ML Training', 'hpc-genomics':'HPC/Genomics', 'vmware-vsphere':'VMware/vSphere', 'kubernetes-csi':'Kubernetes CSI', 'backup-archive':'Backup & Archive', 'openstack':'OpenStack', 'media-vfx':'Media/VFX', 'hybrid-dr':'Hybrid/DR' };
-  var icons = { 'ai-ml-training':'&#129504;', 'hpc-genomics':'&#128300;', 'vmware-vsphere':'&#128421;', 'kubernetes-csi':'&#9736;', 'backup-archive':'&#128230;', 'openstack':'&#9729;', 'media-vfx':'&#127916;', 'hybrid-dr':'&#128279;' };
-
-  // Compute blended stats for summary bar
-  var readMax=0, writeMax=0, rrMin=99; var protos=[];
-  sel.forEach(function(k){ var c=PRESET_CONFIGS[k]; if(!c)return; readMax=Math.max(readMax,c.read); writeMax=Math.max(writeMax,c.write); rrMin=Math.min(rrMin,c.rr); });
-  if(PRESET_CONFIGS[sel[0]]){ var pc=PRESET_CONFIGS[sel[0]]; if(pc.nfs3)protos.push('NFSv3'); if(pc.nfs4)protos.push('NFSv4.1'); }
-  sel.forEach(function(k){ var c=PRESET_CONFIGS[k]; if(!c)return; if(c.smb&&protos.indexOf('SMB')===-1)protos.push('SMB'); if(c.s3&&protos.indexOf('S3')===-1)protos.push('S3'); if(c.nvme&&protos.indexOf('NVMe/TCP')===-1)protos.push('NVMe/TCP'); if(c.nfs3&&protos.indexOf('NFSv3')===-1)protos.push('NFSv3'); if(c.nfs4&&protos.indexOf('NFSv4.1')===-1)protos.push('NFSv4.1'); });
-
-  var selNames = sel.map(function(k){ return names[k]||k; }).join(' + ');
-  var isMulti = sel.length > 1;
-
-  var html = '';
-  html += '<div class="glass-panel" style="border-color:rgba(99,102,241,.35);background:rgba(99,102,241,.04);">';
-  html += '<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;flex-wrap:wrap;">';
-  html += '<span style="font-size:1.2rem;">' + (isMulti ? '&#127760;' : (icons[sel[0]]||'&#128200;')) + '</span>';
-  html += '<div><h3 style="margin:0;color:var(--accent-violet);">Combined Workload Analysis</h3>';
-  html += '<div style="font-size:.82rem;color:var(--color-text-secondary);">' + selNames + '</div></div>';
-  html += '</div>';
-
-  // Summary metric cards
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin-bottom:1.5rem;">';
-  html += '<div style="background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:.75rem;text-align:center;"><div style="font-size:.7rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.06em;">Peak Read</div><div style="font-size:1.3rem;font-weight:700;color:var(--accent-teal);">' + readMax + '<span style="font-size:.7rem;font-weight:400;"> GB/s</span></div></div>';
-  html += '<div style="background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.2);border-radius:8px;padding:.75rem;text-align:center;"><div style="font-size:.7rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.06em;">Peak Write</div><div style="font-size:1.3rem;font-weight:700;color:var(--accent-violet);">' + writeMax + '<span style="font-size:.7rem;font-weight:400;"> GB/s</span></div></div>';
-  html += '<div style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:.75rem;text-align:center;"><div style="font-size:.7rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.06em;">Min Reduction</div><div style="font-size:1.3rem;font-weight:700;color:var(--accent-amber);">' + rrMin + '<span style="font-size:.7rem;font-weight:400;">:1</span></div></div>';
-  html += '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:.75rem;text-align:center;"><div style="font-size:.7rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.06em;">Protocols</div><div style="font-size:.82rem;font-weight:600;color:#E2E8F0;margin-top:.25rem;">' + protos.join(', ') + '</div></div>';
-  html += '</div>';
-
-  // Multi-workload conflict/compatibility notes
-  if (isMulti) {
-    html += '<div style="background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.15);border-radius:8px;padding:1rem;margin-bottom:1.25rem;">';
-    html += '<div style="font-size:.8rem;font-weight:700;color:var(--accent-teal);margin-bottom:.5rem;">&#9889; Blending Logic Applied</div>';
-    html += '<ul style="font-size:.82rem;color:var(--color-text-secondary);margin:0;padding-left:1.25rem;line-height:1.8;">';
-    html += '<li><strong>Throughput:</strong> Sized to <strong style="color:#E2E8F0;">' + readMax + ' GB/s read / ' + writeMax + ' GB/s write</strong> (maximum across all selected workloads).</li>';
-    html += '<li><strong>Data Reduction:</strong> Using most conservative ratio <strong style="color:#E2E8F0;">' + rrMin + ':1</strong> to avoid under-sizing capacity (e.g., Media/VFX data compresses poorly).</li>';
-    html += '<li><strong>Protocols:</strong> All required protocols enabled: <strong style="color:#E2E8F0;">' + protos.join(', ') + '</strong>. VAST Global Namespace means all clients share one unified dataset.</li>';
-    html += '<li><strong>Network:</strong> Client fabric sized to the highest-bandwidth workload requirement.</li>';
-    html += '</ul></div>';
-  }
-
-  // Per-workload best practices cards
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem;">';
-
-  var bpMap = {
-    'ai-ml-training': {
-      color:'#10B981', icon:'&#129504;',
-      sizing: 'Minimum 4 CNodes recommended for GPU-scale read bandwidth. Each CNode delivers ~50 GB/s sustained read. For >8 DGX nodes, target 200GbE/HDR200 client fabric with RoCEv2.',
-      protocols: 'NFSv4.1 with nconnect=16 on RDMA-capable NICs. Enable NVMe/TCP for sub-100us latency on checkpointing. Mount options: vers=4.1,nconnect=16,rsize=1048576,wsize=1048576.',
-      networking: 'Enable GPUDirect Storage (GDS/cuFile) for direct GPU memory to VAST I/O path. Requires MOFED drivers and RDMA-capable NICs. Set MTU=9000, enable PFC on lossless fabric.',
-      security: 'DARE encryption (AES-256-GCM) has negligible overhead on AI workloads due to VAST hardware acceleration. Enable for compliance.',
-      bestpractices: ['Mount one NFS share per GPU node (nconnect=16 per mount)','Use striped FIO patterns matching training batch sizes (128M-512M block)','Set vm.dirty_ratio=5 vm.dirty_background_ratio=2 on GPU nodes','Monitor per-VIP load distribution via VAST REST API /api/clusters/stats/','Enable VAST DataStore tiering for cold model checkpoints (S3-compatible target)']
-    },
-    'hpc-genomics': {
-      color:'#38BDF8', icon:'&#128300;',
-      sizing: 'Scale CNodes to 1 per 16 HPC clients (minimum 4). Voyager DNodes recommended for genomics (dense QLC + SCM for metadata). 150+4 EC scheme = 2.67% overhead vs 25% RAID-6.',
-      protocols: 'NFSv4.1 preferred (stateful, better locking for POSIX compliance). For MPI-IO workloads, NFSv3 may outperform due to stateless design. Mount with nconnect=8,rsize=524288.',
-      networking: 'Multi-rail NFS (multiple VIPs) distributes load. Enable ECMP on L3 switches. Consider 2x 100GbE per HPC node (bonded). Set net.core.rmem_max=134217728.',
-      security: 'Kerberos V5 authentication for POSIX compliance in regulated genomics environments. DARE + audit logging for HIPAA/GxP compliance.',
-      bestpractices: ['Pre-stage reference genomes to HOT tier before job runs','Use VAST snapshots as read-only scratch checkpoints between pipeline stages','Set readahead to 32MB on HPC clients: echo 32768 > /sys/block/nfs/queue/read_ahead_kb','Size view quotas per project to enforce storage governance','Use QoS policies to prevent backup jobs saturating HPC bandwidth']
-    },
-    'vmware-vsphere': {
-      color:'#6366F1', icon:'&#128421;',
-      sizing: 'VAST supports unlimited VMware datastores per VIP pool. One VIP per ESXi host recommended. VAAI-NAS primitives offload Full Copy, Reserve Space, and File Locking to VAST hardware.',
-      protocols: 'NFSv4.1 with Kerberos for vSphere 7+. VMware requires specific mount options: vers=4.1,minorversion=1. Enable VAAI via VAST NFS plugin (available on VMware Solution Exchange).',
-      networking: '25GbE minimum per ESXi host. Use jumbo frames (MTU 9000) end-to-end. Separate VMkernel for NFS storage (vmk1) from management (vmk0). Enable Flow Control: Rx ON, Tx OFF.',
-      security: 'VAST supports RBAC integration with vCenter SSO. Use dedicated service account for VAAI. Enable vSphere encryption at VM level + DARE for defense-in-depth.',
-      bestpractices: ['One NFS datastore per VAST VIP for load distribution','Enable Storage I/O Control (SIOC) on all VAST datastores for QoS','Use VAST snapshots as VMware array-integrated backup (Veeam/Commvault support)','Set ESXi advanced: NFS.MaxVolumes=256, NFS.HeartbeatTimeout=12','Monitor VAAI Full Copy offload rate in VAST dashboard']
-    },
-    'kubernetes-csi': {
-      color:'#38BDF8', icon:'&#9736;',
-      sizing: 'VAST CSI Driver v2.6+ supports dynamic provisioning with RWX (ReadWriteMany) and RWO (ReadWriteOnce). Recommended: 1 VIP pool per Kubernetes cluster for isolation.',
-      protocols: 'CSI uses NFSv4.1 backend. StorageClass parameters: nfsVersion=4, mountOptions=nconnect=8. For AI training workloads add: mountOptions=rsize=1048576,wsize=1048576.',
-      networking: 'Deploy VAST CSI with node selector targeting GPU nodes. Use dedicated VIP pool for CSI to isolate from general NFS traffic. Set CSI controller replicas=3 for HA.',
-      security: 'CSI supports Kubernetes Secrets for VAST credentials. Enable RBAC: CSI ServiceAccount needs only PVC-level permissions. Use separate VAST Views per namespace.',
-      bestpractices: ['Use VolumeSnapshotClass for Kubernetes-native snapshot/restore workflows','Create separate StorageClass for RWX (training) vs RWO (databases) with different QoS','Set resources.requests.storage accurately to trigger VAST quota enforcement','Use VAST quota on Kubernetes namespace views to prevent runaway PVC usage','Monitor CSI volume stats via kubectl get volumeattachments and VAST REST API']
-    },
-    'backup-archive': {
-      color:'#F59E0B', icon:'&#128230;',
-      sizing: 'High reduction ratio (5:1) expected on backup streams. VAST handles dedup+compression inline at ~3M IOPS. For ingest >20 GB/s, size VIP pool to match backup server concurrency.',
-      protocols: 'S3 for object-based backup (Veeam S3 object repositories, Commvault Cloud Storage). NFSv3 for legacy NDMP/NFS backup. Avoid NFSv4 for backup workloads (stateful reconnection delays).',
-      networking: '25GbE sufficient for most backup workloads. Enable object lock (S3 WORM) for immutable backup targets (ransomware protection). Configure S3 bucket lifecycle policies.',
-      security: 'WORM compliance mode locks objects for defined retention period. VAST WORM is SEC 17a-4 compliant. Enable at view level with --worm-type=COMPLIANCE. Cannot be disabled once set.',
-      bestpractices: ['Use VAST S3 with Veeam Scale-out Backup Repository (SOBR) Capacity Tier for automatic offload','Set S3 object lock with governance/compliance mode matching regulatory retention periods','Enable VAST periodic snapshots (hourly/daily) as additional recovery points before backup jobs','Configure separate QoS policy limiting backup ingest to 40% of cluster bandwidth during business hours','Test restore performance quarterly: VAST can restore at same speed as ingest']
-    },
-    'openstack': {
-      color:'#EF4444', icon:'&#9729;',
-      sizing: 'VAST Cinder driver provides iSCSI/NVMe-oF block volumes. Manila driver provides shared file volumes. Recommend separate VIP pools for Cinder vs Manila. Cinder: 4K random IOPS is the key metric.',
-      protocols: 'OpenStack Cinder backend: use NVMe/TCP (VastOS 5.2+) for lowest latency block storage. Manila backend: NFSv4.1 for shared filesystem. S3 for Swift-compatible object storage via VAST S3 API.',
-      networking: 'OpenStack requires Provider Network VLAN configuration matching VAST frontend VLANs. Set Neutron MTU to 9000 on storage networks. Use SR-IOV on compute nodes for NVMe/TCP.',
-      security: 'VAST integrates with OpenStack Keystone for service authentication. Use per-project VAST Views mapped to OpenStack tenants. Enable Barbican integration for DARE key management.',
-      bestpractices: ['Align OpenStack availability zones with VAST failure domains','Use VAST volume types in Cinder to map different QoS tiers to OpenStack flavors','Enable VAST replication for Cinder volume backup to secondary site','Monitor VAST per-VIP utilization via OpenStack Ceilometer telemetry integration','Set OpenStack Cinder volume quotas to match VAST view quotas for consistent governance']
-    },
-    'media-vfx': {
-      color:'#EC4899', icon:'&#127916;',
-      sizing: 'Media workloads have low data reduction (1.5:1 on already-compressed codecs). Size RAW capacity generously. Ingest: sustained write at 30+ GB/s. Playout: sustained read at 100+ GB/s simultaneously.',
-      protocols: 'NFSv3 preferred by most render farms (Deadline, Tractor). SMB for Windows workstations and editorial suites. Use separate VIP pools for NFSv3 and SMB to isolate workloads.',
-      networking: '100GbE minimum for render farms. Media ingest nodes often require dedicated VIPs. Set nconnect=8 on NFSv3 mounts. For 4K/8K streaming: 3-5 GB/s per concurrent stream.',
-      security: 'SMB signing and encryption for editorial workstations. AD integration for POSIX/Windows dual-persona ACLs. Snap-and-clone for VFX project versioning.',
-      bestpractices: ['Separate VIP pools for ingest vs playout vs render to prevent I/O interference','Enable VAST Global Namespace to present unified view across multiple VAST clusters','Use per-show VAST Views with quotas to track storage costs per production','Configure SMB Multichannel with minimum 2x 25GbE per Windows edit client','Pre-validate render farm performance with IOzone: sequential R/W at 4MB blocks']
-    },
-    'hybrid-dr': {
-      color:'#8B5CF6', icon:'&#128279;',
-      sizing: 'VAST Mirror replication is protocol-agnostic and snapshot-based. WAN bandwidth requirement: (daily change rate % x dataset size) / (RPO window x 3600). Plan for 1.3x peak factor.',
-      protocols: 'All protocols replicate transparently via VAST Mirror. NFS/SMB/S3 clients at DR site mount directly after failover &mdash; no re-export required. VIP pool at DR site must be pre-provisioned.',
-      networking: 'WAN: VAST Mirror uses encrypted TLS 1.3 over TCP port 14001. Does not require MPLS &mdash; works over standard internet. QoS: prioritize VAST replication traffic with DSCP AF21.',
-      security: 'Enable DARE on both primary and DR cluster. Encryption keys are NOT replicated &mdash; DR cluster uses its own KMS. Configure separate VAST clusters per site for blast radius isolation.',
-      bestpractices: ['Test DR failover monthly using VAST planned failover (Section 3 of generated runbook)','Document RTO in operations runbook: VAST failover completes in <5 minutes (VIP pool switch)','Size DR cluster to handle 100% of primary workload during extended DR events','Use VAST cloud tiering to sync cold data to AWS/Azure simultaneously with DR replication','Configure VAST monitoring alerts for replication lag exceeding RPO target']
-    }
-  };
-
-  sel.forEach(function(k) {
-    var bp = bpMap[k]; if (!bp) return;
-    var c = PRESET_CONFIGS[k]; if (!c) return;
-    var protoList = [c.nfs3?'NFSv3':'', c.nfs4?'NFSv4.1':'', c.smb?'SMB':'', c.s3?'S3':'', c.nvme?'NVMe/TCP':''].filter(Boolean).join(', ');
-    html += '<div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-top:3px solid ' + bp.color + ';border-radius:10px;padding:1.1rem;">';
-    html += '<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;">';
-    html += '<span style="font-size:1.3rem;">' + bp.icon + '</span>';
-    html += '<div><div style="font-weight:700;color:' + bp.color + ';font-size:.95rem;">' + (names[k]||k) + '</div>';
-    html += '<div style="font-size:.72rem;font-family:var(--font-mono);color:var(--color-text-muted);">Read: ' + c.read + ' GB/s &bull; Write: ' + c.write + ' GB/s &bull; Reduction: ' + c.rr + ':1 &bull; Net: ' + c.net + 'GbE &bull; Protocols: ' + protoList + '</div></div>';
-    html += '</div>';
-    // Four info sections
-    var sections = [{label:'Sizing',icon:'&#128200;',txt:bp.sizing},{label:'Protocols',icon:'&#128257;',txt:bp.protocols},{label:'Networking',icon:'&#127760;',txt:bp.networking},{label:'Security',icon:'&#128274;',txt:bp.security}];
-    sections.forEach(function(sec) {
-      html += '<div style="margin-bottom:.75rem;">';
-      html += '<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-muted);margin-bottom:.3rem;">' + sec.icon + ' ' + sec.label + '</div>';
-      html += '<div style="font-size:.82rem;color:var(--color-text-secondary);line-height:1.6;">' + sec.txt + '</div>';
-      html += '</div>';
-    });
-    // Best practices list
-    html += '<div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid rgba(255,255,255,.06);">';
-    html += '<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-muted);margin-bottom:.5rem;">&#9989; Best Practices</div>';
-    html += '<ul style="font-size:.8rem;color:var(--color-text-secondary);margin:0;padding-left:1.25rem;line-height:2;">';
-    if (bp.bestpractices) bp.bestpractices.forEach(function(item) { html += '<li>' + item + '</li>'; });
-    html += '</ul></div>';
-    html += '</div>';
-  });
-
-  html += '</div>';
-
-  // Combined cross-workload recommendations (only when multi)
-  if (isMulti) {
-    html += '<div style="margin-top:1.25rem;padding:1rem;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.2);border-radius:8px;">';
-    html += '<div style="font-size:.8rem;font-weight:700;color:var(--accent-amber);margin-bottom:.5rem;">&#9888; Cross-Workload Design Considerations</div>';
-    html += '<ul style="font-size:.82rem;color:var(--color-text-secondary);margin:0;padding-left:1.25rem;line-height:1.9;">';
-    html += '<li><strong>QoS Isolation:</strong> Use VAST Quality of Service policies to prevent any single workload monopolising cluster I/O. Assign dedicated min/max IOPS per VIP pool or view.</li>';
-    html += '<li><strong>VIP Pool Segmentation:</strong> Create separate VIP pools per workload type (e.g., <code style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent-teal);">aiml-vip-pool</code>, <code style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent-teal);">backup-vip-pool</code>) for traffic isolation and monitoring granularity.</li>';
-    html += '<li><strong>Namespace Separation:</strong> Use separate VAST Views per workload with independent quotas, policies, and snapshot schedules. All share the same global data pool.</li>';
-    html += '<li><strong>Concurrent I/O Planning:</strong> The total cluster throughput is shared. Ensure peak demand across all workloads does not exceed the <strong style="color:#E2E8F0;">' + readMax + ' GB/s read / ' + writeMax + ' GB/s write</strong> sizing target simultaneously.</li>';
-    html += '<li><strong>Data Reduction Variance:</strong> Effective reduction will be a weighted average. AI checkpoints and media files reduce poorly; backup/enterprise data reduces well. Monitor actual ratio in VAST dashboard.</li>';
-    html += '<li><strong>Protocol Coexistence:</strong> VAST Global Namespace means all protocols (NFS, SMB, S3) access the same data. ACL consistency required &mdash; use AD-joined VAST with unified ID mapping for NFS/SMB dual-access.</li>';
-    html += '</ul></div>';
-  }
-
-  html += '</div>';
-  panel.innerHTML = html;
-}
-
- + 'GbE', 'success');
+  showToast('Preset applied: ' + preset.name, 'success');
 }
 
 // ----- New Config -----
@@ -2548,186 +2304,6 @@ function _buildBCDRRunbook() {
 }
 
 // ============================================================
-// === USE CASE ANALYSIS (Panel 2) ===
-// ============================================================
-
-var UC_DETAILS = {
-  'uc-aiml': {
-    label: 'AI/ML Training', icon: '&#129504;', color: '#10B981',
-    summary: 'Large-scale model training with GPU clusters reading massive datasets sequentially. Primary bottleneck is storage read throughput. VAST excels here with 200+ GB/s aggregate bandwidth.',
-    sizing:  'Size for peak read throughput: ~12 GB/s per DGX H100 node (8x H100 @ 900 GB/s NVLink, limited by NIC). 4x 200GbE CNodes recommended per 8 DGX nodes. Use NVMe/TCP for lowest-latency checkpoint writes.',
-    protos:  'NFSv4.1 (primary) with nconnect=16 per mount. NVMe/TCP for checkpoint I/O. Enable GPUDirect Storage (GDS) for direct GPU-to-storage DMA path eliminating CPU copy overhead.',
-    network: '200GbE client fabric required. Enable RoCEv2 with PFC/ECN for lossless transport. MTU=9000. Set net.core.rmem_max=134217728 on GPU hosts. One VIP per GPU node recommended.',
-    security:'DARE AES-256-GCM enabled. Model IP protection: per-project VAST Views with RBAC. Immutable snapshots protect trained models from accidental deletion.',
-    bps: ['Mount: vers=4.1,nconnect=16,rsize=1048576,wsize=1048576,hard,timeo=600','Set kernel: echo 32768 > /proc/sys/vm/dirty_ratio on GPU nodes','Use per-experiment VAST snapshots as free rollback points after each training run','QoS: dedicate min 150 GB/s to training VIP pool; limit inference to 50 GB/s','Monitor per-GPU I/O with nvidia-smi dmon + VAST REST /api/clusters/stats/']
-  },
-  'uc-inference': {
-    label: 'AI/GPU Inference', icon: '&#129302;', color: '#38BDF8',
-    summary: 'Model serving for real-time inference. Requires fast model load times (cold start) and low-latency access. I/O pattern: burst read at model load, then minimal I/O during serving.',
-    sizing:  'Model read throughput at load: 10-40 GB/s per inference server depending on model size. After load, IOPS drop to near-zero. Size for peak concurrent model-loading, not steady state.',
-    protos:  'NFSv4.1 or NVMe/TCP for lowest cold-start latency. Consider VAST as the central model registry with inference pods reading via CSI RWX volumes in Kubernetes.',
-    network: '100GbE minimum. Latency-sensitive: enable RDMA where possible. Use local SSD caching on inference servers for hot models, VAST for model registry.',
-    security:'Model weights are sensitive IP. Enforce per-model VAST View with read-only access for inference service accounts. Audit-log all model access via VAST syslog.',
-    bps: ['Use Kubernetes PVC with RWX to share models across inference pod replicas','Pre-warm critical models into page cache before peak traffic windows','Set VAST QoS: high IOPS limit for model-load VIP, lower limit during serving','Version models as VAST snapshots: instant rollback on degraded model performance','Monitor model cold-start p99 latency using VAST per-client statistics']
-  },
-  'uc-hpc': {
-    label: 'HPC & Genomics', icon: '&#128300;', color: '#38BDF8',
-    summary: 'High-performance computing with MPI workloads, genomics pipelines (BWA, GATK, Nextflow), and scientific simulation. Key requirement: high aggregate throughput from many parallel clients simultaneously.',
-    sizing:  'Size for concurrent parallel I/O: N HPC nodes x per-node throughput. Genomics: 5-10 GB/s per pipeline stage. Simulation: 50-200 GB/s for checkpoint I/O. VAST linear throughput scaling with CNodes.',
-    protos:  'NFSv4.1 for POSIX compliance (mandatory for many HPC applications). NFSv3 for MPI-IO workloads where stateless protocol outperforms. Do NOT mix protocols on same dataset.',
-    network: '100GbE minimum. HDR/NDR InfiniBand backend for lowest inter-CNode latency. Multi-rail: 2x 100GbE per HPC node (LACP bonded). Set recv buffer: net.core.rmem_max=134217728.',
-    security:'POSIX ACLs with NFS Kerberos V5 for regulated environments (HIPAA/GxP for genomics). DARE encryption. Immutable snapshots between pipeline stages for audit trail.',
-    bps: ['Pre-stage reference datasets (genome indexes) to HOT tier before job submission','Use VAST QoS policies to guarantee scratch I/O during job runs; throttle during staging','Set readahead: blockdev --setra 65536 /dev/nfsXXX on HPC clients','Create per-project VAST Views with hard quotas to enforce HPC allocation policies','Automate VAST snapshots at job completion for reproducible research']
-  },
-  'uc-nas': {
-    label: 'Enterprise NAS', icon: '&#128193;', color: '#6366F1',
-    summary: 'General-purpose file storage replacing legacy NAS (NetApp, Isilon, VNX). VAST delivers equal or better performance at lower cost with unified multi-protocol access and global namespace.',
-    sizing:  'Enterprise NAS workloads: mixed 4K random (metadata ops) + sequential (large file access). Size for IOPS first, throughput second. VAST delivers >3M IOPS from 4 CNodes.',
-    protos:  'SMB 3.1.1 for Windows clients (with Multichannel for performance). NFSv4.1 for Linux. Both protocols access the same VAST Global Namespace with unified ACLs via AD integration.',
-    network: '10-25GbE sufficient for most NAS workloads. Enable SMB Multichannel (2x 25GbE per Windows client for ~10 GB/s). DNS round-robin across VIPs for client load distribution.',
-    security:'Active Directory integration for Kerberos + NTLM auth. VAST supports dual-persona (NFS UID/GID + Windows SID) on same files. Enable SMB signing + encryption for sensitive shares.',
-    bps: ['Migrate from legacy NAS using robocopy (Windows) or rsync (Linux) with checksums','Enable VAST quotas per department/project share to enforce storage governance','Use VAST snapshots for end-user self-service recovery (SMB Previous Versions)','Set SMB: server signing=required, max protocol=SMB3 in VAST cluster settings','Monitor per-share utilization via VAST REST API to drive chargeback reporting']
-  },
-  'uc-backup': {
-    label: 'Backup & Archive', icon: '&#128230;', color: '#F59E0B',
-    summary: 'VAST as primary backup target or long-term archive. Inline dedup+compression delivers 5:1+ reduction on backup streams. S3-compatible API for modern backup tools. WORM for compliance.',
-    sizing:  'Ingest bandwidth: match backup server aggregate write rate. Typical: 10-30 GB/s for enterprise backup. Restore: VAST restores at same speed as ingest (no penalty). Size capacity at 5:1 reduction.',
-    protos:  'S3 for Veeam/Commvault/Rubrik object repositories. NFSv3 for legacy NDMP/NFS backup. VAST S3 is fully S3-compatible with multipart upload, object locking, and lifecycle rules.',
-    network: '25GbE sufficient. Consider dedicated backup VLAN to isolate backup traffic from production. Enable QoS to throttle backup ingest to 50% bandwidth during business hours.',
-    security:'WORM Object Lock (S3 WORM): COMPLIANCE mode is immutable. GOVERNANCE mode allows admin override. For ransomware protection, use COMPLIANCE mode with 30-90 day minimum retention.',
-    bps: ['Use Veeam SOBR with VAST as Capacity Tier for automated offload of backups older than X days','Enable S3 Object Lock COMPLIANCE mode for regulatory-required immutable backups','Set VAST snapshot schedule independently of backup: hourly snapshots as RPO backstop','Test restore SLA quarterly: VAST restore = ingest rate (no performance penalty)','Monitor dedup/compression ratios in VAST dashboard: alert if ratio drops below 3:1']
-  },
-  'uc-vmware': {
-    label: 'VMware Storage', icon: '&#128421;', color: '#6366F1',
-    summary: 'VAST as NFS datastore for vSphere/ESXi. Supports VAAI-NAS hardware offload, vVols, and native vSphere snapshots. Outperforms VMFS on SAN for most VM workloads.',
-    sizing:  'Size per VM: ~1-3 GB/s peak I/O for IO-intensive VMs. ESXi cluster of 20 hosts: size for 10-20 GB/s aggregate. Enable Storage DRS to balance VMs across datastores automatically.',
-    protos:  'NFSv4.1 (vSphere 6.5+). Mount one NFS datastore per VIP for load distribution. Enable VAAI-NAS plugin from VMware Solution Exchange for Full Copy, Reserve Space, and File Lock offload.',
-    network: '10-25GbE per ESXi host. Separate VMkernel (vmk1) for NFS storage. Enable Jumbo Frames (MTU 9000) end-to-end. Set NFS.MaxVolumes=256 in ESXi advanced settings.',
-    security:'VAST supports per-datastore export policies restricting access by ESXi host IP. Integrate with vCenter SSO for RBAC. Enable VM Encryption at vSphere level + DARE for defense-in-depth.',
-    bps: ['Enable Storage I/O Control (SIOC) on all VAST datastores for automated QoS between VMs','Use VAST snapshots as VMware-integrated backup target (Veeam, Commvault, Zerto)','Mount datastores with nconnect=4 on ESXi for parallelism (vSphere 7+ supports per-connection NFS)','Set VAST QoS: min IOPS per datastore to guarantee VM SLA during peak periods','Monitor VAAI offload statistics in VAST dashboard to verify hardware acceleration is active']
-  },
-  'uc-k8s': {
-    label: 'Kubernetes/Containers', icon: '&#9736;', color: '#38BDF8',
-    summary: 'Dynamic persistent storage for Kubernetes via VAST CSI Driver. Supports RWX (ReadWriteMany for distributed training) and RWO (ReadWriteOnce for databases). Available on OperatorHub.',
-    sizing:  'CSI creates PVCs dynamically from VAST. Size VIP pool to match max concurrent pod count x per-pod throughput. For AI training: 1 PVC per training job, RWX, 1TB+ size typical.',
-    protos:  'VAST CSI backend: NFSv4.1. StorageClass parameters: nfsVersion=4, nconnect=8. Two StorageClasses recommended: vast-rwx (for distributed workloads) and vast-rwo (for databases).',
-    network: 'Kubernetes nodes require access to VAST VIP pool. Ensure pod CIDR can reach VAST frontend subnet. Use NetworkPolicy to restrict PVC access by namespace.',
-    security:'VAST CSI uses Kubernetes Secrets for credentials. Enable RBAC: restrict CSI ServiceAccount to minimum permissions. Use separate VAST Views per Kubernetes namespace for isolation.',
-    bps: ['Deploy VolumeSnapshotClass for Kubernetes-native snapshot/clone workflows (instant PVC clones)','Use VAST quotas mapped to Kubernetes ResourceQuota for consistent governance','Set CSI controller replicas=3 for high availability in production clusters','Monitor VAST per-volume stats via kubectl get volumeattachments + VAST REST API','Use PodDisruptionBudgets with VAST RWX volumes to ensure rolling updates do not lose storage access']
-  },
-  'uc-analytics': {
-    label: 'OLAP & Analytics', icon: '&#128200;', color: '#10B981',
-    summary: 'Data warehouse queries, Spark/Hadoop, ClickHouse, Trino. High read throughput on structured/columnar data. VAST delivers data lakehouse architecture with S3-compatible object storage + NFS.',
-    sizing:  'Spark/Trino: size for aggregate scan throughput across all executor nodes. 100-node Spark cluster at 2 GB/s each = 200 GB/s read. VAST S3 endpoint enables data lakehouse on open formats (Parquet, ORC).',
-    protos:  'S3 for Spark/Trino/Presto data lake access (Delta Lake, Iceberg, Hudi formats). NFSv4.1 for HDFS-replacement (Hadoop HDFS-over-NFS). NVMe/TCP for low-latency OLTP-adjacent analytics.',
-    network: '100GbE minimum. Enable S3 multipart: set s3.multipart.size=128MB in Spark config. Configure spark.hadoop.fs.s3a.connection.maximum=500 for high parallelism.',
-    security:'S3 IAM-style access policies via VAST access keys. Per-dataset VAST Views mapped to S3 bucket paths. Enable encryption in transit (TLS 1.3 on S3 endpoint).',
-    bps: ['Use VAST S3 Select for server-side predicate pushdown (reduces network transfer for columnar scans)','Set Spark: spark.hadoop.fs.s3a.fast.upload=true, buffer.size=128MB for VAST S3 throughput','Partition data by date/region in VAST S3 for partition pruning in Trino/Spark queries','Use VAST snapshots as consistent read snapshots for long-running analytical queries','Monitor S3 request rates in VAST dashboard to identify hot prefixes causing throttling']
-  },
-  'uc-media': {
-    label: 'Media & VFX', icon: '&#127916;', color: '#EC4899',
-    summary: 'Ingest, post-production, render farms, and playout. Low data reduction (media already compressed). Key metrics: sustained sequential throughput for ingest + concurrent stream count for playout.',
-    sizing:  'Ingest: size write throughput to max simultaneous ingest streams. Playout: 4K HDR stream = 1-3 GB/s; 8K = 5-8 GB/s. Render farm: 100 nodes x 500 MB/s = 50 GB/s read. Size RAW capacity (1.5:1 reduction).',
-    protos:  'NFSv3 for Linux render farms (Deadline, Tractor, OpenCue). SMB 3.x for Windows editorial (Avid, Adobe Premiere, DaVinci Resolve). Separate VIP pools for each protocol workload.',
-    network: '100GbE for render farms. 25GbE for Windows editorial workstations (SMB Multichannel). Separate VIPs for ingest vs render vs playout to prevent I/O contention.',
-    security:'AD integration for Windows/Linux dual-persona ACLs. Per-production VAST Views with quotas for cost tracking. Snapshots for show versioning and instant project clone.',
-    bps: ['Benchmark with IOzone before go-live: 4MB sequential R/W matching codec block sizes','Use VAST clone (instant zero-copy) for show branching and conform workflows','Set per-production VAST QoS: guarantee ingest bandwidth priority over render jobs','Monitor concurrent stream count vs throughput to detect VIP pool bottlenecks','Use robocopy /MT:64 for Windows show migration; rsync --bwlimit for background transfers']
-  },
-  'uc-database': {
-    label: 'Database Storage', icon: '&#128194;', color: '#6366F1',
-    summary: 'OLTP database storage: Oracle, PostgreSQL, MySQL, SQL Server. Key metrics: low-latency 4K random I/O. VAST delivers <200us 4K read latency at 3M+ IOPS. Replaces SAN for database tier.',
-    sizing:  'Size for peak IOPS: Oracle OLTP typically 500K-2M IOPS. VAST NVMe/TCP delivers <100us latency. For RAC: use NVMe/TCP with RDG (Remote Direct I/O). PostgreSQL: NFSv4.1 with directio.',
-    protos:  'NVMe/TCP for Oracle RAC, SQL Server, time-series databases (lowest latency). NFSv4.1 with O_DIRECT for PostgreSQL/MySQL. Enable VAST QoS per database view to guarantee IOPS SLA.',
-    network: '100GbE minimum. Enable RoCEv2 for NVMe/TCP. Set vm.swappiness=1, vm.dirty_ratio=5 on database hosts. Dedicated storage VLAN with QoS marking (DSCP EF for database I/O).',
-    security:'DARE mandatory for financial/healthcare databases. Audit logging for SOX/HIPAA compliance. Per-database VAST View with hard quota to prevent runaway writes from consuming cluster capacity.',
-    bps: ['For Oracle: mount with vers=4.1,nconnect=8,actimeo=0,noatime for consistency','For PostgreSQL: set max_wal_size=4GB, checkpoint_completion_target=0.9 with VAST','Use VAST crash-consistent snapshots for database hot backup (no quiesce required)','Enable VAST QoS with min_iops guarantee for databases to survive backup storms','Validate 4K random read latency < 200us with fio: --rw=randread --bs=4k --iodepth=1']
-  },
-  'uc-compliance': {
-    label: 'Compliance/Archive', icon: '&#128274;', color: '#F59E0B',
-    summary: 'Long-term immutable storage for regulated industries. VAST WORM is SEC 17a-4, CFTC 1.31, FINRA 4370 compliant. Object Lock for S3-based compliance workflows.',
-    sizing:  'Compliance archives grow monotonically. Size with 5-year growth projection. VAST handles mixed WORM + non-WORM on same cluster via per-view WORM policy. No separate compliance appliance needed.',
-    protos:  'S3 with Object Lock for modern compliance workflows (Veeam/Cohesity/Veritas). NFSv4.1 with WORM view policy for legacy file-based compliance. Both on same cluster simultaneously.',
-    network: 'Standard 25GbE sufficient. Compliance workloads are write-once: size ingest bandwidth, not read. Enable VAST audit logging to syslog for all access to WORM views.',
-    security:'WORM COMPLIANCE mode: once set, retention period cannot be reduced by any user including admin. GOVERNANCE mode: admin can override. Use COMPLIANCE for regulatory mandates. Enable DARE.',
-    bps: ['Set retention period matching regulatory requirement: SEC 17a-4 = 3-7 years; HIPAA = 6 years minimum','Test WORM enforcement before go-live: attempt to delete a file and verify rejection','Document WORM configuration in DLP/compliance policies for auditor review','Use VAST audit log export (syslog) integrated with SIEM (Splunk/QRadar) for compliance reporting','Implement legal hold via VAST S3 Object Lock Legal Hold (indefinite hold, supersedes retention)']
-  },
-  'uc-eda': {
-    label: 'EDA / Chip Design', icon: '&#9883;', color: '#8B5CF6',
-    summary: 'Electronic Design Automation (EDA/CAD) storage. Highly metadata-intensive (millions of small files). Key metrics: metadata IOPS and small-file read latency. VAST SCM tier accelerates metadata.',
-    sizing:  'EDA workloads: 1M+ files per project, 10K-500K metadata ops/sec during synthesis. VAST SCM (3D XPoint/Optane) tier handles metadata at <10us. Size: 1 SCM DNode per 50 simulation nodes.',
-    protos:  'NFSv3 standard for EDA (Cadence, Synopsys, Mentor/Siemens). NFSv4.1 for newer toolchains. Enable NFS caching on EDA farm nodes. Avoid SMB (POSIX semantics required by EDA tools).',
-    network: '100GbE for EDA farm. Enable SR-IOV on EDA servers for low-latency NFS. Set rsize=131072,wsize=131072 for EDA small-file workloads (smaller than AI training).',
-    security:'POSIX ACLs with NFS Kerberos for EDA IP protection. Per-project VAST Views with quotas. VAST audit logging for design IP access tracking (export compliance).',
-    bps: ['Benchmark with mdtest before deployment: target >100K metadata ops/sec','Use VAST SCM (storage class memory) tier for EDA scratch: sub-10us latency for small files','Configure NFS attribute caching: actimeo=3 for EDA tools (balance freshness vs metadata IOPS)','Create per-tape/per-block VAST snapshots for instant restore during EDA regression runs','Use VAST clone for parallel EDA runs on identical design starting points (zero-copy branching)']
-  }
-};
-
-var UC_IDS = ['uc-aiml','uc-inference','uc-hpc','uc-nas','uc-backup','uc-vmware','uc-k8s','uc-analytics','uc-media','uc-database','uc-compliance','uc-eda'];
-
-function updateUseCaseAnalysis() {
-  var selected = UC_IDS.filter(function(id) {
-    var el = document.getElementById(id); return el && el.checked;
-  });
-  // Update count badge
-  var badge = document.getElementById('uc-count-badge');
-  if (badge) { badge.textContent = selected.length + ' selected'; badge.style.display = selected.length > 0 ? 'inline-block' : 'none'; }
-  // Render analysis panel
-  var panel = document.getElementById('uc-analysis-panel');
-  if (!panel) return;
-  if (selected.length === 0) { panel.style.display = 'none'; return; }
-  panel.style.display = 'block';
-  var isMulti = selected.length > 1;
-  var selLabels = selected.map(function(id) { return (UC_DETAILS[id]||{label:id}).label; }).join(' + ');
-  var html = '';
-  html += '<div class="glass-panel" style="border-color:rgba(99,102,241,.3);background:rgba(99,102,241,.03);">';
-  html += '<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem;flex-wrap:wrap;">';
-  html += '<span style="font-size:1.2rem;">&#128270;</span>';
-  html += '<div><h3 style="margin:0;color:var(--accent-violet);">Use Case Requirements Analysis</h3>';
-  html += '<div style="font-size:.8rem;color:var(--color-text-secondary);">' + selLabels + '</div></div>';
-  html += '</div>';
-  // Cards for each selected use case
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:1rem;">';
-  selected.forEach(function(id) {
-    var d = UC_DETAILS[id]; if (!d) return;
-    html += '<div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-top:3px solid ' + d.color + ';border-radius:10px;padding:1rem;">';
-    html += '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;">';
-    html += '<span style="font-size:1.15rem;">' + d.icon + '</span>';
-    html += '<strong style="color:' + d.color + ';font-size:.95rem;">' + d.label + '</strong>';
-    html += '</div>';
-    html += '<p style="font-size:.81rem;color:var(--color-text-secondary);line-height:1.6;margin-bottom:.75rem;">' + d.summary + '</p>';
-    var secs = [{lbl:'Sizing',icon:'&#128200;',v:d.sizing},{lbl:'Protocols',icon:'&#128257;',v:d.protos},{lbl:'Network',icon:'&#127760;',v:d.network},{lbl:'Security',icon:'&#128274;',v:d.security}];
-    secs.forEach(function(s) {
-      html += '<div style="margin-bottom:.6rem;">';
-      html += '<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-muted);margin-bottom:.2rem;">' + s.icon + ' ' + s.lbl + '</div>';
-      html += '<div style="font-size:.79rem;color:var(--color-text-secondary);line-height:1.55;">' + s.v + '</div></div>';
-    });
-    if (d.bps && d.bps.length) {
-      html += '<div style="padding-top:.6rem;border-top:1px solid rgba(255,255,255,.06);">';
-      html += '<div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-muted);margin-bottom:.4rem;">&#9989; Best Practices</div>';
-      html += '<ul style="font-size:.78rem;color:var(--color-text-secondary);margin:0;padding-left:1.1rem;line-height:1.85;">';
-      d.bps.forEach(function(bp) { html += '<li>' + bp + '</li>'; });
-      html += '</ul></div>';
-    }
-    html += '</div>';
-  });
-  html += '</div>';
-  // Multi-use-case conflict/synergy callout
-  if (isMulti) {
-    html += '<div style="margin-top:1rem;padding:1rem;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.18);border-radius:8px;">';
-    html += '<div style="font-size:.78rem;font-weight:700;color:var(--accent-amber);margin-bottom:.5rem;">&#9889; Combined Design Considerations for ' + selected.length + ' Use Cases</div>';
-    html += '<ul style="font-size:.8rem;color:var(--color-text-secondary);margin:0;padding-left:1.2rem;line-height:1.85;">';
-    html += '<li><strong>QoS Isolation:</strong> Create separate VAST VIP pools per workload class. Assign dedicated IOPS/bandwidth limits per pool to prevent noisy-neighbour interference.</li>';
-    html += '<li><strong>Protocol Coexistence:</strong> VAST Global Namespace allows all protocols (NFS, SMB, S3, NVMe) to access the same data. Ensure AD integration for unified ACLs across NFS/SMB clients.</li>';
-    html += '<li><strong>Separate VAST Views:</strong> Each workload type should have dedicated Views with independent quotas, snapshot schedules, WORM policies, and access controls.</li>';
-    html += '<li><strong>Capacity Headroom:</strong> Size physical capacity for the workload with the lowest data reduction ratio. Mixed workloads will produce a blended effective ratio.</li>';
-    html += '<li><strong>Sizing Driver:</strong> The ' + selected.length + ' selected use cases have been forwarded to the Architecture panel &mdash; the sizing engine will use the most demanding performance requirements.</li>';
-    html += '</ul></div>';
-  }
-  html += '</div>';
-  panel.innerHTML = html;
-}
-
-// ============================================================
 // === SECTION 13: INIT ===
 // ============================================================
 
@@ -2773,68 +2349,4 @@ async function initApp() {
   console.log('%cVastOS 5.4.1-SP4 | DASE CBOX+DBOX | RoCEv2/IB backends | 150+4 EC (2.67% overhead)','color:#38BDF8;');
 }
 
-
-
-// === GLOBAL EXPOSURE: make all functions accessible from onclick handlers ===
-if (typeof switchStep !== "undefined") window["switchStep"] = switchStep;
-if (typeof navigateStep !== "undefined") window["navigateStep"] = navigateStep;
-if (typeof markStepCompleted !== "undefined") window["markStepCompleted"] = markStepCompleted;
-if (typeof calculateSizing !== "undefined") window["calculateSizing"] = calculateSizing;
-if (typeof showToast !== "undefined") window["showToast"] = showToast;
-if (typeof saveConfig !== "undefined") window["saveConfig"] = saveConfig;
-if (typeof loadConfig !== "undefined") window["loadConfig"] = loadConfig;
-if (typeof newConfig !== "undefined") window["newConfig"] = newConfig;
-if (typeof exportJsonConfig !== "undefined") window["exportJsonConfig"] = exportJsonConfig;
-if (typeof applyPreset !== "undefined") window["applyPreset"] = applyPreset;
-if (typeof togglePreset !== "undefined") window["togglePreset"] = togglePreset;
-if (typeof clearAllPresets !== "undefined") window["clearAllPresets"] = clearAllPresets;
-if (typeof updateUseCaseAnalysis !== "undefined") window["updateUseCaseAnalysis"] = updateUseCaseAnalysis;
-if (typeof generateVcliCommands !== "undefined") window["generateVcliCommands"] = generateVcliCommands;
-if (typeof generateNetworkConfig !== "undefined") window["generateNetworkConfig"] = generateNetworkConfig;
-if (typeof updateReadSlider !== "undefined") window["updateReadSlider"] = updateReadSlider;
-if (typeof updateWriteSlider !== "undefined") window["updateWriteSlider"] = updateWriteSlider;
-if (typeof updateReductionSlider !== "undefined") window["updateReductionSlider"] = updateReductionSlider;
-if (typeof saveStateSnapshot !== "undefined") window["saveStateSnapshot"] = saveStateSnapshot;
-if (typeof undo !== "undefined") window["undo"] = undo;
-if (typeof redo !== "undefined") window["redo"] = redo;
-if (typeof showCheckpoints !== "undefined") window["showCheckpoints"] = showCheckpoints;
-if (typeof renderCheckpointsList !== "undefined") window["renderCheckpointsList"] = renderCheckpointsList;
-if (typeof saveCheckpoint !== "undefined") window["saveCheckpoint"] = saveCheckpoint;
-if (typeof showModal !== "undefined") window["showModal"] = showModal;
-if (typeof hideModal !== "undefined") window["hideModal"] = hideModal;
-if (typeof closeModalOnOverlay !== "undefined") window["closeModalOnOverlay"] = closeModalOnOverlay;
-if (typeof renderProductCatalog !== "undefined") window["renderProductCatalog"] = renderProductCatalog;
-if (typeof renderIntegrationConfigs !== "undefined") window["renderIntegrationConfigs"] = renderIntegrationConfigs;
-if (typeof switchAdvTab !== "undefined") window["switchAdvTab"] = switchAdvTab;
-if (typeof switchPropTab !== "undefined") window["switchPropTab"] = switchPropTab;
-if (typeof switchDelTab !== "undefined") window["switchDelTab"] = switchDelTab;
-if (typeof switchDepTab !== "undefined") window["switchDepTab"] = switchDepTab;
-if (typeof switchTab !== "undefined") window["switchTab"] = switchTab;
-if (typeof _switchTab !== "undefined") window["_switchTab"] = _switchTab;
-if (typeof toggleStage !== "undefined") window["toggleStage"] = toggleStage;
-if (typeof toggleRemoteAutoSize !== "undefined") window["toggleRemoteAutoSize"] = toggleRemoteAutoSize;
-if (typeof toggleColdTier !== "undefined") window["toggleColdTier"] = toggleColdTier;
-if (typeof updateKBStatus !== "undefined") window["updateKBStatus"] = updateKBStatus;
-if (typeof updateSidebarProgress !== "undefined") window["updateSidebarProgress"] = updateSidebarProgress;
-if (typeof generateDeploymentGuide !== "undefined") window["generateDeploymentGuide"] = generateDeploymentGuide;
-if (typeof generateHLD !== "undefined") window["generateHLD"] = generateHLD;
-if (typeof generateLLD !== "undefined") window["generateLLD"] = generateLLD;
-if (typeof exportHldText !== "undefined") window["exportHldText"] = exportHldText;
-if (typeof exportLldText !== "undefined") window["exportLldText"] = exportLldText;
-if (typeof exportDeploymentGuideText !== "undefined") window["exportDeploymentGuideText"] = exportDeploymentGuideText;
-if (typeof exportBomCsv !== "undefined") window["exportBomCsv"] = exportBomCsv;
-if (typeof exportFirewallMatrix !== "undefined") window["exportFirewallMatrix"] = exportFirewallMatrix;
-if (typeof exportAllDocuments !== "undefined") window["exportAllDocuments"] = exportAllDocuments;
-if (typeof exportBcdrRunbook !== "undefined") window["exportBcdrRunbook"] = exportBcdrRunbook;
-if (typeof exportAtpText !== "undefined") window["exportAtpText"] = exportAtpText;
-if (typeof downloadText !== "undefined") window["downloadText"] = downloadText;
-if (typeof exportJsonConfig !== "undefined") window["exportJsonConfig"] = exportJsonConfig;
-if (typeof adjustWorkloadDefaults !== "undefined") window["adjustWorkloadDefaults"] = adjustWorkloadDefaults;
-if (typeof markDirty !== "undefined") window["markDirty"] = markDirty;
-if (typeof initApp !== "undefined") window["initApp"] = initApp;
-if (typeof AppState !== "undefined") window.AppState = AppState;
-if (typeof PRODUCT_CATALOG !== "undefined") window.PRODUCT_CATALOG = PRODUCT_CATALOG;
-if (typeof PRESET_CONFIGS !== "undefined") window.PRESET_CONFIGS = PRESET_CONFIGS;
-if (typeof UC_IDS !== "undefined") window.UC_IDS = UC_IDS;
-if (typeof UC_DETAILS !== "undefined") window.UC_DETAILS = UC_DETAILS;
 document.addEventListener('DOMContentLoaded', initApp);
