@@ -2269,7 +2269,7 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783967693"></script>
+<script src="app.js?v=1783968006"></script>
 <script>
 /* ── v2.0 UI Helpers ─────────────────────────────────────── */
 function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}
@@ -2846,6 +2846,7 @@ function updateAll() {
     _cascadeNetworkFromSizing(sz, cfg);
     _updateBcdrCalc(cfg);
     _updateSummary(sz, cfg);
+    _updateNetworkPanel(sz, cfg);
     if(typeof updateComplianceBadges==='function') updateComplianceBadges();
     if(typeof generateVcliCommands==='function') generateVcliCommands();
   } catch(err) {
@@ -3342,6 +3343,228 @@ function _setSelect(id,val){
   for(var i=0;i<e.options.length;i++){
     if(e.options[i].text===val||e.options[i].value===val){e.selectedIndex=i;return;}
   }
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   PANEL 5 — NETWORK: Dynamic SVG + port map + IP table
+   Driven entirely by sizing results from Panel 4.
+   ══════════════════════════════════════════════════════════ */
+
+function _parseBase(subnet, startHost) {
+  var parts = (subnet || '192.168.10.0/24').split('/');
+  var octs = parts[0].split('.');
+  if(octs.length !== 4) octs = ['192','168','10','0'];
+  return { prefix: octs.slice(0,3).join('.'), host: startHost || 10 };
+}
+
+function _updateNetworkPanel(sz, cfg) {
+  try { _rebuildCablingSVG(sz, cfg); } catch(e){ console.warn('SVG err',e); }
+  try { _rebuildPortMap(sz, cfg); } catch(e){ console.warn('PortMap err',e); }
+  try { _rebuildIpAlloc(sz, cfg); } catch(e){ console.warn('IPAlloc err',e); }
+}
+
+/* ── Dynamic SVG cabling schematic ──────────────────────── */
+function _rebuildCablingSVG(sz, cfg) {
+  var svg = document.getElementById('cabling-svg');
+  if(!svg) return;
+
+  var cn = sz.cnCount, dn = sz.dnCount, sw = Math.max(2, sz.swCount);
+  var swModel = cfg.swBackend || 'RoCEv2';
+  var isIB = (swModel.indexOf('nvidia') !== -1 || swModel.indexOf('ib') !== -1 ||
+              (cfg.fabricType || '').toLowerCase().indexOf('infiniband') !== -1);
+  var fabricLabel = isIB ? 'InfiniBand HDR' : 'RoCEv2 100G';
+  var clientNet = cfg.clientNet || '100GbE';
+
+  /* Layout constants */
+  var W = 720, H = 440;
+  svg.setAttribute('viewBox', '0 0 '+W+' '+H);
+
+  /* Show up to 4 C-nodes + 4 D-nodes (with overflow indicator) */
+  var dispCN = Math.min(cn, 4), dispDN = Math.min(dn, 4), dispSW = Math.min(sw, 2);
+  var nodeW = 140, nodeH = 36, gap = 8;
+
+  /* Calculate x positions for a row of N nodes centered in the SVG */
+  function rowX(n, w, g) {
+    var total = n*w + (n-1)*g;
+    var startX = (W - total) / 2;
+    var xs = [];
+    for(var i=0;i<n;i++) xs.push(startX + i*(w+g));
+    return xs;
+  }
+
+  var cY = 120, swY = 210, dY = 305;
+  var cXs = rowX(dispCN, nodeW, gap);
+  var swXs = rowX(dispSW, nodeW, gap);
+  var dXs = rowX(dispDN, nodeW, gap);
+
+  var out = '';
+
+  /* Helper: cable path cubic */
+  function cable(x1,y1,x2,y2,cls,clr) {
+    var cx = (x1+x2)/2, cy1=y1+30, cy2=y2-30;
+    out += '<path d="M '+x1+','+y1+' C '+cx+','+cy1+' '+cx+','+cy2+' '+x2+','+y2+'"';
+    out += ' class="svg-cable active '+cls+'" stroke="'+clr+'" stroke-width="1.5" fill="none" opacity="0.7"/>';
+  }
+
+  /* Client switch (top left) */
+  out += '<rect x="20" y="18" width="170" height="38" class="svg-node" fill="#0E1825" stroke="#38BDF8" rx="4"/>';
+  out += '<text x="105" y="33" text-anchor="middle" class="svg-text">Frontend Client Switch</text>';
+  out += '<text x="105" y="48" text-anchor="middle" class="svg-text-sub">'+clientNet+' / LAG</text>';
+
+  /* OOB mgmt switch (top right) */
+  out += '<rect x="'+(W-190)+'" y="18" width="170" height="38" class="svg-node" fill="#0E1825" stroke="#10B981" rx="4"/>';
+  out += '<text x="'+(W-105)+'" y="33" text-anchor="middle" class="svg-text">OOB Mgmt Switch</text>';
+  out += '<text x="'+(W-105)+'" y="48" text-anchor="middle" class="svg-text-sub">1GbE BMC / IPMI</text>';
+
+  /* C-nodes */
+  for(var i=0;i<dispCN;i++) {
+    var x=cXs[i], cx=x+nodeW/2, cy=cY+nodeH/2;
+    out += '<rect x="'+x+'" y="'+cY+'" width="'+nodeW+'" height="'+nodeH+'" class="svg-node" fill="#0A1520" stroke="#10B981" rx="4"/>';
+    out += '<text x="'+cx+'" y="'+(cY+13)+'" text-anchor="middle" class="svg-text">'+(i===0?'C-Node 1 (Lead)':'C-Node '+(i+1))+'</text>';
+    out += '<text x="'+cx+'" y="'+(cY+26)+'" text-anchor="middle" class="svg-text-sub">'+sz.cnModel+'</text>';
+    /* cable: client switch → C-node */
+    cable(105, 56, cx, cY, 'client-cables', '#38BDF8');
+    /* cable: OOB → C-node */
+    cable(W-105, 56, cx, cY, 'mgmt-cables', '#10B981');
+  }
+  if(cn > 4) {
+    var ox = cXs[dispCN-1]+nodeW+10;
+    out += '<text x="'+ox+'" y="'+(cY+nodeH/2+4)+'" class="svg-text-sub" fill="#10B981">+'+( cn-4)+' more</text>';
+  }
+
+  /* Fabric switches */
+  for(var i=0;i<dispSW;i++) {
+    var x=swXs[i], cx=x+nodeW/2;
+    out += '<rect x="'+x+'" y="'+swY+'" width="'+nodeW+'" height="'+nodeH+'" class="svg-node" fill="#0E1028" stroke="#6366F1" rx="4"/>';
+    out += '<text x="'+cx+'" y="'+(swY+13)+'" text-anchor="middle" class="svg-text">Fabric Switch '+(i===0?'A':'B')+'</text>';
+    out += '<text x="'+cx+'" y="'+(swY+26)+'" text-anchor="middle" class="svg-text-sub">'+fabricLabel+'</text>';
+    /* cables: each C-node → each switch */
+    for(var j=0;j<dispCN;j++) {
+      cable(cXs[j]+nodeW/2, cY+nodeH, cx, swY, 'backend-cables', '#6366F1');
+    }
+  }
+
+  /* D-nodes */
+  for(var i=0;i<dispDN;i++) {
+    var x=dXs[i], cx=x+nodeW/2;
+    var isHa = cfg.haConfig && (i%2===1);
+    out += '<rect x="'+x+'" y="'+dY+'" width="'+nodeW+'" height="'+nodeH+'" class="svg-node" fill="#0A1000" stroke="#F59E0B" rx="4"/>';
+    out += '<text x="'+cx+'" y="'+(dY+13)+'" text-anchor="middle" class="svg-text">D-Node '+(i+1)+(isHa?' (HA)':'')+'</text>';
+    out += '<text x="'+cx+'" y="'+(dY+26)+'" text-anchor="middle" class="svg-text-sub">'+sz.dnModel+' '+_fmtTB(1920)+'</text>';
+    /* cables: each switch → each D-node */
+    for(var j=0;j<dispSW;j++) {
+      cable(swXs[j]+nodeW/2, swY+nodeH, cx, dY, 'backend-cables', '#6366F1');
+    }
+    /* OOB mgmt to D-node */
+    cable(W-105, 56, cx, dY, 'mgmt-cables', '#10B981');
+  }
+  if(dn > 4) {
+    var ox = dXs[dispDN-1]+nodeW+10;
+    out += '<text x="'+ox+'" y="'+(dY+nodeH/2+4)+'" class="svg-text-sub" fill="#F59E0B">+'+(dn-4)+' more</text>';
+  }
+
+  /* Layer labels */
+  out += '<text x="8" y="'+(cY+nodeH/2)+'" class="svg-text-sub" fill="#10B981" style="font-size:7px;font-weight:700;letter-spacing:.05em;writing-mode:tb-rl;transform-origin:center;">C-NODES</text>';
+  out += '<text x="8" y="'+(swY+nodeH/2)+'" class="svg-text-sub" fill="#6366F1" style="font-size:7px;font-weight:700;letter-spacing:.05em;writing-mode:tb-rl;transform-origin:center;">FABRIC</text>';
+  out += '<text x="8" y="'+(dY+nodeH/2)+'" class="svg-text-sub" fill="#F59E0B" style="font-size:7px;font-weight:700;letter-spacing:.05em;writing-mode:tb-rl;transform-origin:center;">D-NODES</text>';
+
+  /* Counts banner */
+  out += '<text x="'+(W/2)+'" y="'+(H-10)+'" text-anchor="middle" class="svg-text-sub" fill="rgba(255,255,255,.4)" style="font-size:8px;">';
+  out += cn+' C-Nodes ('+sz.cnModel+') + '+dn+' D-Nodes ('+sz.dnModel+') + '+sw+' Fabric Switches | '+cfg.readTP+' GB/s read target</text>';
+
+  svg.innerHTML = out;
+}
+
+/* ── Port assignment table ───────────────────────────────── */
+function _rebuildPortMap(sz, cfg) {
+  var tbody = document.getElementById('port-map-tbody');
+  if(!tbody) return;
+  var vlanB = cfg.vlanBackend || '100';
+  var vlanF = cfg.vlanFrontend || '20';
+  var vlanM = cfg.vlanMgmt || '10';
+  var cn = sz.cnCount, dn = sz.dnCount;
+  var rows = '';
+
+  /* C-nodes */
+  for(var i=0;i<cn;i++) {
+    var lbl = (i===0?'C-Node 1 (Lead)':'C-Node '+(i+1));
+    var swA = 'Fabric Switch A', swB = 'Fabric Switch B';
+    rows += '<tr><td rowspan="4" style="border-right:2px solid rgba(16,185,129,.2)">'+lbl+'<br><small style="color:var(--color-text-muted)">'+sz.cnModel+'</small></td>';
+    rows += '<td>eth0 / eth1</td><td>Frontend Client Switch</td><td>Frontend ('+cfg.clientNet+')</td><td>'+vlanF+'</td><td style="color:#38BDF8">VIP Pool</td></tr>';
+    rows += '<tr><td>be0–be3</td><td>'+swA+'</td><td>Backend Storage Fabric</td><td>'+vlanB+'</td><td style="color:#6366F1">'+sz.recFabric+'</td></tr>';
+    rows += '<tr><td>be4–be7</td><td>'+swB+'</td><td>Backend Storage Fabric (dual-rail)</td><td>'+vlanB+'</td><td style="color:#6366F1">'+sz.recFabric+'</td></tr>';
+    rows += '<tr><td>oob0</td><td>OOB Mgmt Switch</td><td>IPMI / BMC Management</td><td>'+vlanM+'</td><td style="color:#10B981">1GbE</td></tr>';
+  }
+
+  /* D-nodes */
+  for(var i=0;i<dn;i++) {
+    var isHa = cfg.haConfig && (i%2===1);
+    var lbl = 'D-Node '+(i+1)+(isHa?' (HA pair)':'');
+    rows += '<tr><td rowspan="3" style="border-right:2px solid rgba(245,158,11,.2)">'+lbl+'<br><small style="color:var(--color-text-muted)">'+sz.dnModel+'</small></td>';
+    rows += '<td>be0–be3</td><td>Fabric Switch A</td><td>NVMe-oF Storage Fabric</td><td>'+vlanB+'</td><td style="color:#6366F1">'+sz.recFabric+'</td></tr>';
+    rows += '<tr><td>be4–be7</td><td>Fabric Switch B</td><td>NVMe-oF Storage Fabric (dual-rail)</td><td>'+vlanB+'</td><td style="color:#6366F1">'+sz.recFabric+'</td></tr>';
+    rows += '<tr><td>oob0</td><td>OOB Mgmt Switch</td><td>IPMI / BMC Management</td><td>'+vlanM+'</td><td style="color:#10B981">1GbE</td></tr>';
+  }
+
+  /* ISL between switches */
+  rows += '<tr><td rowspan="2">Fabric Switch A ↔ B</td><td>ISL 1–4</td><td>Fabric Switch B</td><td>Inter-Switch Link</td><td>'+vlanB+'</td><td style="color:#6366F1">400G QSFP-DD</td></tr>';
+  rows += '<tr><td>ISL 5–8</td><td>Fabric Switch B</td><td>ISL Redundant Path</td><td>'+vlanB+'</td><td style="color:#6366F1">400G QSFP-DD</td></tr>';
+
+  tbody.innerHTML = rows;
+}
+
+/* ── IP address allocation table ────────────────────────── */
+function _rebuildIpAlloc(sz, cfg) {
+  var tbody = document.getElementById('ip-alloc-tbody');
+  if(!tbody) return;
+  var mgmt  = _parseBase(cfg.mgmtSubnet, 10);
+  var back  = _parseBase(cfg.backendSubnet, 10);
+  var vipS  = cfg.vipStart || (cfg.frontendSubnet ? _parseBase(cfg.frontendSubnet,100).prefix+'100' : '10.100.20.100');
+
+  var cn = sz.cnCount, dn = sz.dnCount;
+  var rows = '';
+
+  for(var i=0;i<cn;i++) {
+    var mip = mgmt.prefix+'.'+(mgmt.host+i);
+    var bip = back.prefix+'.'+(back.host+i);
+    var vip = (i===0) ? vipS+' – +'+Math.ceil(cn*1.5)+' VIPs' : '(shares VIP pool)';
+    var lbl = (i===0?'C-Node 1 (Lead)':'C-Node '+(i+1));
+    rows += '<tr>';
+    rows += '<td>'+lbl+'</td>';
+    rows += '<td style="color:#10B981">Ceres Protocol Node</td>';
+    rows += '<td style="color:#38BDF8;font-family:var(--font-mono)">'+mip+'</td>';
+    rows += '<td style="color:#6366F1;font-family:var(--font-mono)">'+bip+' (×8 ports)</td>';
+    rows += '<td style="color:#38BDF8;font-family:var(--font-mono);font-size:.75rem">'+vip+'</td>';
+    rows += '</tr>';
+  }
+
+  for(var i=0;i<dn;i++) {
+    var mip = mgmt.prefix+'.'+(mgmt.host+cn+i);
+    var bip = back.prefix+'.'+(back.host+cn+i);
+    var lbl = 'D-Node '+(i+1);
+    rows += '<tr>';
+    rows += '<td>'+lbl+'</td>';
+    rows += '<td style="color:#F59E0B">Voyager Storage Enclosure</td>';
+    rows += '<td style="color:#38BDF8;font-family:var(--font-mono)">'+mip+'</td>';
+    rows += '<td style="color:#6366F1;font-family:var(--font-mono)">'+bip+' (×8 ports)</td>';
+    rows += '<td style="color:var(--color-text-muted)">—</td>';
+    rows += '</tr>';
+  }
+
+  /* Switches */
+  rows += '<tr><td>Fabric Switch A</td><td style="color:#6366F1">Backend Fabric</td>';
+  rows += '<td style="color:#38BDF8;font-family:var(--font-mono)">'+mgmt.prefix+'.'+(mgmt.host+cn+dn)+'</td>';
+  rows += '<td colspan="2" style="color:var(--color-text-muted)">In-band mgmt only</td></tr>';
+  rows += '<tr><td>Fabric Switch B</td><td style="color:#6366F1">Backend Fabric</td>';
+  rows += '<td style="color:#38BDF8;font-family:var(--font-mono)">'+mgmt.prefix+'.'+(mgmt.host+cn+dn+1)+'</td>';
+  rows += '<td colspan="2" style="color:var(--color-text-muted)">In-band mgmt only</td></tr>';
+  rows += '<tr><td>Frontend Client Switch</td><td style="color:#38BDF8">Client Access</td>';
+  rows += '<td style="color:#38BDF8;font-family:var(--font-mono)">'+mgmt.prefix+'.'+(mgmt.host+cn+dn+2)+'</td>';
+  rows += '<td style="color:var(--color-text-muted)">—</td>';
+  rows += '<td style="color:var(--color-text-muted)">—</td></tr>';
+
+  tbody.innerHTML = rows;
 }
 
 </script>
