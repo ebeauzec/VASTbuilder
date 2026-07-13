@@ -2254,55 +2254,40 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783962733"></script>
+<script src="app.js?v=1783963880"></script>
 <script>
 /* ── v2.0 UI Helpers ─────────────────────────────────────── */
-function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}
-
+/* NOTE: toggleStage, switchAdvTab, switchPropTab, switchDelTab, switchDepTab,
+   showModal, hideModal, closeModalOnOverlay, showToast, downloadText,
+   exportHldText, exportAtpText, exportBcdrRunbook, exportFirewallMatrix,
+   exportAllDocuments are all defined in app.js. Only HTML-specific helpers below. */
+function toggleStage(id){var el=document.getElementById(id);if(el)el.classList.toggle('collapsed');}
 function switchAdvTab(t){
-  document.querySelectorAll('.adv-tab-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.adv-content').forEach(c=>c.classList.remove('active'));
-  document.getElementById('adv-tab-'+t).classList.add('active');
-  document.getElementById('adv-content-'+t).classList.add('active');
+  document.querySelectorAll('.adv-tab-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.adv-content').forEach(function(c){c.classList.remove('active');});
+  var btn=document.getElementById('adv-tab-'+t), pnl=document.getElementById('adv-content-'+t);
+  if(btn)btn.classList.add('active'); if(pnl)pnl.classList.add('active');
 }
 function switchPropTab(t){
-  document.querySelectorAll('.prop-tab-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.prop-content').forEach(c=>c.classList.remove('active'));
-  document.getElementById('prop-tab-'+t).classList.add('active');
-  document.getElementById('prop-content-'+t).classList.add('active');
+  document.querySelectorAll('.prop-tab-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.prop-content').forEach(function(c){c.classList.remove('active');});
+  var btn=document.getElementById('prop-tab-'+t), pnl=document.getElementById('prop-content-'+t);
+  if(btn)btn.classList.add('active'); if(pnl)pnl.classList.add('active');
 }
 function switchDelTab(t){
-  document.querySelectorAll('.del-tab-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.del-content').forEach(c=>c.classList.remove('active'));
-  document.getElementById('del-tab-'+t).classList.add('active');
-  document.getElementById('del-content-'+t).classList.add('active');
+  document.querySelectorAll('.del-tab-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.del-content').forEach(function(c){c.classList.remove('active');});
+  var btn=document.getElementById('del-tab-'+t), pnl=document.getElementById('del-content-'+t);
+  if(btn)btn.classList.add('active'); if(pnl)pnl.classList.add('active');
 }
 function switchDepTab(t){
-  document.querySelectorAll('.dep-tab-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.dep-content').forEach(c=>c.classList.remove('active'));
-  document.getElementById('dep-tab-'+t).classList.add('active');
-  document.getElementById('dep-content-'+t).classList.add('active');
+  document.querySelectorAll('.dep-tab-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.dep-content').forEach(function(c){c.classList.remove('active');});
+  var btn=document.getElementById('dep-tab-'+t), pnl=document.getElementById('dep-content-'+t);
+  if(btn)btn.classList.add('active'); if(pnl)pnl.classList.add('active');
 }
 
-function showModal(id){
-  const ov=document.getElementById('modal-overlay');
-  ov.classList.add('active');
-  document.querySelectorAll('.modal').forEach(m=>m.style.display='none');
-  const tgt=document.getElementById(id);
-  if(tgt) tgt.style.display='flex';
-}
-function hideModal(id){
-  const tgt=document.getElementById(id);
-  if(tgt) tgt.style.display='none';
-  const any=[...document.querySelectorAll('.modal')].some(m=>m.style.display!=='none');
-  if(!any) document.getElementById('modal-overlay').classList.remove('active');
-}
-function closeModalOnOverlay(e){
-  if(e.target===document.getElementById('modal-overlay')){
-    document.querySelectorAll('.modal').forEach(m=>m.style.display='none');
-    document.getElementById('modal-overlay').classList.remove('active');
-  }
-}
+/* showModal/hideModal/closeModalOnOverlay defined in app.js */
 
 function toggleColdTier(){
   const en=document.getElementById('cold-tier-enabled').checked;
@@ -2399,32 +2384,9 @@ function readConfigFile(file){
   r.readAsText(file);
 }
 
-function showToast(msg,dur=2800){
-  const t=document.getElementById('toast');
-  const tx=document.getElementById('toast-text');
-  if(t&&tx){tx.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
-}
+/* showToast defined in app.js */
 
-function exportHldText(){downloadText('VAST_HLD.txt',document.getElementById('del-content-hld-doc')?.innerText||'')}
-function exportAtpText(){downloadText('VAST_ATP.txt',document.getElementById('dep-content-atp-doc')?.innerText||'')}
-function exportBcdrRunbook(){downloadText('VAST_BCDR_Runbook.txt',document.getElementById('dep-content-bcdr-doc')?.innerText||'')}
-function exportFirewallMatrix(){
-  const rows=[...document.querySelectorAll('#firewall-tbody tr')];
-  const csv=rows.map(r=>[...r.querySelectorAll('td')].map(td=>`"${td.textContent.trim()}"`).join(',')).join('\n');
-  downloadText('VAST_Firewall_Matrix.csv','Source,Destination,Protocol,Ports,Service,Direction\n'+csv);
-}
-function exportAllDocuments(){
-  exportHldText();
-  setTimeout(()=>{if(typeof exportLldText==='function')exportLldText();},200);
-  setTimeout(()=>{if(typeof exportDeploymentGuideText==='function')exportDeploymentGuideText();},400);
-  setTimeout(()=>{if(typeof exportJsonConfig==='function')exportJsonConfig();},600);
-  showToast('Exporting all documents...');
-}
-function downloadText(fn,ct){
-  const a=document.createElement('a');
-  a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(ct);
-  a.download=fn;a.click();
-}
+/* exportHldText/exportAtpText/exportBcdrRunbook/exportFirewallMatrix/exportAllDocuments/downloadText defined in app.js */
 function markDirty(){if(typeof pushUndoState==='function')pushUndoState();}
 
 document.addEventListener('DOMContentLoaded',()=>{

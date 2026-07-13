@@ -1,3 +1,25 @@
+/* VASTBUILDER_SELFTEST_START */
+// ===== SELFTEST: This block proves JS is executing =====
+(function() {
+  var badge = document.createElement('div');
+  badge.id = 'js-load-badge';
+  badge.style.cssText = 'position:fixed;bottom:12px;left:12px;z-index:99999;font-family:monospace;font-size:11px;padding:4px 10px;border-radius:4px;background:#10B981;color:#000;font-weight:700;';
+  badge.textContent = 'JS OK';
+  document.addEventListener('DOMContentLoaded', function() {
+    document.body.appendChild(badge);
+    setTimeout(function() { badge.style.opacity = '0'; badge.style.transition = 'opacity 3s'; }, 3000);
+  });
+  window.onerror = function(msg, src, line, col, err) {
+    var errDiv = document.createElement('div');
+    errDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#EF4444;color:#fff;font-family:monospace;font-size:12px;padding:8px 12px;';
+    errDiv.textContent = 'JS ERROR line ' + line + ': ' + msg;
+    document.body.appendChild(errDiv);
+    console.error('VASTBUILDER JS ERROR:', msg, 'at line', line, col, err);
+    return false;
+  };
+})();
+// ===== END SELFTEST =====
+
 // ============================================================
 // === VAST ENTERPRISE ARCHITECT v2.0 ===
 // === Complete Business Logic app.js ===
@@ -2775,3 +2797,5 @@ async function initApp() {
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
+
+/* VASTBUILDER_SELFTEST_END */
