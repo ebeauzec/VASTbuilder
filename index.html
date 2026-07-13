@@ -1,0 +1,2423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VAST Enterprise Architecture &amp; Configuration Tool v2.0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* ══════════════════════════════════════════════════
+       v2.0 Supplemental Styles (extends styles.css)
+    ══════════════════════════════════════════════════ */
+    .main-wrapper{display:flex;flex-direction:column;flex:1;min-width:0;overflow:hidden}
+    .global-toolbar{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;background:rgba(13,19,33,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--panel-border);border-radius:12px;padding:.55rem 1rem;margin:1rem 1.5rem 0;position:sticky;top:0;z-index:120}
+    .toolbar-left{display:flex;align-items:center;gap:.5rem;flex:1;min-width:0}
+    .toolbar-right{display:flex;align-items:center;gap:.4rem;flex-shrink:0}
+    #config-title{font-family:var(--font-sans);background:transparent;border:1px solid transparent;border-radius:6px;color:#FFF;font-size:.9rem;font-weight:600;padding:.25rem .5rem;outline:none;min-width:160px;max-width:260px;transition:var(--transition-smooth)}
+    #config-title:focus{border-color:var(--accent-teal);background:var(--bg-tertiary)}
+    #kb-status{font-size:.72rem;font-family:var(--font-mono);background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);color:var(--accent-teal);padding:.2rem .55rem;border-radius:20px;white-space:nowrap}
+    .workspace{flex:1;padding:1.5rem 1.5rem 1rem;overflow-y:auto}
+    /* Sidebar v2 */
+    .sidebar{width:280px;min-width:240px;background:var(--bg-secondary);border-right:1px solid var(--panel-border);display:flex;flex-direction:column;height:100vh;position:sticky;top:0;overflow-y:auto;flex-shrink:0}
+    .sidebar-inner{padding:1.75rem 1.25rem;display:flex;flex-direction:column;flex:1}
+    .config-bar{display:flex;flex-direction:column;gap:.4rem;margin-bottom:1.5rem}
+    .config-bar-row{display:flex;gap:.4rem}
+    .config-btn{flex:1;font-family:var(--font-sans);font-size:.72rem;font-weight:600;padding:.35rem .5rem;border-radius:6px;border:1px solid var(--panel-border);background:rgba(255,255,255,.03);color:var(--color-text-secondary);cursor:pointer;transition:var(--transition-smooth);display:flex;align-items:center;justify-content:center;gap:.3rem}
+    .config-btn:hover{background:rgba(255,255,255,.08);color:#FFF;border-color:var(--accent-teal)}
+    .wizard-nav{flex:1}
+    .stage-group{margin-bottom:1.25rem}
+    .stage-header{display:flex;align-items:center;justify-content:space-between;padding:.4rem .5rem;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-muted);cursor:pointer;border-radius:6px;transition:var(--transition-smooth);user-select:none}
+    .stage-header:hover{color:var(--color-text-secondary);background:rgba(255,255,255,.02)}
+    .stage-chevron{font-size:.6rem;transition:transform .25s}
+    .stage-group.collapsed .stage-chevron{transform:rotate(-90deg)}
+    .stage-group.collapsed .stage-steps{display:none}
+    .stage-steps{display:flex;flex-direction:column;gap:.3rem;padding:.25rem 0}
+    .step-item{display:flex;align-items:center;gap:.7rem;padding:.55rem .75rem;border-radius:10px;cursor:pointer;border:1px solid transparent;transition:var(--transition-smooth)}
+    .step-item:hover{background:rgba(255,255,255,.03)}
+    .step-item.active{background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.18)}
+    .step-number{width:24px;height:24px;border-radius:50%;border:2px solid var(--color-text-muted);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:var(--color-text-secondary);transition:var(--transition-smooth);flex-shrink:0}
+    .step-item.active .step-number{border-color:var(--accent-teal);background:var(--accent-teal);color:#000;box-shadow:0 0 8px rgba(16,185,129,.45)}
+    .step-item.completed .step-number{border-color:var(--accent-violet);background:var(--accent-violet);color:#FFF}
+    .step-info{display:flex;flex-direction:column;min-width:0}
+    .step-title{font-size:.85rem;font-weight:500;color:var(--color-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .step-item.active .step-title{color:#FFF;font-weight:600}
+    .step-desc{font-size:.68rem;color:var(--color-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sidebar-footer{padding:1rem 1.25rem 1.5rem;font-size:.72rem;color:var(--color-text-muted);border-top:1px solid var(--panel-border);display:flex;flex-direction:column;gap:.35rem}
+    /* Preset cards */
+    .preset-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1.75rem}
+    .preset-card{background:rgba(255,255,255,.02);border:1px solid var(--panel-border);border-radius:10px;padding:.85rem .75rem;cursor:pointer;transition:var(--transition-smooth);display:flex;flex-direction:column;align-items:center;text-align:center;gap:.4rem}
+    .preset-card:hover{border-color:var(--accent-teal);background:rgba(16,185,129,.06);transform:translateY(-2px)}
+    .preset-card.selected{border-color:var(--accent-teal);background:rgba(16,185,129,.1)}
+    .preset-icon{font-size:1.5rem;line-height:1}
+    .preset-title{font-size:.78rem;font-weight:600;color:#FFF}
+    .preset-desc{font-size:.67rem;color:var(--color-text-muted)}
+    /* Check cards */
+    .checkbox-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin-top:.5rem}
+    .checkbox-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;margin-top:.5rem}
+    .checkbox-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-top:.5rem}
+    .check-card{display:flex;align-items:center;gap:.5rem;padding:.55rem .75rem;border:1px solid var(--panel-border);border-radius:8px;cursor:pointer;transition:var(--transition-smooth);font-size:.82rem;color:var(--color-text-secondary);background:rgba(255,255,255,.01)}
+    .check-card:hover{border-color:var(--accent-teal);background:rgba(16,185,129,.05)}
+    .check-card input[type=checkbox]{width:14px;height:14px;flex-shrink:0}
+    /* Tab systems */
+    .adv-tabs,.prop-tabs,.del-tabs,.dep-tabs{display:flex;gap:.4rem;margin-bottom:1.5rem}
+    .prop-tabs,.del-tabs,.dep-tabs{border-bottom:1px solid var(--panel-border);flex-wrap:wrap}
+    .adv-tab-btn{background:rgba(255,255,255,.03);border:1px solid var(--panel-border);color:var(--color-text-secondary);padding:.5rem 1rem;border-radius:8px;font-family:var(--font-sans);font-size:.85rem;font-weight:600;cursor:pointer;transition:var(--transition-smooth)}
+    .adv-tab-btn:hover{color:#FFF;background:rgba(255,255,255,.07)}
+    .adv-tab-btn.active{background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.3);color:var(--accent-teal)}
+    .adv-content{display:none;animation:fadeIn .3s ease-out forwards}
+    .adv-content.active{display:block}
+    .prop-tab-btn,.del-tab-btn,.dep-tab-btn{background:transparent;border:none;border-bottom:2px solid transparent;color:var(--color-text-secondary);padding:.6rem 1rem;font-family:var(--font-sans);font-size:.85rem;font-weight:600;cursor:pointer;transition:var(--transition-smooth)}
+    .prop-tab-btn:hover,.del-tab-btn:hover,.dep-tab-btn:hover{color:#FFF}
+    .prop-tab-btn.active{color:var(--accent-teal);border-bottom-color:var(--accent-teal)}
+    .del-tab-btn.active{color:var(--accent-violet);border-bottom-color:var(--accent-violet)}
+    .dep-tab-btn.active{color:var(--accent-amber);border-bottom-color:var(--accent-amber)}
+    .prop-content,.del-content,.dep-content{display:none;animation:fadeIn .3s forwards}
+    .prop-content.active,.del-content.active,.dep-content.active{display:block}
+    /* Compliance badges */
+    .compliance-badges{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.75rem}
+    .comp-badge{padding:.3rem .75rem;border-radius:20px;font-size:.78rem;font-weight:600;border:1px solid}
+    .comp-badge.met{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.4);color:var(--accent-teal)}
+    .comp-badge.unmet{background:rgba(100,100,100,.1);border-color:rgba(100,100,100,.25);color:var(--color-text-muted)}
+    /* ROI */
+    .roi-card{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:12px;padding:1.25rem;text-align:center}
+    .roi-card.amber{background:rgba(245,158,11,.06);border-color:rgba(245,158,11,.2)}
+    .roi-card.violet{background:rgba(99,102,241,.06);border-color:rgba(99,102,241,.2)}
+    .roi-value{font-size:2rem;font-weight:700;color:var(--accent-teal)}
+    .roi-card.amber .roi-value{color:var(--accent-amber)}
+    .roi-card.violet .roi-value{color:var(--accent-violet)}
+    .roi-label{font-size:.8rem;color:var(--color-text-secondary);margin-top:.25rem}
+    /* Modals */
+    #modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);z-index:2000;display:none;align-items:center;justify-content:center}
+    #modal-overlay.active{display:flex}
+    .modal{background:var(--bg-secondary);border:1px solid var(--panel-border);border-radius:16px;width:min(90vw,640px);max-height:88vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.7)}
+    .modal.wide{width:min(92vw,820px)}
+    .modal-header{display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid var(--panel-border)}
+    .modal-header h2{font-size:1.15rem;margin:0;background:linear-gradient(135deg,#FFF,#9CA3AF);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .modal-close{background:transparent;border:none;color:var(--color-text-secondary);font-size:1.4rem;cursor:pointer;line-height:1;transition:color .2s}
+    .modal-close:hover{color:var(--accent-rose)}
+    .modal-body{padding:1.5rem;overflow-y:auto;flex:1}
+    .modal-footer{padding:1rem 1.5rem;border-top:1px solid var(--panel-border);display:flex;gap:.75rem;justify-content:flex-end}
+    /* Drop zone */
+    .drop-zone{border:2px dashed var(--panel-border);border-radius:12px;padding:2.5rem;text-align:center;color:var(--color-text-muted);font-size:.9rem;transition:var(--transition-smooth);cursor:pointer;margin-bottom:1.25rem}
+    .drop-zone:hover,.drop-zone.dragover{border-color:var(--accent-teal);background:rgba(16,185,129,.05);color:var(--color-text-secondary)}
+    /* Catalog */
+    .catalog-search{width:100%;margin-bottom:1rem}
+    .catalog-table{width:100%;border-collapse:collapse;font-size:.82rem}
+    .catalog-table th{border-bottom:2px solid var(--panel-border);padding:.6rem .75rem;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;font-size:.7rem;letter-spacing:.05em}
+    .catalog-table td{border-bottom:1px solid var(--panel-border);padding:.6rem .75rem;color:var(--color-text-primary)}
+    .catalog-table tr:hover td{background:rgba(255,255,255,.02)}
+    /* Onboarding */
+    .onboarding-steps{display:flex;flex-direction:column;gap:1rem;margin:1.25rem 0}
+    .ob-step{display:flex;gap:1rem;align-items:flex-start;padding:.85rem;border:1px solid var(--panel-border);border-radius:10px;background:rgba(255,255,255,.01)}
+    .ob-num{width:28px;height:28px;border-radius:50%;background:var(--accent-teal);color:#000;font-weight:700;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .ob-text h4{font-size:.9rem;color:#FFF;margin-bottom:.2rem}
+    .ob-text p{font-size:.8rem;color:var(--color-text-secondary)}
+    /* Handover */
+    .handover-list{display:flex;flex-direction:column;gap:.5rem}
+    .handover-item{display:flex;align-items:center;gap:.75rem;padding:.6rem .85rem;border:1px solid var(--panel-border);border-radius:8px;font-size:.85rem;color:var(--color-text-secondary);cursor:pointer}
+    .handover-item input[type=checkbox]{width:16px;height:16px;flex-shrink:0}
+    /* BC/DR topology */
+    .topology-svg-wrap{width:100%;height:160px;background:#04060A;border:1px solid var(--panel-border);border-radius:10px;overflow:hidden;margin-top:1rem}
+    /* Network two-col */
+    .net-two-col{display:grid;grid-template-columns:1fr 1fr;gap:2rem}
+    /* Actions bar */
+    .actions-bar{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-top:1px solid var(--panel-border);background:rgba(13,19,33,.5);flex-shrink:0}
+    /* h2 gradient override */
+    h2{font-size:1.85rem;font-weight:700;margin-bottom:.5rem;background:linear-gradient(135deg,#FFF 0%,#9CA3AF 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    /* Print */
+    @media print{
+      .sidebar,.global-toolbar,.actions-bar,.config-bar,#checkpoints-panel,#toast,#modal-overlay{display:none!important}
+      .main-wrapper,.workspace{width:100%!important;padding:0!important;overflow:visible!important}
+      .wizard-panel{display:none!important}
+      #panel-8{display:block!important}
+    }
+  </style>
+</head>
+<body>
+<div class="app-container">
+
+<!-- ═══════════════════════════════════════════ -->
+<!--                   SIDEBAR                   -->
+<!-- ═══════════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-inner">
+    <div class="brand" style="margin-bottom:1.25rem;">
+      <div class="brand-logo"></div>
+      <div>
+        <h1 style="font-size:1.1rem;margin:0;">VAST Architect</h1>
+        <div style="font-size:.68rem;color:var(--color-text-muted);margin-top:1px;">Enterprise Config Tool v2.0</div>
+      </div>
+    </div>
+
+    <div class="config-bar">
+      <div class="config-bar-row">
+        <button class="config-btn" onclick="saveConfig()">
+          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>Save
+        </button>
+        <button class="config-btn" onclick="showModal('modal-config')">
+          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>Load
+        </button>
+        <button class="config-btn" onclick="newConfig()" style="color:var(--accent-rose)" onmouseover="this.style.borderColor='var(--accent-rose)'" onmouseout="this.style.borderColor='var(--panel-border)'">
+          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>New
+        </button>
+      </div>
+    </div>
+
+    <nav class="wizard-nav">
+      <div class="stage-group" id="stage-1">
+        <div class="stage-header" onclick="toggleStage('stage-1')">
+          <span>Stage 1 — Discovery</span><span class="stage-chevron">&#9660;</span>
+        </div>
+        <div class="stage-steps">
+          <div class="step-item active" data-step="1" onclick="switchStep(1)">
+            <div class="step-number">1</div>
+            <div class="step-info"><span class="step-title">Customer Profile</span><span class="step-desc">Org, contacts &amp; engagement</span></div>
+          </div>
+          <div class="step-item" data-step="2" onclick="switchStep(2)">
+            <div class="step-number">2</div>
+            <div class="step-info"><span class="step-title">Business Requirements</span><span class="step-desc">Use cases, SLA &amp; compliance</span></div>
+          </div>
+          <div class="step-item" data-step="3" onclick="switchStep(3)">
+            <div class="step-number">3</div>
+            <div class="step-info"><span class="step-title">Workload Analysis</span><span class="step-desc">Profiles, presets &amp; protocols</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage-group" id="stage-2">
+        <div class="stage-header" onclick="toggleStage('stage-2')">
+          <span>Stage 2 — Technical Design</span><span class="stage-chevron">&#9660;</span>
+        </div>
+        <div class="stage-steps">
+          <div class="step-item" data-step="4" onclick="switchStep(4)">
+            <div class="step-number">4</div>
+            <div class="step-info"><span class="step-title">Architecture &amp; Sizing</span><span class="step-desc">Hardware, capacity &amp; growth</span></div>
+          </div>
+          <div class="step-item" data-step="5" onclick="switchStep(5)">
+            <div class="step-number">5</div>
+            <div class="step-info"><span class="step-title">Network &amp; Cabling</span><span class="step-desc">Subnets, ports &amp; fabric map</span></div>
+          </div>
+          <div class="step-item" data-step="6" onclick="switchStep(6)">
+            <div class="step-number">6</div>
+            <div class="step-info"><span class="step-title">Cluster Provisioning</span><span class="step-desc">VCLI script generator</span></div>
+          </div>
+          <div class="step-item" data-step="7" onclick="switchStep(7)">
+            <div class="step-number">7</div>
+            <div class="step-info"><span class="step-title">Advanced Features</span><span class="step-desc">BC/DR, security &amp; integrations</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage-group" id="stage-3">
+        <div class="stage-header" onclick="toggleStage('stage-3')">
+          <span>Stage 3 — Deliverables</span><span class="stage-chevron">&#9660;</span>
+        </div>
+        <div class="stage-steps">
+          <div class="step-item" data-step="8" onclick="switchStep(8)">
+            <div class="step-number">8</div>
+            <div class="step-info"><span class="step-title">Design Proposal</span><span class="step-desc">Executive summary &amp; ROI</span></div>
+          </div>
+          <div class="step-item" data-step="9" onclick="switchStep(9)">
+            <div class="step-number">9</div>
+            <div class="step-info"><span class="step-title">Technical Deliverables</span><span class="step-desc">HLD, LLD, BOM &amp; firewall</span></div>
+          </div>
+          <div class="step-item" data-step="10" onclick="switchStep(10)">
+            <div class="step-number">10</div>
+            <div class="step-info"><span class="step-title">Deployment Package</span><span class="step-desc">Runbooks, mounts &amp; handover</span></div>
+          </div>
+        </div>
+      </div>
+    </nav>
+  </div>
+
+  <div class="sidebar-footer">
+    <div>Platform: <b>VastOS v5.3.x (Latest)</b></div>
+    <div>Backend: <b>RoCEv2 100/200GbE</b></div>
+    <div style="margin-top:.35rem;">
+      <button class="config-btn" style="font-size:.68rem;" onclick="showModal('modal-catalog')">&#128230; Product Catalog</button>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════ -->
+<!--                MAIN WRAPPER                 -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="main-wrapper">
+
+  <!-- Global Toolbar -->
+  <div class="global-toolbar">
+    <div class="toolbar-left">
+      <svg width="14" height="14" fill="none" stroke="var(--accent-teal)" stroke-width="2.5" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <input type="text" id="config-title" value="Untitled Configuration" spellcheck="false" title="Click to rename">
+      <div class="toolbar-divider"></div>
+      <button id="config-save-btn" class="toolbar-btn" onclick="saveConfig()" title="Save (Ctrl+S)">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>Save
+      </button>
+      <button id="config-load-btn" class="toolbar-btn" onclick="showModal('modal-config')">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>Import/Export
+      </button>
+      <button id="config-new-btn" class="toolbar-btn" onclick="newConfig()">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>New
+      </button>
+    </div>
+    <div class="toolbar-right">
+      <button id="undo-btn" class="toolbar-btn" onclick="undo()" disabled title="Undo (Ctrl+Z)">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>Undo
+      </button>
+      <button id="redo-btn" class="toolbar-btn" onclick="redo()" disabled title="Redo (Ctrl+Y)">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 10H11a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"/></svg>Redo
+      </button>
+      <div class="toolbar-divider"></div>
+      <button id="checkpoints-btn" class="toolbar-btn primary" onclick="toggleCheckpointsPanel()">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+        Checkpoints (<span id="checkpoint-count-badge">0</span>)
+      </button>
+      <button id="catalog-btn" class="toolbar-btn" onclick="showModal('modal-catalog')">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>Catalog
+      </button>
+      <button id="update-kb-btn" class="toolbar-btn" onclick="checkForUpdates()">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Update KB
+      </button>
+      <span id="kb-status">KB: 2026-07-13</span>
+    </div>
+  </div>
+
+  <!-- ═══════════ WORKSPACE — ALL 10 PANELS ═══════════ -->
+  <main class="workspace">
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         PANEL 1 — Customer Profile
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <section id="panel-1" class="wizard-panel active">
+      <h2>Customer Profile</h2>
+      <p class="panel-description">Begin your VAST engagement by capturing the customer organisation, team contacts, and project timeline. All fields propagate into generated documents.</p>
+
+      <div class="glass-panel">
+        <h3>Organisation Details</h3>
+        <div class="form-group">
+          <label for="cust-org-name">Organisation Name</label>
+          <input type="text" id="cust-org-name" placeholder="e.g. Acme Financial Services Ltd." oninput="markDirty()">
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label for="cust-industry">Industry Vertical</label>
+            <select id="cust-industry" onchange="markDirty()">
+              <option value="technology">Technology</option>
+              <option value="financial">Financial Services</option>
+              <option value="healthcare">Healthcare / Life Sciences</option>
+              <option value="government">Government / Defense</option>
+              <option value="energy">Energy / Oil &amp; Gas</option>
+              <option value="media">Media &amp; Entertainment</option>
+              <option value="academia">Academia / Research</option>
+              <option value="retail">Retail / E-commerce</option>
+              <option value="telco">Telecommunications</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cust-engagement-type">Engagement Type</label>
+            <select id="cust-engagement-type" onchange="markDirty()">
+              <option value="new">New Deployment</option>
+              <option value="expansion">Capacity Expansion</option>
+              <option value="refresh">Technology Refresh</option>
+              <option value="poc">Proof of Concept</option>
+              <option value="migration">Cloud Migration</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="cust-region">Region</label>
+          <select id="cust-region" onchange="markDirty()">
+            <option value="na">North America</option>
+            <option value="emea">EMEA</option>
+            <option value="apac">APAC</option>
+            <option value="latam">LATAM</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="glass-panel">
+        <h3>VAST Team</h3>
+        <div class="grid-2">
+          <div class="form-group">
+            <label for="cust-se-name">VAST SE Name</label>
+            <input type="text" id="cust-se-name" placeholder="Solutions Engineer" oninput="markDirty()">
+          </div>
+          <div class="form-group">
+            <label for="cust-ae-name">VAST AE Name</label>
+            <input type="text" id="cust-ae-name" placeholder="Account Executive" oninput="markDirty()">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label for="cust-project-name">Project Codename</label>
+            <input type="text" id="cust-project-name" placeholder="e.g. Project Apex" oninput="markDirty()">
+          </div>
+          <div class="form-group">
+            <label for="cust-golive">Target Go-Live Date</label>
+            <input type="date" id="cust-golive" oninput="markDirty()">
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-panel">
+        <h3>Customer Contact</h3>
+        <div class="grid-2">
+          <div class="form-group">
+            <label for="cust-contact-name">Primary Contact Name</label>
+            <input type="text" id="cust-contact-name" placeholder="Full name" oninput="markDirty()">
+          </div>
+          <div class="form-group">
+            <label for="cust-contact-email">Contact Email</label>
+            <input type="email" id="cust-contact-email" placeholder="contact@company.com" oninput="markDirty()">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         PANEL 2 — Business Requirements
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <section id="panel-2" class="wizard-panel">
+      <h2>Business Requirements</h2>
+      <p class="panel-description">Capture use cases, SLA targets, compliance obligations, budget envelope, and decision timeline to drive the correct architecture.</p>
+
+      <div class="glass-panel">
+        <h3>Use Cases</h3>
+        <p style="font-size:.85rem;color:var(--color-text-secondary);margin-bottom:.75rem;">Select all workloads this VAST cluster must serve.</p>
+        <div class="checkbox-grid">
+          <label class="check-card"><input type="checkbox" id="uc-aiml" onchange="markDirty()"> AI/ML Training</label>
+          <label class="check-card"><input type="checkbox" id="uc-inference" onchange="markDirty()"> AI/GPU Inference</label>
+          <label class="check-card"><input type="checkbox" id="uc-hpc" onchange="markDirty()"> HPC &amp; Genomics</label>
+          <label class="check-card"><input type="checkbox" id="uc-nas" onchange="markDirty()"> Enterprise NAS</label>
+          <label class="check-card"><input type="checkbox" id="uc-backup" onchange="markDirty()"> Backup &amp; Archive</label>
+          <label class="check-card"><input type="checkbox" id="uc-vmware" onchange="markDirty()"> VMware Storage</label>
+          <label class="check-card"><input type="checkbox" id="uc-k8s" onchange="markDirty()"> Kubernetes/Containers</label>
+          <label class="check-card"><input type="checkbox" id="uc-analytics" onchange="markDirty()"> OLAP &amp; Analytics</label>
+          <label class="check-card"><input type="checkbox" id="uc-media" onchange="markDirty()"> Media &amp; VFX</label>
+          <label class="check-card"><input type="checkbox" id="uc-database" onchange="markDirty()"> Database Storage</label>
+          <label class="check-card"><input type="checkbox" id="uc-compliance" onchange="markDirty()"> Compliance/Archive</label>
+          <label class="check-card"><input type="checkbox" id="uc-eda" onchange="markDirty()"> EDA / Design</label>
+        </div>
+      </div>
+
+      <div class="glass-panel">
+        <h3>SLA Requirements</h3>
+        <div class="grid-2">
+          <div class="form-group">
+            <label for="biz-rto">Recovery Time Objective (RTO)</label>
+            <select id="biz-rto" onchange="markDirty()">
+              <option value="none">None / Best-Effort</option>
+              <option value="4h">&lt;4 Hours</option>
+              <option value="1h">&lt;1 Hour</option>
+              <option value="15m">&lt;15 Minutes</option>
+              <option value="zero">Near-Zero (Synchronous)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="biz-rpo">Recovery Point Objective (RPO)</label>
+            <select id="biz-rpo" onchange="markDirty()">
+              <option value="none">None</option>
+              <option value="24h">24 Hours</option>
+              <option value="4h">4 Hours</option>
+              <option value="1h">1 Hour</option>
+              <option value="zero">Near-Zero (Sync Mirror)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-panel">
+        <h3>Compliance &amp; Governance</h3>
+        <p style="font-size:.85rem;color:var(--color-text-secondary);margin-bottom:.75rem;">Select all regulatory frameworks this deployment must adhere to.</p>
+        <div class="checkbox-grid-2">
+          <label class="check-card"><input type="checkbox" id="comp-hipaa" onchange="updateComplianceBadges()"> HIPAA (Healthcare)</label>
+          <label class="check-card"><input type="checkbox" id="comp-gdpr" onchange="updateComplianceBadges()"> GDPR (EU Data Privacy)</label>
+          <label class="check-card"><input type="checkbox" id="comp-pci" onchange="updateComplianceBadges()"> PCI-DSS (Payment)</label>
+          <label class="check-card"><input type="checkbox" id="comp-soc2" onchange="updateComplianceBadges()"> SOC 2 Type II</label>
+          <label class="check-card"><input type="checkbox" id="comp-fedramp" onchange="updateComplianceBadges()"> FedRAMP</label>
+          <label class="check-card"><input type="checkbox" id="comp-iso27001" onchange="updateComplianceBadges()"> ISO 27001</label>
+        </div>
+      </div>
+
+      <div class="glass-panel">
+        <h3>Commercial Context</h3>
+        <div class="grid-2">
+          <div class="form-group">
+            <label for="biz-data-growth">Annual Data Growth Rate (%)</label>
+            <input type="number" id="biz-data-growth" value="30" min="0" max="500" oninput="markDirty()">
+            <div class="input-desc">Expected YoY raw data growth as a percentage of current footprint.</div>
+          </div>
+          <div class="form-group">
+            <label for="biz-budget">Budget Envelope</label>
+            <select id="biz-budget" onchange="markDirty()">
+              <option value="lt500k">Under $500K</option>
+              <option value="500k-2m">$500K &ndash; $2M</option>
+              <option value="2m-5m">$2M &ndash; $5M</option>
+              <option value="gt5m">Over $5M</option>
+              <option value="nd">Not Disclosed</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="biz-decision-timeline">Decision Timeline</label>
+          <select id="biz-decision-timeline" onchange="markDirty()">
+            <option value="30d">&lt;30 Days</option>
+            <option value="30-90d">30&ndash;90 Days</option>
+            <option value="90-180d">90&ndash;180 Days</option>
+            <option value="gt180d">&gt;180 Days</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="biz-notes">Additional Notes</label>
+          <textarea id="biz-notes" rows="4" placeholder="Capture any additional context, constraints, or specific requirements from the customer conversation..." oninput="markDirty()" style="resize:vertical;"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         PANEL 3 — Workload Analysis
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <section id="panel-3" class="wizard-panel">
+      <h2>Workload Analysis</h2>
+      <p class="panel-description">Select a preset to auto-populate recommended parameters, then fine-tune for your specific environment.</p>
+
+      <div class="glass-panel">
+        <h3>Quick-Start Preset Architectures</h3>
+        <p style="font-size:.85rem;color:var(--color-text-secondary);margin-bottom:1rem;">Click a preset to auto-configure sizing, protocols, and performance defaults for this workload type.</p>
+        <div class="preset-grid">
+          <div class="preset-card" data-preset="ai-ml-training" onclick="applyPreset('ai-ml-training')">
+            <div class="preset-icon">&#129504;</div>
+            <div class="preset-title">AI/ML Training</div>
+            <div class="preset-desc">GPU clusters, large sequential reads</div>
+          </div>
+          <div class="preset-card" data-preset="hpc-genomics" onclick="applyPreset('hpc-genomics')">
+            <div class="preset-icon">&#128300;</div>
+            <div class="preset-title">HPC/Genomics</div>
+            <div class="preset-desc">High throughput, parallel I/O</div>
+          </div>
+          <div class="preset-card" data-preset="vmware-vsphere" onclick="applyPreset('vmware-vsphere')">
+            <div class="preset-icon">&#128421;</div>
+            <div class="preset-title">VMware/vSphere</div>
+            <div class="preset-desc">NFS datastores, VAAI offload</div>
+          </div>
+          <div class="preset-card" data-preset="kubernetes-csi" onclick="applyPreset('kubernetes-csi')">
+            <div class="preset-icon">&#9736;</div>
+            <div class="preset-title">Kubernetes CSI</div>
+            <div class="preset-desc">Dynamic PVC, RWX volumes</div>
+          </div>
+          <div class="preset-card" data-preset="backup-archive" onclick="applyPreset('backup-archive')">
+            <div class="preset-icon">&#128230;</div>
+            <div class="preset-title">Backup &amp; Archive</div>
+            <div class="preset-desc">High reduction, object store</div>
+          </div>
+          <div class="preset-card" data-preset="openstack" onclick="applyPreset('openstack')">
+            <div class="preset-icon">&#9729;</div>
+            <div class="preset-title">OpenStack</div>
+            <div class="preset-desc">Cinder/Manila backends</div>
+          </div>
+          <div class="preset-card" data-preset="media-vfx" onclick="applyPreset('media-vfx')">
+            <div class="preset-icon">&#127916;</div>
+            <div class="preset-title">Media/VFX</div>
+            <div class="preset-desc">Ingest, render farm, streaming</div>
+          </div>
+          <div class="preset-card" data-preset="hybrid-dr" onclick="applyPreset('hybrid-dr')">
+            <div class="preset-icon">&#128279;</div>
+            <div class="preset-title">Hybrid/DR</div>
+            <div class="preset-desc">Async mirror, cloud tiering</div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label for="wl-primary-profile">Primary Workload Profile</label>
+            <select id="wl-primary-profile" onchange="markDirty()">
+              <option value="ai-ml-training">AI/ML Training</option>
+              <option value="hpc-genomics">HPC/Genomics</option>
+              <option value="vmware-vsphere">VMware/vSphere</option>
+              <option value="kubernetes-csi">Kubernetes CSI</option>
+              <option value="backup-archive">Backup &amp; Archive</option>
+              <option value="openstack">OpenStack</option>
+              <option value="media-vfx">Media/VFX</option>
+              <option value="hybrid-dr">Hybrid/DR</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="wl-data-profile">Data Profile</label>
+            <select id="wl-data-profile" onchange="markDirty()">
+              <option value="unstructured">Unstructured Files</option>
+              <option value="structured">Structured Data</option>
+              <option value="mixed">Mixed</option>
+              <option value="object">Object Storage</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-panel">
+        <h3>Data Temperature Distribution</h3>
+        <div class="grid-3">
+          <div class="form-group">
+            <div style="display:flex;justify-content:space-between;margin-bottom:.25rem;">
+              <label>Hot Data (%)</label><span class="slider-val" id="wl-pct-hot-val">30%</span>
+            </div>
+            <input type="range" id="wl-pct-hot" min="0" max="100" value="30" oninput="document.getElementById('wl-pct-hot-val').textContent=this.value+'%';markDirty();" style="width:100%;accent-color:var(--accent-teal);">
+            <div class="input-desc">Frequently accessed &mdash; stays in flash tier</div>
+          </div>
+          <div class="form-group">
+            <div style="display:flex;justify-content:space-between;margin-bottom:.25rem;">
+              <label>Warm Data (%)</label><span class="slider-val" id="wl-pct-warm-val">40%</span>
+            </div>
+            <input type="range" id="wl-pct-warm" min="0" max="100" value="40" oninput="document.getElementById('wl-pct-warm-val').textContent=this.value+'%';markDirty();" style="width:100%;accent-color:var(--accent-amber);">
+            <div class="input-desc">Periodic access &mdash; primary capacity tier</div>
+          </div>
+          <div class="form-group">
+            <div style="display:flex;justify-content:space-between;margin-bottom:.25rem;">
+              <label>Cold Data (%)</label><span class="slider-val" id="wl-pct-cold-val">30%</span>
+            </div>
+            <input type="range" id="wl-pct-cold" min="0" max="100" value="30" oninput="document.getElementById('wl-pct-cold-val').textContent=this.value+'%';markDirty();" style="width:100%;accent-color:var(--accent-violet);">
+            <div class="input-desc">Rarely accessed &mdash; candidate for object tier</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-panel">
+        <h3>I/O Characteristics</h3>
+        <div class="grid-3">
+          <div class="form-group">
+            <label for="wl-change-rate">Daily Change Rate (%)</label>
+            <input type="number" id="wl-change-rate" value="10" min="0" max="100" oninput="markDirty()">
+            <div class="input-desc">% of dataset that changes per day</div>
+          </div>
+          <div class="form-group">
+            <label for="wl-avg-file-size">Average File Size</label>
+            <select id="wl-avg-file-size" onchange="markDirty()">
+              <option value="tiny">&lt;4KB (Metadata-heavy)</option>
+              <option value="small">4KB&ndash;64KB (Small random)</option>
+              <option value="medium">64KB&ndash;1MB (Mixed)</option>
+              <option value="large" selected>1MB&ndash;100MB (Large sequential)</option>
+              <option value="huge">&gt;100MB Mixed (AI checkpoints)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="wl-concurrent-clients">Concurrent Clients</label>
+            <input type="number" id="wl-concurrent-clients" value="100" min="1" oninput="markDirty()">
+            <div class="input-desc">Simultaneous active mount points</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-panel">
+        <h3>Protocol Mix</h3>
+        <div class="checkbox-grid">
+          <label class="check-card"><input type="checkbox" id="proto-mix-nfs3" checked onchange="markDirty()"> NFSv3</label>
+          <label class="check-card"><input type="checkbox" id="proto-mix-nfs4" checked onchange="markDirty()"> NFSv4.1</label>
+          <label class="check-card"><input type="checkbox" id="proto-mix-smb" onchange="markDirty()"> SMB 3.x</label>
+          <label class="check-card"><input type="checkbox" id="proto-mix-s3" onchange="markDirty()"> S3 Object</label>
+          <label class="check-card"><input type="checkbox" id="proto-mix-nvme" onchange="markDirty()"> NVMe-oF/TCP</label>
+        </div>
+        <div class="grid-2" style="margin-top:1.25rem;">
+          <div class="form-group">
+            <label for="wl-client-os">Client OS / Environment</label>
+            <select id="wl-client-os" onchange="markDirty()">
+              <option value="linux">Linux / HPC</option>
+              <option value="windows">Windows</option>
+              <option value="mixed">Mixed Enterprise</option>
+              <option value="container">Container / Kubernetes</option>
+              <option value="gpu">GPU Cluster (CUDA/ROCm)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="wl-gpu-count">GPU Count (AI/Inference Workloads)</label>
+            <input type="number" id="wl-gpu-count" value="0" min="0" oninput="markDirty()">
+            <div class="input-desc">Total GPUs across all compute nodes. Used to estimate per-GPU bandwidth needs.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         PANEL 4 — Architecture & Sizing
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <section id="panel-4" class="wizard-panel">
+      <h2>Architecture &amp; Sizing</h2>
+      <p class="panel-description">Configure deployment parameters and capacity targets. The sizing engine calculates recommended hardware, growth projections, and environmental footprint in real time.</p>
+
+      <div class="grid-wide-left">
+        <!-- Left column: inputs -->
+        <div>
+          <div class="glass-panel">
+            <h3>Deployment Configuration</h3>
+            <div class="form-group">
+              <label for="deployment-type">Deployment Model</label>
+              <select id="deployment-type" onchange="calculateSizing()">
+                <option value="on-prem">On-Premises (Physical)</option>
+                <option value="private-cloud">Private Cloud (Virtualized)</option>
+                <option value="aws">Amazon Web Services (AWS)</option>
+                <option value="azure">Microsoft Azure</option>
+                <option value="gcp">Google Cloud Platform</option>
+                <option value="hybrid">Hybrid (On-Prem + Cloud)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="hw-preset">Hardware Preset</label>
+              <select id="hw-preset" onchange="calculateSizing()">
+                <option value="auto">Auto-Recommend (Engine decides)</option>
+                <option value="ceres-voyager">Ceres + Voyager (Standard)</option>
+                <option value="ceres-pro-voyager-pro">Ceres Pro + Voyager Pro (High-Performance)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="glass-panel">
+            <h3>Capacity</h3>
+            <div class="grid-2">
+              <div class="form-group">
+                <label for="target-usable">Target Usable Capacity</label>
+                <input type="number" id="target-usable" value="500" min="50" max="100000" oninput="calculateSizing()">
+              </div>
+              <div class="form-group">
+                <label for="capacity-unit">Unit</label>
+                <select id="capacity-unit" onchange="calculateSizing()">
+                  <option value="TB">Terabytes (TB)</option>
+                  <option value="PB">Petabytes (PB)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <div style="display:flex;justify-content:space-between;margin-bottom:.25rem;">
+                <label>Expected Data Reduction Ratio</label>
+                <span class="slider-val" id="reduction-val">3.0:1</span>
+              </div>
+              <input type="range" id="reduction-ratio" min="1.0" max="8.0" step="0.1" value="3.0" oninput="updateReductionSlider()" style="width:100%;accent-color:var(--accent-teal);">
+              <div class="input-desc">VAST Similarity Reduction + Global Dedup + Compression.</div>
+            </div>
+          </div>
+
+          <div class="glass-panel">
+            <h3>Performance Targets</h3>
+            <div class="form-group">
+              <div style="display:flex;justify-content:space-between;margin-bottom:.25rem;">
+                <label>Required Read Throughput</label>
+                <span class="slider-val" id="read-throughput-val">40 GB/s</span>
+              </div>
+              <input type="range" id="read-throughput" min="5" max="1000" step="5" value="40" oninput="updateReadSlider()" style="width:100%;accent-color:var(--accent-teal);">
+            </div>
+            <div class="form-group">
+              <div style="display:flex;justify-content:space-between;margin-bottom:.25rem;">
+                <label>Required Write Throughput</label>
+                <span class="slider-val" id="write-throughput-val">10 GB/s</span>
+              </div>
+              <input type="range" id="write-throughput" min="1" max="500" step="1" value="10" oninput="updateWriteSlider()" style="width:100%;accent-color:var(--accent-amber);">
+            </div>
+            <div class="form-group">
+              <label for="target-iops">Target IOPS (thousands)</label>
+              <input type="number" id="target-iops" value="500" min="1" oninput="calculateSizing()">
+              <div class="input-desc">Combined read+write IOPS in thousands. Used to validate C-node count.</div>
+            </div>
+          </div>
+
+          <div class="glass-panel">
+            <h3>Network Fabric</h3>
+            <div class="grid-2">
+              <div class="form-group">
+                <label for="client-net">Client Interface Speed</label>
+                <select id="client-net" onchange="calculateSizing()">
+                  <option value="25">25GbE (SFP28)</option>
+                  <option value="100" selected>100GbE (QSFP28)</option>
+                  <option value="200">200GbE / HDR (QSFP56)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="fabric-type">Backend Fabric Type</label>
+                <select id="fabric-type" onchange="calculateSizing()">
+                  <option value="RoCEv2">RoCEv2 Ethernet</option>
+                  <option value="IB-HDR">InfiniBand HDR</option>
+                  <option value="IB-NDR">InfiniBand NDR</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;font-size:.9rem;font-weight:500;cursor:pointer;">
+                <input type="checkbox" id="ha-config" checked onchange="calculateSizing()"> Enable High-Availability D-node pairs (redundant storage enclosures)
+              </label>
+            </div>
+          </div>
+
+          <div class="glass-panel">
+            <h3>Growth Planning</h3>
+            <div class="grid-2">
+              <div class="form-group">
+                <label for="growth-years">Planning Horizon</label>
+                <select id="growth-years" onchange="calculateSizing()">
+                  <option value="1">1 Year</option>
+                  <option value="3" selected>3 Years</option>
+                  <option value="5">5 Years</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="growth-rate">Annual Growth Rate (%)</label>
+                <input type="number" id="growth-rate" value="30" min="0" max="500" oninput="calculateSizing()">
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-panel">
+            <h3>Replication &amp; Cold Tiering</h3>
+            <div class="form-group">
+              <label for="replication-target-type">Replication Target</label>
+              <select id="replication-target-type" onchange="calculateSizing()">
+                <option value="none">None (Single Site)</option>
+                <option value="remote-onprem">Remote On-Premises VAST Cluster</option>
+                <option value="aws">AWS</option>
+                <option value="azure">Azure</option>
+                <option value="gcp">GCP</option>
+              </select>
+            </div>
+            <div id="remote-site-summary" style="display:none;border:1px solid var(--panel-border);border-radius:8px;padding:1rem;margin-bottom:1rem;background:rgba(245,158,11,.04);">
+              <div style="font-size:.8rem;font-weight:700;color:var(--accent-amber);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.05em;">DR Site Hardware</div>
+              <div class="grid-3">
+                <div class="metric-card compact teal"><div class="metric-title">C-Nodes (DR)</div><div class="metric-value" id="remote-cnode-count">2</div><div class="metric-sub" id="remote-cnode-model">VAST Ceres</div></div>
+                <div class="metric-card compact amber"><div class="metric-title">D-Nodes (DR)</div><div class="metric-value" id="remote-dnode-count">2</div><div class="metric-sub" id="remote-dnode-model">VAST Voyager</div></div>
+                <div class="metric-card compact"><div class="metric-title">Switches (DR)</div><div class="metric-value" id="remote-switch-count">2</div><div class="metric-sub" id="remote-switch-fabric-name">RoCEv2</div></div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;font-size:.9rem;font-weight:500;cursor:pointer;">
+                <input type="checkbox" id="cold-tier-enabled" onchange="toggleColdTier()"> Enable VAST Cloud Cold Storage Tiering
+              </label>
+            </div>
+            <div id="cold-tier-details-group" style="display:none;margin-top:.75rem;">
+              <div class="form-group">
+                <label for="cold-tier-provider">Cold Tier Provider</label>
+                <select id="cold-tier-provider" onchange="calculateSizing()">
+                  <option value="aws">AWS S3</option>
+                  <option value="azure">Azure Blob Storage</option>
+                  <option value="gcp">GCP GCS</option>
+                  <option value="onprem-s3">On-Prem S3 (MinIO / Ceph)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right column: live summary -->
+        <div class="summary-box">
+          <div class="glass-panel" style="margin-bottom:0;">
+            <h3 style="display:flex;align-items:center;justify-content:space-between;">
+              Recommended Configuration
+              <span class="badge badge-success">Live</span>
+            </h3>
+
+            <div class="grid-3" style="margin-bottom:1.5rem;">
+              <div class="metric-card teal">
+                <div class="metric-title">C-Nodes (Compute)</div>
+                <div class="metric-value" id="cnode-count">4</div>
+                <div class="metric-sub" id="cnode-model">VAST Ceres (1U)</div>
+              </div>
+              <div class="metric-card amber">
+                <div class="metric-title">D-Nodes (Storage)</div>
+                <div class="metric-value" id="dnode-count">2</div>
+                <div class="metric-sub" id="dnode-model">VAST Voyager (2U)</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-title">Backend Switches</div>
+                <div class="metric-value" id="switch-count">2</div>
+                <div class="metric-sub" id="switch-fabric-name">100GbE RoCEv2</div>
+              </div>
+            </div>
+
+            <div class="summary-header"><span class="summary-section-title">Capacity Breakdown</span></div>
+            <div class="summary-row"><span class="summary-label">Effective Usable Capacity</span><span class="summary-val" id="sum-effective">500.0 TB</span></div>
+            <div class="summary-row"><span class="summary-label">Physical Usable (after EC)</span><span class="summary-val" id="sum-physical">166.7 TB</span></div>
+            <div class="summary-row"><span class="summary-label">Raw SSD Required</span><span class="summary-val" id="sum-raw">171.8 TB</span></div>
+            <div class="summary-row"><span class="summary-label">SCM Write Buffer</span><span class="summary-val" id="sum-scm">7.2 TB</span></div>
+
+            <div class="summary-header" style="margin-top:1.25rem;"><span class="summary-section-title">Performance</span></div>
+            <div class="summary-row"><span class="summary-label">Peak Read Throughput</span><span class="summary-val" id="sum-read-tp">40 GB/s</span></div>
+            <div class="summary-row"><span class="summary-label">Peak Write Throughput</span><span class="summary-val" id="sum-write-tp">10 GB/s</span></div>
+            <div class="summary-row"><span class="summary-label">Read IOPS (est.)</span><span class="summary-val" id="sum-read-iops">2.4M</span></div>
+            <div class="summary-row"><span class="summary-label">Write IOPS (est.)</span><span class="summary-val" id="sum-write-iops">600K</span></div>
+
+            <div class="summary-header" style="margin-top:1.25rem;"><span class="summary-section-title">Growth Projection</span></div>
+            <div class="summary-row"><span class="summary-label">Required capacity in 1 year</span><span class="summary-val" id="grow-1yr">650 TB</span></div>
+            <div class="summary-row"><span class="summary-label">Required capacity in 3 years</span><span class="summary-val" id="grow-3yr">1.1 PB</span></div>
+            <div class="summary-row"><span class="summary-label">Required capacity in 5 years</span><span class="summary-val" id="grow-5yr">1.8 PB</span></div>
+
+            <div class="summary-header" style="margin-top:1.25rem;"><span class="summary-section-title">Physical Footprint</span></div>
+            <div class="grid-3">
+              <div class="metric-card compact">
+                <div class="metric-title">Rack Space</div>
+                <div class="metric-value" id="footprint-ru">10 RU</div>
+                <div class="metric-sub">inc. spacers</div>
+              </div>
+              <div class="metric-card compact">
+                <div class="metric-title">Max Power</div>
+                <div class="metric-value" id="footprint-power">3,200W</div>
+                <div class="metric-sub">full load</div>
+              </div>
+              <div class="metric-card compact">
+                <div class="metric-title">Heat Output</div>
+                <div class="metric-value" id="footprint-heat">10.9K BTU</div>
+                <div class="metric-sub">cooling req.</div>
+              </div>
+            </div>
+            <div class="summary-row" style="margin-top:.75rem;"><span class="summary-label">Estimated Cluster Weight</span><span class="summary-val" id="footprint-weight">&mdash;</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         PANEL 5 — Network & Cabling
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <section id="panel-5" class="wizard-panel">
+      <h2>Network &amp; Cabling</h2>
+      <p class="panel-description">Configure IP subnets, VLANs, switch models, and review the interactive cabling schematic. Port assignments and IP allocations are auto-generated from sizing.</p>
+
+      <div class="net-two-col">
+        <!-- Left: Config -->
+        <div>
+          <div class="glass-panel">
+            <h3>IP Subnet Configuration</h3>
+            <div class="grid-2">
+              <div class="form-group">
+                <label for="net-mgmt-subnet">Management / BMC Subnet</label>
+                <input type="text" id="net-mgmt-subnet" value="192.168.10.0/24" oninput="markDirty()">
+              </div>
+              <div class="form-group">
+                <label for="net-backend-subnet">Backend Storage Subnet</label>
+                <input type="text" id="net-backend-subnet" value="172.16.100.0/22" oninput="markDirty()">
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label for="net-frontend-subnet">Frontend Client Subnet</label>
+                <input type="text" id="net-frontend-subnet" value="10.100.20.0/24" oninput="markDirty()">
+              </div>
+              <div class="form-group">
+                <label for="net-vip-gateway">VIP Gateway</label>
+                <input type="text" id="net-vip-gateway" value="10.100.20.1" oninput="markDirty()">
+              </div>
+            </div>
+            <div class="grid-3">
+              <div class="form-group">
+                <label for="net-vip-start">VIP Start</label>
+                <input type="text" id="net-vip-start" value="10.100.20.100" oninput="markDirty()">
+              </div>
+              <div class="form-group">
+                <label for="net-vip-end">VIP End</label>
+                <input type="text" id="net-vip-end" value="10.100.20.119" oninput="markDirty()">
+              </div>
+              <div class="form-group">
+                <label for="net-vip-mask">Prefix (/)</label>
+                <input type="number" id="net-vip-mask" value="24" min="8" max="32" oninput="markDirty()">
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-panel">
+            <h3>VLAN Configuration</h3>
+            <div class="grid-3">
+              <div class="form-group">
+                <label for="vlan-mgmt">Mgmt VLAN</label>
+                <input type="number" id="vlan-mgmt" value="10" min="1" max="4094" oninput="markDirty()">
+              </div>
+              <div class="form-group">
+                <label for="vlan-backend">Backend VLAN</label>
+                <input type="number" id="vlan-backend" value="100" min="1" max="4094" oninput="markDirty()">
+              </div>
+              <div class="form-group">
+                <label for="vlan-frontend">Frontend VLAN</label>
+                <input type="number" id="vlan-frontend" value="20" min="1" max="4094" oninput="markDirty()">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="net-mtu">MTU Setting</label>
+              <select id="net-mtu" onchange="markDirty()">
+                <option value="1500">1500 (Standard &mdash; not recommended)</option>
+                <option value="9000" selected>9000 Jumbo Frames (Recommended)</option>
+              </select>
+              <div class="input-desc">Jumbo frames required for full throughput on backend RoCEv2 fabric.</div>
+            </div>
+          </div>
+
+          <div class="glass-panel">
+            <h3>Switch Selection</h3>
+            <div class="form-group">
+              <label for="sw-backend-model">Backend Fabric Switch</label>
+              <select id="sw-backend-model" onchange="markDirty()">
+                <option value="arista-7050cx3">Arista 7050CX3-32S (32&times;100G)</option>
+                <option value="arista-7060cx2">Arista 7060CX2-32S (32&times;100G)</option>
+                <option value="cisco-n9336c">Cisco Nexus 9336C-FX2 (36&times;100G)</option>
+                <option value="mellanox-spectrum3">Mellanox Spectrum-3 (32&times;400G)</option>
+                <option value="nvidia-qm8700">NVIDIA QM8700 InfiniBand HDR</option>
+                <option value="generic-rocev2">Generic RoCEv2 Switch</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="sw-frontend-model">Frontend Client Switch</label>
+              <select id="sw-frontend-model" onchange="markDirty()">
+                <option value="arista-7280r3">Arista 7280R3 (L3, 400G uplinks)</option>
+                <option value="cisco-93180yc">Cisco Nexus 93180YC-FX3</option>
+                <option value="generic-l3">Generic L3 Switch</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Diagram + tables -->
+        <div>
+          <div class="glass-panel">
+            <h3>Physical Cabling Schematic</h3>
+            <p style="font-size:.82rem;color:var(--color-text-secondary);margin-bottom:.75rem;">Hover legend items to highlight cable groups. Each node connects redundantly to both fabric switches.</p>
+            <div class="svg-cabling-container">
+              <svg class="cabling-svg" id="cabling-svg" viewBox="0 0 720 400">
+                <!-- CLIENT CABLES -->
+                <path d="M 130,48 C 130,100 265,100 265,118" class="svg-cable active client-cables" stroke="#38BDF8" id="cable-client-c1"/>
+                <path d="M 130,48 C 130,100 455,100 455,118" class="svg-cable active client-cables" stroke="#38BDF8" id="cable-client-c2"/>
+                <!-- BACKEND SWITCH A -->
+                <path d="M 265,138 L 265,205" class="svg-cable active backend-cables" stroke="#6366F1" id="cable-c1-swa"/>
+                <path d="M 455,138 L 295,215" class="svg-cable active backend-cables" stroke="#6366F1" id="cable-c2-swa"/>
+                <path d="M 265,295 L 265,225" class="svg-cable active backend-cables" stroke="#6366F1" id="cable-d1-swa"/>
+                <path d="M 455,295 L 295,225" class="svg-cable active backend-cables" stroke="#6366F1" id="cable-d2-swa"/>
+                <!-- BACKEND SWITCH B -->
+                <path d="M 265,138 L 435,215" class="svg-cable active backend-cables" stroke="#6366F1" id="cable-c1-swb"/>
+                <path d="M 455,138 L 455,205" class="svg-cable active backend-cables" stroke="#6366F1" id="cable-c2-swb"/>
+                <path d="M 265,295 L 435,225" class="svg-cable active backend-cables" stroke="#6366F1" id="cable-d1-swb"/>
+                <path d="M 455,295 L 455,225" class="svg-cable active backend-cables" stroke="#6366F1" id="cable-d2-swb"/>
+                <!-- MGMT CABLES -->
+                <path d="M 620,48 C 620,90 265,90 265,118" class="svg-cable active mgmt-cables" stroke="#10B981" id="cable-mgmt-c1"/>
+                <path d="M 620,48 C 620,90 455,90 455,118" class="svg-cable active mgmt-cables" stroke="#10B981" id="cable-mgmt-c2"/>
+                <path d="M 620,48 C 650,190 265,280 265,295" class="svg-cable active mgmt-cables" stroke="#10B981" id="cable-mgmt-d1"/>
+                <path d="M 620,48 C 650,200 455,280 455,295" class="svg-cable active mgmt-cables" stroke="#10B981" id="cable-mgmt-d2"/>
+                <!-- NODES -->
+                <rect x="30" y="28" width="200" height="40" class="svg-node" fill="#0E1825" stroke="#38BDF8" rx="4"/>
+                <text x="130" y="44" text-anchor="middle" class="svg-text">Frontend Client Switch</text>
+                <text x="130" y="57" text-anchor="middle" class="svg-text-sub">L3 / LACP &mdash; 100GbE</text>
+                <rect x="520" y="28" width="190" height="40" class="svg-node" fill="#0E1825" stroke="#10B981" rx="4"/>
+                <text x="615" y="44" text-anchor="middle" class="svg-text">OOB Mgmt Switch</text>
+                <text x="615" y="57" text-anchor="middle" class="svg-text-sub">1GbE BMC / IPMI</text>
+                <rect x="185" y="118" width="160" height="40" class="svg-node" fill="#0A1520" stroke="#10B981" rx="4"/>
+                <text x="265" y="134" text-anchor="middle" class="svg-text">C-Node 1 (Lead)</text>
+                <text x="265" y="147" text-anchor="middle" class="svg-text-sub">Ceres Protocol Node</text>
+                <rect x="375" y="118" width="160" height="40" class="svg-node" fill="#0A1520" stroke="#10B981" rx="4"/>
+                <text x="455" y="134" text-anchor="middle" class="svg-text">C-Node 2</text>
+                <text x="455" y="147" text-anchor="middle" class="svg-text-sub">Ceres Protocol Node</text>
+                <rect x="185" y="205" width="160" height="40" class="svg-node" fill="#0E1028" stroke="#6366F1" rx="4"/>
+                <text x="265" y="221" text-anchor="middle" class="svg-text">Fabric Switch A</text>
+                <text x="265" y="234" text-anchor="middle" class="svg-text-sub">Rail 1 &mdash; 100GbE RoCEv2</text>
+                <rect x="375" y="205" width="160" height="40" class="svg-node" fill="#0E1028" stroke="#6366F1" rx="4"/>
+                <text x="455" y="221" text-anchor="middle" class="svg-text">Fabric Switch B</text>
+                <text x="455" y="234" text-anchor="middle" class="svg-text-sub">Rail 2 &mdash; 100GbE RoCEv2</text>
+                <rect x="185" y="295" width="160" height="40" class="svg-node" fill="#0A1000" stroke="#F59E0B" rx="4"/>
+                <text x="265" y="311" text-anchor="middle" class="svg-text">D-Node 1 Drawer</text>
+                <text x="265" y="324" text-anchor="middle" class="svg-text-sub">SCM Buffer + QLC SSD</text>
+                <rect x="375" y="295" width="160" height="40" class="svg-node" fill="#0A1000" stroke="#F59E0B" rx="4"/>
+                <text x="455" y="311" text-anchor="middle" class="svg-text">D-Node 2 Drawer (HA)</text>
+                <text x="455" y="324" text-anchor="middle" class="svg-text-sub">SCM Buffer + QLC SSD</text>
+                <!-- Layer labels -->
+                <text x="10" y="148" class="svg-text-sub" fill="#10B981" style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;">C-NODES</text>
+                <text x="10" y="234" class="svg-text-sub" fill="#6366F1" style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;">FABRIC</text>
+                <text x="10" y="320" class="svg-text-sub" fill="#F59E0B" style="font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;">D-NODES</text>
+              </svg>
+            </div>
+            <div class="cable-legend">
+              <div class="legend-item active leg-client" onmouseover="highlightCables('client')" onmouseout="resetCables()">
+                <span class="legend-dot"></span><span>Frontend Client</span>
+              </div>
+              <div class="legend-item active leg-back" onmouseover="highlightCables('backend')" onmouseout="resetCables()">
+                <span class="legend-dot"></span><span>Backend Fabric</span>
+              </div>
+              <div class="legend-item active leg-mgt" onmouseover="highlightCables('mgmt')" onmouseout="resetCables()">
+                <span class="legend-dot"></span><span>IPMI / OOB Mgmt</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-panel">
+            <h3>Port Assignment &amp; IP Mapping</h3>
+            <div class="table-container">
+              <table class="cabling-table">
+                <thead><tr><th>Component</th><th>Port</th><th>Destination</th><th>Domain</th><th>VLAN</th><th>Allocated IP</th></tr></thead>
+                <tbody id="port-map-tbody">
+                  <tr><td colspan="6" style="text-align:center;color:var(--color-text-muted);padding:1.5rem;">Configure sizing in Panel 4 to auto-generate port map.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="glass-panel">
+            <h3>IP Address Allocation</h3>
+            <div class="table-container">
+              <table class="cabling-table">
+                <thead><tr><th>Host</th><th>Role</th><th>Mgmt IP</th><th>Backend IP</th><th>Frontend VIP</th></tr></thead>
+                <tbody id="ip-alloc-tbody">
+                  <tr><td colspan="5" style="text-align:center;color:var(--color-text-muted);padding:1.5rem;">Populate after sizing in Panel 4.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         PANEL 6 — Cluster Provisioning
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <section id="panel-6" class="wizard-panel">
+      <h2>Cluster Provisioning</h2>
+      <p class="panel-description">Configure logical cluster parameters. VCLI commands are generated in real time as you fill in the form on the left.</p>
+
+      <div class="grid-wide-left">
+        <!-- Left: Config form -->
+        <div class="glass-panel" style="max-height:900px;overflow-y:auto;">
+          <h3>Cluster Settings</h3>
+          <div class="grid-2">
+            <div class="form-group">
+              <label for="prov-cluster-name">Cluster Name</label>
+              <input type="text" id="prov-cluster-name" value="vast-storage-01" oninput="generateVcliCommands()">
+            </div>
+            <div class="form-group">
+              <label for="prov-dns">DNS Server</label>
+              <input type="text" id="prov-dns" value="10.100.20.10" oninput="generateVcliCommands()">
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label for="prov-ntp">NTP Server</label>
+              <input type="text" id="prov-ntp" value="10.100.20.11" oninput="generateVcliCommands()">
+            </div>
+            <div class="form-group">
+              <label for="prov-syslog">Syslog Server</label>
+              <input type="text" id="prov-syslog" value="10.100.20.12" oninput="generateVcliCommands()">
+            </div>
+          </div>
+
+          <h4 style="color:var(--accent-teal);border-bottom:1px solid var(--panel-border);padding-bottom:.5rem;margin:1.25rem 0 1rem;">1. Virtual IP (VIP) Pool</h4>
+          <div class="grid-2">
+            <div class="form-group">
+              <label for="prov-vip-start">VIP Range Start</label>
+              <input type="text" id="prov-vip-start" value="10.100.20.100" oninput="generateVcliCommands()">
+            </div>
+            <div class="form-group">
+              <label for="prov-vip-end">VIP Range End</label>
+              <input type="text" id="prov-vip-end" value="10.100.20.119" oninput="generateVcliCommands()">
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label for="prov-vip-mask">Prefix Length</label>
+              <input type="number" id="prov-vip-mask" value="24" min="8" max="32" oninput="generateVcliCommands()">
+            </div>
+            <div class="form-group">
+              <label for="prov-vip-gateway">Gateway</label>
+              <input type="text" id="prov-vip-gateway" value="10.100.20.1" oninput="generateVcliCommands()">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="prov-vip-policy">IP Distribution Policy</label>
+            <select id="prov-vip-policy" onchange="generateVcliCommands()">
+              <option value="round-robin">Round-Robin (Balance across interfaces)</option>
+              <option value="node-affinity">Node-Affinity (Client pinned to same C-node)</option>
+            </select>
+          </div>
+
+          <h4 style="color:var(--accent-teal);border-bottom:1px solid var(--panel-border);padding-bottom:.5rem;margin:1.25rem 0 1rem;">2. Protocols Enabled</h4>
+          <div class="checkbox-grid-3">
+            <label class="check-card"><input type="checkbox" id="proto-nfs3" checked onchange="generateVcliCommands()"> NFSv3</label>
+            <label class="check-card"><input type="checkbox" id="proto-nfs4" checked onchange="generateVcliCommands()"> NFSv4.1</label>
+            <label class="check-card"><input type="checkbox" id="proto-smb" checked onchange="generateVcliCommands()"> SMB 3</label>
+            <label class="check-card"><input type="checkbox" id="proto-s3" checked onchange="generateVcliCommands()"> S3</label>
+            <label class="check-card"><input type="checkbox" id="proto-nvme" onchange="generateVcliCommands()"> NVMe/TCP</label>
+          </div>
+          <div class="grid-2" style="margin-top:1rem;">
+            <div class="form-group">
+              <label for="prov-nfs-squash">NFS Root Squash</label>
+              <select id="prov-nfs-squash" onchange="generateVcliCommands()">
+                <option value="root-squash">root_squash (Remap root&rarr;nobody)</option>
+                <option value="no-squash" selected>no_root_squash (Allow root writes)</option>
+                <option value="all-squash">all_squash (Remap all users)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="prov-nfs-version">NFS Version Default</label>
+              <select id="prov-nfs-version" onchange="generateVcliCommands()">
+                <option value="v3">NFSv3 Only</option>
+                <option value="v4">NFSv4.1 Only</option>
+                <option value="both" selected>Both v3 and v4.1</option>
+              </select>
+            </div>
+          </div>
+
+          <h4 style="color:var(--accent-teal);border-bottom:1px solid var(--panel-border);padding-bottom:.5rem;margin:1.25rem 0 1rem;">3. Authentication</h4>
+          <div class="form-group">
+            <label for="prov-auth-source">Authentication Provider</label>
+            <select id="prov-auth-source" onchange="toggleAdConfig()">
+              <option value="local" selected>Local Auth &amp; System UID/GID</option>
+              <option value="ldap">LDAP / Active Directory</option>
+              <option value="kerberos">Kerberos (KDC)</option>
+            </select>
+          </div>
+          <div id="ad-config-group" style="display:none;">
+            <div class="grid-2">
+              <div class="form-group">
+                <label for="prov-ad-domain">AD Domain (FQDN)</label>
+                <input type="text" id="prov-ad-domain" placeholder="corp.example.com" oninput="generateVcliCommands()">
+              </div>
+              <div class="form-group">
+                <label for="prov-ad-server">AD Server IP</label>
+                <input type="text" id="prov-ad-server" placeholder="10.100.20.20" oninput="generateVcliCommands()">
+              </div>
+            </div>
+          </div>
+
+          <h4 style="color:var(--accent-teal);border-bottom:1px solid var(--panel-border);padding-bottom:.5rem;margin:1.25rem 0 1rem;">4. View Creation</h4>
+          <div class="grid-2">
+            <div class="form-group">
+              <label for="prov-view-path">View Export Path</label>
+              <input type="text" id="prov-view-path" value="/data/ai_models" oninput="generateVcliCommands()">
+            </div>
+            <div class="form-group">
+              <label for="prov-quota-gb">View Quota (TB, 0=unlimited)</label>
+              <input type="number" id="prov-quota-gb" value="250" min="0" oninput="generateVcliCommands()">
+            </div>
+          </div>
+
+          <h4 style="color:var(--accent-teal);border-bottom:1px solid var(--panel-border);padding-bottom:.5rem;margin:1.25rem 0 1rem;">5. Quality of Service</h4>
+          <div class="grid-2">
+            <div class="form-group">
+              <label for="prov-qos-max-bw">QoS Max Bandwidth</label>
+              <select id="prov-qos-max-bw" onchange="generateVcliCommands()">
+                <option value="unlimited">No Limit</option>
+                <option value="5">5 GB/s</option>
+                <option value="10" selected>10 GB/s</option>
+                <option value="20">20 GB/s</option>
+                <option value="40">40 GB/s</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="prov-qos-max-iops">QoS Max IOPS</label>
+              <select id="prov-qos-max-iops" onchange="generateVcliCommands()">
+                <option value="unlimited">No Limit</option>
+                <option value="50k">50,000</option>
+                <option value="100k" selected>100,000</option>
+                <option value="250k">250,000</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Terminal -->
+        <div style="display:flex;flex-direction:column;gap:.75rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg-secondary);padding:.5rem .75rem;border-radius:8px;border:1px solid var(--panel-border);gap:1rem;flex-wrap:wrap;">
+            <div style="display:flex;gap:.5rem;align-items:center;">
+              <span style="font-size:.72rem;color:var(--color-text-muted);text-transform:uppercase;font-weight:700;letter-spacing:.05em;">CLI Style:</span>
+              <select id="vcli-format-style" onchange="generateVcliCommands()" style="background:var(--bg-tertiary);color:#fff;border:1px solid var(--panel-border);padding:.25rem .5rem;border-radius:6px;font-size:.75rem;cursor:pointer;outline:none;">
+                <option value="bash-prefix" selected>Linux Shell (vcli prefix)</option>
+                <option value="vcli-interactive">vCLI Interactive</option>
+              </select>
+            </div>
+            <label style="font-size:.72rem;color:var(--color-text-muted);text-transform:uppercase;font-weight:700;letter-spacing:.05em;display:flex;align-items:center;gap:.35rem;cursor:pointer;margin:0;">
+              <input type="checkbox" id="vcli-show-explanations" checked onchange="generateVcliCommands()" style="width:14px;height:14px;accent-color:var(--accent-teal);">
+              Show Comments
+            </label>
+          </div>
+
+          <div class="terminal-window" style="height:600px;">
+            <div class="terminal-header">
+              <div class="terminal-dots">
+                <div class="terminal-dot red"></div>
+                <div class="terminal-dot yellow"></div>
+                <div class="terminal-dot green"></div>
+              </div>
+              <div class="terminal-title">vast-cli &mdash; configuration generator</div>
+              <button class="clipboard-btn" onclick="copyVcliToClipboard()">&#10232; Copy CLI Code</button>
+            </div>
+            <div class="terminal-body" id="vcli-output-container" style="max-height:calc(100% - 44px);overflow-y:auto;">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         PANEL 7 — Advanced Features
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <section id="panel-7" class="wizard-panel">
+      <h2>Advanced Features</h2>
+      <p class="panel-description">Configure BC/DR replication, data security policies, and third-party platform integrations.</p>
+
+      <div class="adv-tabs">
+        <button id="adv-tab-bcdr" class="adv-tab-btn active" onclick="switchAdvTab('bcdr')">&#128257; BC / DR</button>
+        <button id="adv-tab-security" class="adv-tab-btn" onclick="switchAdvTab('security')">&#128274; Security</button>
+        <button id="adv-tab-integrations" class="adv-tab-btn" onclick="switchAdvTab('integrations')">&#128268; Integrations</button>
+      </div>
+
+      <!-- BC/DR -->
+      <div id="adv-content-bcdr" class="adv-content active">
+        <div class="grid-2">
+          <div class="glass-panel">
+            <h3>Replication Configuration</h3>
+            <div class="form-group">
+              <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;font-size:.95rem;cursor:pointer;">
+                <input type="checkbox" id="bc-enable-replication" onchange="markDirty()"> Enable VAST DataSpace Asynchronous Replication
+              </label>
+            </div>
+            <div class="form-group">
+              <label for="bc-replication-type">Replication Mode</label>
+              <select id="bc-replication-type" onchange="markDirty()">
+                <option value="async">Asynchronous Mirror</option>
+                <option value="sync">Synchronous Mirror (Active-Active)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="bc-remote-site-type">Remote Site Type</label>
+              <select id="bc-remote-site-type" onchange="markDirty()">
+                <option value="vast-onprem">On-Premises VAST Cluster</option>
+                <option value="aws">AWS</option>
+                <option value="azure">Azure</option>
+                <option value="gcp">GCP</option>
+              </select>
+            </div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label for="bc-rpo-minutes">RPO Target (minutes)</label>
+                <input type="number" id="bc-rpo-minutes" value="15" min="1" oninput="markDirty()">
+              </div>
+              <div class="form-group">
+                <label for="bc-wan-bandwidth">WAN Available (Gbps)</label>
+                <input type="number" id="bc-wan-bandwidth" value="10" min="1" oninput="markDirty()">
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-panel">
+            <h3>Snapshot Policy</h3>
+            <div class="form-group">
+              <label for="bc-snapshot-schedule">Snapshot Schedule</label>
+              <select id="bc-snapshot-schedule" onchange="markDirty()">
+                <option value="hourly">Hourly</option>
+                <option value="4h">Every 4 Hours</option>
+                <option value="daily" selected>Daily</option>
+                <option value="weekly">Weekly</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="bc-snapshot-retention">Retention Period (days)</label>
+              <input type="number" id="bc-snapshot-retention" value="30" min="1" oninput="markDirty()">
+            </div>
+            <div class="topology-svg-wrap">
+              <svg viewBox="0 0 400 160" style="width:100%;height:100%;">
+                <rect x="20" y="50" width="130" height="60" fill="#0A1520" stroke="#10B981" stroke-width="1.5" rx="6"/>
+                <text x="85" y="75" text-anchor="middle" fill="#10B981" font-size="10" font-weight="700" font-family="Outfit,sans-serif">PRIMARY SITE</text>
+                <text x="85" y="90" text-anchor="middle" fill="#6B7280" font-size="8" font-family="Outfit,sans-serif">VAST Cluster</text>
+                <text x="85" y="103" text-anchor="middle" fill="#6B7280" font-size="8" font-family="Outfit,sans-serif">4C / 2D</text>
+                <path d="M 155,80 L 245,80" stroke="#6366F1" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrow-bcdr)"/>
+                <defs><marker id="arrow-bcdr" markerWidth="8" markerHeight="8" refX="4" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#6366F1" opacity=".7"/></marker></defs>
+                <text x="200" y="72" text-anchor="middle" fill="#6366F1" font-size="8" font-family="Outfit,sans-serif">Async Mirror</text>
+                <text x="200" y="93" text-anchor="middle" fill="#6B7280" font-size="7" font-family="Outfit,sans-serif">RPO: 15 min</text>
+                <rect x="250" y="50" width="130" height="60" fill="#0A1000" stroke="#F59E0B" stroke-width="1.5" rx="6"/>
+                <text x="315" y="75" text-anchor="middle" fill="#F59E0B" font-size="10" font-weight="700" font-family="Outfit,sans-serif">DR SITE</text>
+                <text x="315" y="90" text-anchor="middle" fill="#6B7280" font-size="8" font-family="Outfit,sans-serif">VAST Cluster</text>
+                <text x="315" y="103" text-anchor="middle" fill="#6B7280" font-size="8" font-family="Outfit,sans-serif">2C / 2D</text>
+                <path d="M 85,110 L 85,145" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3,2"/>
+                <text x="85" y="155" text-anchor="middle" fill="#6B7280" font-size="7" font-family="Outfit,sans-serif">Snapshots (30d)</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Security -->
+      <div id="adv-content-security" class="adv-content">
+        <div class="grid-2">
+          <div class="glass-panel">
+            <h3>Encryption &amp; Key Management</h3>
+            <div class="form-group">
+              <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;font-size:.95rem;cursor:pointer;">
+                <input type="checkbox" id="sec-dare" checked onchange="updateComplianceBadges()"> Enable Data-at-Rest Encryption (DARE)
+              </label>
+            </div>
+            <div class="form-group">
+              <label for="sec-key-mgmt">Key Management Service</label>
+              <select id="sec-key-mgmt" onchange="markDirty()">
+                <option value="builtin">Built-in KMS (VAST internal)</option>
+                <option value="kmip">External KMS (KMIP v1.x)</option>
+                <option value="vault">HashiCorp Vault</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;font-size:.9rem;cursor:pointer;">
+                <input type="checkbox" id="sec-worm" onchange="toggleWorm()"> Enable WORM Compliance Mode
+              </label>
+            </div>
+            <div id="worm-retention-group" style="display:none;margin-top:.5rem;">
+              <div class="form-group">
+                <label for="sec-worm-retention">WORM Retention (days)</label>
+                <input type="number" id="sec-worm-retention" value="365" min="1" oninput="markDirty()">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;font-size:.9rem;cursor:pointer;">
+                <input type="checkbox" id="sec-multi-tenant" onchange="updateComplianceBadges()"> Enable Multi-Tenancy (Tenant Isolation)
+              </label>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;font-size:.9rem;cursor:pointer;">
+                <input type="checkbox" id="sec-audit-log" checked onchange="updateComplianceBadges()"> Enable Audit Logging (VastDB events)
+              </label>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;font-size:.9rem;cursor:pointer;">
+                <input type="checkbox" id="sec-smb-signing" onchange="markDirty()"> Require SMB Packet Signing
+              </label>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;font-size:.9rem;cursor:pointer;">
+                <input type="checkbox" id="sec-nfs-kerberos" onchange="markDirty()"> Enable NFS Kerberos (krb5p)
+              </label>
+            </div>
+          </div>
+
+          <div class="glass-panel">
+            <h3>Compliance Posture</h3>
+            <p style="font-size:.82rem;color:var(--color-text-secondary);margin-bottom:1rem;">Based on frameworks selected in Panel 2 and security settings above.</p>
+            <div class="compliance-badges" id="compliance-badges-display">
+              <span class="comp-badge unmet">HIPAA</span>
+              <span class="comp-badge unmet">GDPR</span>
+              <span class="comp-badge unmet">PCI-DSS</span>
+              <span class="comp-badge unmet">SOC 2</span>
+              <span class="comp-badge unmet">FedRAMP</span>
+              <span class="comp-badge unmet">ISO 27001</span>
+            </div>
+            <div style="margin-top:1.5rem;padding:1rem;background:rgba(16,185,129,.05);border:1px dashed rgba(16,185,129,.2);border-radius:8px;">
+              <div style="font-size:.8rem;color:var(--color-text-secondary);line-height:1.75;">
+                <strong style="color:var(--accent-teal);">Security Reference:</strong><br>
+                VAST DARE uses AES-256-XTS encryption per drive sector.<br>
+                KMIP-compatible KMS integration requires VastOS 5.1+.<br>
+                WORM requires immutability policy set per View object.<br>
+                Audit logs ship to syslog target configured in Panel 6.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Integrations -->
+      <div id="adv-content-integrations" class="adv-content">
+        <div class="grid-2">
+          <div class="glass-panel">
+            <h3>VMware vSphere</h3>
+            <div class="form-group">
+              <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;font-size:.95rem;cursor:pointer;">
+                <input type="checkbox" id="int-vmware" onchange="toggleIntegration('vmware')"> Enable VMware Integration
+              </label>
+            </div>
+            <div id="int-vmware-config" style="display:none;">
+              <div class="form-group">
+                <label for="int-vmware-vcenter">vCenter Server IP</label>
+                <input type="text" id="int-vmware-vcenter" placeholder="10.100.10.20" oninput="markDirty()">
+              </div>
+              <div class="form-group">
+                <label for="int-vmware-datastore-type">Datastore Type</label>
+                <select id="int-vmware-datastore-type" onchange="markDirty()">
+                  <option value="nfs41">NFS 4.1 (Recommended)</option>
+                  <option value="nfs3">NFS 3</option>
+                  <option value="vvols">vVols</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;font-size:.9rem;cursor:pointer;">
+                  <input type="checkbox" id="int-vmware-vaai" checked onchange="markDirty()"> Enable VAAI NAS Offload
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-panel">
+            <h3>Kubernetes CSI</h3>
+            <div class="form-group">
+              <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;font-size:.95rem;cursor:pointer;">
+                <input type="checkbox" id="int-k8s" onchange="toggleIntegration('k8s')"> Enable Kubernetes CSI Integration
+              </label>
+            </div>
+            <div id="int-k8s-config" style="display:none;">
+              <div class="form-group">
+                <label for="int-k8s-namespace">Namespace</label>
+                <input type="text" id="int-k8s-namespace" value="vast-csi" oninput="generateK8sYaml()">
+              </div>
+              <div class="form-group">
+                <label for="int-k8s-storageclass">StorageClass Name</label>
+                <input type="text" id="int-k8s-storageclass" value="vast-storageclass" oninput="generateK8sYaml()">
+              </div>
+              <div class="form-group">
+                <label for="int-k8s-access-mode">Access Mode</label>
+                <select id="int-k8s-access-mode" onchange="generateK8sYaml()">
+                  <option value="RWX" selected>ReadWriteMany (RWX)</option>
+                  <option value="RWO">ReadWriteOnce (RWO)</option>
+                  <option value="ROX">ReadOnlyMany (ROX)</option>
+                </select>
+              </div>
+              <div style="font-size:.8rem;color:var(--color-text-muted);margin-top:.5rem;">Generated StorageClass YAML:</div>
+              <pre id="k8s-yaml-output" style="background:#04060A;border:1px solid var(--panel-border);border-radius:8px;padding:.85rem;font-family:var(--font-mono);font-size:.72rem;color:#A7F3D0;line-height:1.5;max-height:200px;overflow-y:auto;margin-top:.5rem;white-space:pre;">Enable K8s integration above to generate YAML.</pre>
+            </div>
+          </div>
+
+          <div class="glass-panel">
+            <h3>OpenStack</h3>
+            <div class="form-group">
+              <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;font-size:.95rem;cursor:pointer;">
+                <input type="checkbox" id="int-openstack" onchange="toggleIntegration('openstack')"> Enable OpenStack Integration
+              </label>
+            </div>
+            <div id="int-openstack-config" style="display:none;">
+              <div class="form-group">
+                <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;cursor:pointer;">
+                  <input type="checkbox" id="int-os-cinder" checked onchange="markDirty()"> Cinder Block Storage Backend
+                </label>
+              </div>
+              <div class="form-group">
+                <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;cursor:pointer;">
+                  <input type="checkbox" id="int-os-manila" checked onchange="markDirty()"> Manila Shared Filesystem
+                </label>
+              </div>
+              <div class="form-group">
+                <label for="int-os-backend-name">Backend Name</label>
+                <input type="text" id="int-os-backend-name" value="vast-backend" oninput="markDirty()">
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-panel">
+            <h3>Cloud Tiering</h3>
+            <div class="form-group">
+              <label class="checkbox-label" style="text-transform:none;letter-spacing:normal;font-size:.95rem;cursor:pointer;">
+                <input type="checkbox" id="tier-enable" onchange="toggleIntegration('tier')"> Enable VAST Cloud Tiering
+              </label>
+            </div>
+            <div id="int-tier-config" style="display:none;">
+              <div class="form-group">
+                <label for="tier-provider">Cloud Provider</label>
+                <select id="tier-provider" onchange="markDirty()">
+                  <option value="aws">AWS S3</option>
+                  <option value="azure">Azure Blob Storage</option>
+                  <option value="gcp">GCP GCS</option>
+                  <option value="onprem">On-Prem S3 (MinIO)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="tier-bucket">Target Bucket / Container</label>
+                <input type="text" id="tier-bucket" placeholder="vast-cold-tier-bucket" oninput="markDirty()">
+              </div>
+              <div class="form-group">
+                <label for="tier-policy">Tiering Policy</label>
+                <select id="tier-policy" onchange="markDirty()">
+                  <option value="age">Age-based (Objects older than N days)</option>
+                  <option value="capacity">Capacity-based (When &gt;80% full)</option>
+                  <option value="manual">Manual (Admin-initiated)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         PANEL 8 — Design Proposal
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <section id="panel-8" class="wizard-panel">
+      <h2>Design Proposal</h2>
+      <p class="panel-description">Auto-generated customer-facing proposal documents. Customise the ROI calculator to build a compelling business case.</p>
+
+      <div class="prop-tabs">
+        <button id="prop-tab-executive" class="prop-tab-btn active" onclick="switchPropTab('executive')">Executive Summary</button>
+        <button id="prop-tab-solution" class="prop-tab-btn" onclick="switchPropTab('solution')">Solution Overview</button>
+        <button id="prop-tab-roi" class="prop-tab-btn" onclick="switchPropTab('roi')">ROI Calculator</button>
+      </div>
+
+      <div id="prop-content-executive" class="prop-content active">
+        <div class="glass-panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h3>Executive Summary</h3>
+            <button class="btn btn-primary" onclick="window.print()" style="padding:.4rem 1rem;font-size:.82rem;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+              Export PDF
+            </button>
+          </div>
+          <div class="document-preview proposal-preview" id="prop-content-executive-doc">
+            <h1>VAST Data &mdash; Enterprise Storage Proposal</h1>
+            <h2>Executive Summary</h2>
+            <p>This document is auto-generated from your configuration. Complete Panels 1&ndash;7 to populate all sections with customer-specific data.</p>
+            <h2>Business Context</h2>
+            <p>Organisation details and engagement type from Panel 1 will appear here once configured.</p>
+            <h2>Recommended Architecture</h2>
+            <p>Hardware sizing summary from Panel 4 will appear here automatically.</p>
+            <h2>Key Differentiators</h2>
+            <ul>
+              <li>DASE Architecture eliminates metadata bottlenecks for linear, unlimited scaling</li>
+              <li>Similarity Reduction delivers 3&ndash;10&times; data reduction without performance penalty</li>
+              <li>150+4 Erasure Coding provides four-fault drive tolerance with &lt;3% overhead</li>
+              <li>Global namespace unifies flash and object storage under a single mount point</li>
+              <li>Single software stack &mdash; VastOS &mdash; across on-premises, edge, and cloud</li>
+            </ul>
+            <blockquote><p>VAST Data is the only storage platform purpose-built for the AI era, combining petabyte-scale flash density with universal data access across all protocols.</p></blockquote>
+          </div>
+        </div>
+      </div>
+
+      <div id="prop-content-solution" class="prop-content">
+        <div class="glass-panel">
+          <h3>Solution Overview</h3>
+          <div class="document-preview proposal-preview" id="prop-content-solution-doc">
+            <h1>Technical Solution Overview</h1>
+            <h2>Architecture &mdash; DASE Model</h2>
+            <p>VAST Data's Disaggregated Shared-Everything (DASE) architecture separates stateless compute (C-nodes) from high-density NVMe storage enclosures (D-nodes) over a non-blocking NVMe-oF fabric.</p>
+            <h2>Data Services</h2>
+            <ul>
+              <li><strong>Protocol Support:</strong> NFSv3, NFSv4.1, SMB 3.x, S3, NVMe-oF/TCP</li>
+              <li><strong>Data Reduction:</strong> Similarity Reduction + Global Deduplication + Compression</li>
+              <li><strong>Erasure Coding:</strong> VAST 150+4 (2.6% overhead, 4-drive fault tolerance)</li>
+              <li><strong>Snapshots:</strong> Instant, space-efficient, unlimited retention</li>
+              <li><strong>Replication:</strong> Async/Sync DataSpace mirroring to on-prem or cloud</li>
+            </ul>
+            <h2>Platform Integration</h2>
+            <p>VMware, Kubernetes CSI, OpenStack, and cloud tiering integrations configured in Panel 7.</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="prop-content-roi" class="prop-content">
+        <div class="glass-panel">
+          <h3>3-Year TCO &amp; ROI Analysis</h3>
+          <p style="font-size:.85rem;color:var(--color-text-secondary);margin-bottom:1.5rem;">Enter your current storage costs to generate a comparative Total Cost of Ownership analysis.</p>
+          <div class="grid-2">
+            <div class="glass-panel" style="margin-bottom:0;">
+              <h4 style="color:var(--color-text-secondary);margin-bottom:1rem;">Current Environment</h4>
+              <div class="form-group">
+                <label for="roi-current-storage-cost">Current Cost ($/TB/year)</label>
+                <input type="number" id="roi-current-storage-cost" value="500" min="0" oninput="calculateRoi()">
+              </div>
+              <div class="form-group">
+                <label for="roi-current-capacity">Current Capacity (TB)</label>
+                <input type="number" id="roi-current-capacity" value="500" min="0" oninput="calculateRoi()">
+              </div>
+              <div class="form-group">
+                <label for="roi-staff-hours">Admin Hours/Month</label>
+                <input type="number" id="roi-staff-hours" value="40" min="0" oninput="calculateRoi()">
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label for="roi-staff-rate">Staff Rate ($/hour)</label>
+                <input type="number" id="roi-staff-rate" value="150" min="0" oninput="calculateRoi()">
+              </div>
+            </div>
+            <div>
+              <div class="grid-2" style="gap:1rem;margin-bottom:1rem;">
+                <div class="roi-card">
+                  <div class="roi-value" id="roi-current-tco">$750K</div>
+                  <div class="roi-label">3yr Current TCO</div>
+                </div>
+                <div class="roi-card amber">
+                  <div class="roi-value" id="roi-vast-tco">$285K</div>
+                  <div class="roi-label">3yr VAST TCO (est.)</div>
+                </div>
+              </div>
+              <div class="grid-2" style="gap:1rem;">
+                <div class="roi-card violet">
+                  <div class="roi-value" id="roi-savings">$465K</div>
+                  <div class="roi-label">3yr Savings</div>
+                </div>
+                <div class="roi-card violet">
+                  <div class="roi-value" id="roi-payback">14 mo</div>
+                  <div class="roi-label">Payback Period</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:1rem;margin-top:1.5rem;flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="exportJsonConfig()">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Export JSON Config
+          </button>
+          <button class="btn btn-primary" onclick="window.print()">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+            Export Proposal (PDF)
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         PANEL 9 — Technical Deliverables
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <section id="panel-9" class="wizard-panel">
+      <h2>Technical Deliverables</h2>
+      <p class="panel-description">Auto-generated HLD, LLD, Bill of Materials, and firewall port matrix &mdash; ready for customer handover.</p>
+
+      <div class="del-tabs">
+        <button id="del-tab-hld" class="del-tab-btn active" onclick="switchDelTab('hld')">High-Level Design</button>
+        <button id="del-tab-lld" class="del-tab-btn" onclick="switchDelTab('lld')">Low-Level Design</button>
+        <button id="del-tab-bom" class="del-tab-btn" onclick="switchDelTab('bom')">Bill of Materials</button>
+        <button id="del-tab-firewall" class="del-tab-btn" onclick="switchDelTab('firewall')">Firewall Matrix</button>
+      </div>
+
+      <div id="del-content-hld" class="del-content active">
+        <div class="glass-panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h3>High-Level Design Document</h3>
+            <button class="btn btn-secondary" onclick="exportHldText()" style="font-size:.8rem;padding:.4rem .9rem;">Export HLD (.txt)</button>
+          </div>
+          <div class="document-preview" id="del-content-hld-doc">VAST DATA &mdash; HIGH LEVEL DESIGN (HLD)
+&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
+
+Document Version : 1.0 (Auto-Generated)
+Classification   : CONFIDENTIAL
+Generated        : Complete Panels 1-7 to populate this document
+
+&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
+1. EXECUTIVE OVERVIEW
+&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
+
+This HLD describes the logical and physical architecture of the
+proposed VAST Data storage cluster, based on the Disaggregated
+Shared-Everything (DASE) model.
+
+&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
+2. ARCHITECTURE LAYERS
+&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
+
+Layer 1: Client Access (VIP Pool - Floating across C-nodes)
+Layer 2: C-nodes (Stateless protocol processing + data reduction)
+Layer 3: Backend NVMe-oF Fabric (Dual-switch, non-blocking)
+Layer 4: D-nodes (SCM write buffer + QLC NAND flash enclosures)
+
+Hardware details auto-populated from Panel 4 sizing engine.</div>
+        </div>
+      </div>
+
+      <div id="del-content-lld" class="del-content">
+        <div class="glass-panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h3>Low-Level Design Document</h3>
+            <button class="btn btn-secondary" onclick="exportLldText()" style="font-size:.8rem;padding:.4rem .9rem;">Export LLD (.txt)</button>
+          </div>
+          <div class="document-preview" id="del-content-lld-doc">VAST DATA &mdash; LOW LEVEL DESIGN (LLD)
+&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
+
+1. PHYSICAL PORT ASSIGNMENTS
+  Port map auto-generated from Panel 5 Network &amp; Cabling.
+
+2. IP ADDRESS PLAN
+  Configure subnets in Panel 5 to generate full IP address plan.
+
+3. SWITCH CONFIGURATION
+  Backend Switch  : (from Panel 5 selection)
+  Frontend Switch : (from Panel 5 selection)
+  PFC Priority    : CoS3 / DSCP24
+  MTU             : 9000 (Jumbo Frames)
+  Backend VLAN    : 100
+  Frontend VLAN   : 20
+  Management VLAN : 10
+
+4. VCLI PROVISIONING
+  Full script exported from Panel 6 Cluster Provisioning.</div>
+        </div>
+      </div>
+
+      <div id="del-content-bom" class="del-content">
+        <div class="glass-panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h3>Bill of Materials</h3>
+            <button class="btn btn-secondary" onclick="exportSizingBomText()" style="font-size:.8rem;padding:.4rem .9rem;">Export BOM (.txt)</button>
+          </div>
+          <div class="table-container">
+            <table class="cabling-table">
+              <thead>
+                <tr><th>Part ID</th><th>Description</th><th>Category</th><th>Qty</th><th>Unit</th><th>Notes</th></tr>
+              </thead>
+              <tbody id="bom-tbody">
+                <tr><td colspan="6" style="text-align:center;color:var(--color-text-muted);padding:1.5rem;">Configure sizing in Panel 4 to auto-generate BOM.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="summary-row" style="margin-top:1rem;font-weight:700;">
+            <span class="summary-label">Total Line Items</span>
+            <span class="summary-val" id="bom-total-items">&mdash;</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="del-content-firewall" class="del-content">
+        <div class="glass-panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h3>Enterprise Firewall Port Matrix</h3>
+            <button class="btn btn-secondary" onclick="exportFirewallMatrix()" style="font-size:.8rem;padding:.4rem .9rem;">Export (.csv)</button>
+          </div>
+          <p style="font-size:.82rem;color:var(--color-text-secondary);margin-bottom:1rem;">Required TCP/UDP flows for all data services, management, and security functions. Apply to network security policy.</p>
+          <div class="table-container">
+            <table class="cabling-table" style="font-size:.8rem;">
+              <thead>
+                <tr><th>Source Zone</th><th>Destination</th><th>Protocol</th><th>Port(s)</th><th>Service</th><th>Direction</th></tr>
+              </thead>
+              <tbody id="firewall-tbody">
+                <tr><td>Clients</td><td>VIP Pool</td><td>TCP</td><td>2049</td><td>NFSv3 / NFSv4.1</td><td>&rarr; VAST</td></tr>
+                <tr><td>Clients</td><td>VIP Pool</td><td>TCP</td><td>445</td><td>SMB 3.x</td><td>&rarr; VAST</td></tr>
+                <tr><td>Clients</td><td>VIP Pool</td><td>TCP</td><td>9000</td><td>S3 HTTP</td><td>&rarr; VAST</td></tr>
+                <tr><td>Clients</td><td>VIP Pool</td><td>TCP</td><td>443</td><td>S3 HTTPS / UI</td><td>&rarr; VAST</td></tr>
+                <tr><td>Admin</td><td>Mgmt IP</td><td>TCP</td><td>22</td><td>SSH / VCLI</td><td>&rarr; VAST</td></tr>
+                <tr><td>Admin</td><td>Mgmt IP</td><td>TCP</td><td>443</td><td>VAST Web UI</td><td>&rarr; VAST</td></tr>
+                <tr><td>VAST Nodes</td><td>DNS Server</td><td>UDP/TCP</td><td>53</td><td>DNS Resolution</td><td>&rarr; DNS</td></tr>
+                <tr><td>VAST Nodes</td><td>NTP Server</td><td>UDP</td><td>123</td><td>Time Sync</td><td>&rarr; NTP</td></tr>
+                <tr><td>VAST Nodes</td><td>Syslog</td><td>UDP</td><td>514</td><td>Audit Logging</td><td>&rarr; Syslog</td></tr>
+                <tr><td>VAST Nodes</td><td>LDAP/AD</td><td>TCP</td><td>389 / 636</td><td>Auth / LDAP-S</td><td>&rarr; AD</td></tr>
+                <tr><td>VAST Nodes</td><td>KMS</td><td>TCP</td><td>5696</td><td>KMIP (DARE)</td><td>&rarr; KMS</td></tr>
+                <tr><td>VAST Nodes</td><td>VAST Nodes</td><td>TCP/UDP</td><td>4000&ndash;4999</td><td>Internal Cluster Heartbeat</td><td>&#8596; Internal</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         PANEL 10 — Deployment Package
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+    <section id="panel-10" class="wizard-panel">
+      <h2>Deployment Package</h2>
+      <p class="panel-description">Complete deployment documentation package: VCLI runbooks, client mount guides, acceptance test plans, BC/DR operational runbook, and printable project handover checklist.</p>
+
+      <div class="dep-tabs">
+        <button id="dep-tab-runbook" class="dep-tab-btn active" onclick="switchDepTab('runbook')">&#128203; VCLI Runbook</button>
+        <button id="dep-tab-mounts" class="dep-tab-btn" onclick="switchDepTab('mounts')">&#128279; Client Mounts</button>
+        <button id="dep-tab-atp" class="dep-tab-btn" onclick="switchDepTab('atp')">&#9989; Acceptance Test Plan</button>
+        <button id="dep-tab-bcdr" class="dep-tab-btn" onclick="switchDepTab('bcdr')">&#128257; BC/DR Runbook</button>
+        <button id="dep-tab-handover" class="dep-tab-btn" onclick="switchDepTab('handover')">&#129309; Project Handover</button>
+      </div>
+
+      <!-- VCLI Runbook -->
+      <div id="dep-content-runbook" class="dep-content active">
+        <div class="glass-panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h3>VCLI Deployment Runbook</h3>
+            <button class="btn btn-secondary" onclick="exportDeploymentGuideText()" style="font-size:.8rem;padding:.4rem .9rem;">Export (.txt)</button>
+          </div>
+          <div class="document-preview" id="dep-content-runbook-doc">VAST DATA &mdash; VCLI DEPLOYMENT RUNBOOK
+&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
+
+PREREQUISITES:
+  &#9633; Physical hardware racked and cabled per LLD (Panel 9)
+  &#9633; Backend switches configured: PFC, MTU 9000, VLANs
+  &#9633; Management IP assigned to C-Node 1 BMC
+  &#9633; SSH access to C-Node 1 confirmed
+  &#9633; DNS, NTP, Syslog servers reachable from VAST nodes
+
+PHASE 1 &mdash; INITIAL CLUSTER BOOTSTRAP
+  Step 1.1: Access C-Node 1 management interface
+    ssh admin@&lt;C-NODE-1-MGMT-IP&gt;
+
+  Step 1.2: Verify all nodes discovered
+    vcli node list
+
+  Step 1.3: Set cluster hostname and network globals
+    (Commands generated in Panel 6 &mdash; Cluster Provisioning)
+
+PHASE 2 &mdash; VIP POOL CONFIGURATION
+  (Commands generated in Panel 6)
+
+PHASE 3 &mdash; PROTOCOL CONFIGURATION
+  (Commands generated in Panel 6)
+
+PHASE 4 &mdash; VIEW CREATION &amp; QUOTAS
+  (Commands generated in Panel 6)
+
+PHASE 5 &mdash; VALIDATION
+  vcli cluster list
+  Run Acceptance Tests (see ATP tab)
+
+Complete Panels 1&ndash;6 for a fully personalised runbook.</div>
+        </div>
+      </div>
+
+      <!-- Client Mounts -->
+      <div id="dep-content-mounts" class="dep-content">
+        <div class="glass-panel">
+          <h3>Client Mount Guide</h3>
+          <p style="font-size:.85rem;color:var(--color-text-secondary);margin-bottom:1.5rem;">Optimised mount commands for all configured protocols. Replace <code style="color:var(--accent-teal);">10.100.20.100</code> with your assigned VIP address.</p>
+
+          <div class="tunable-list">
+            <div class="tunable-item">
+              <div class="tunable-name">NFSv3 &mdash; Linux (High-Throughput)</div>
+              <div class="tunable-desc">Recommended for AI/ML training, HPC, and high-bandwidth workloads. Uses 8 TCP connections (nconnect) to saturate 100GbE client links.</div>
+              <div class="tunable-code">
+                <span id="dep-nfs3-cmd">mount -t nfs -o vers=3,proto=tcp,nconnect=8,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 10.100.20.100:/data/ai_models /mnt/vast</span>
+                <button class="clipboard-btn" onclick="copyText('dep-nfs3-cmd')">Copy</button>
+              </div>
+            </div>
+            <div class="tunable-item">
+              <div class="tunable-name">NFSv4.1 &mdash; Linux (Secure / ACLs)</div>
+              <div class="tunable-desc">Use for workloads requiring fine-grained POSIX ACLs, file locking, or Kerberos authentication.</div>
+              <div class="tunable-code">
+                <span id="dep-nfs4-cmd">mount -t nfs -o vers=4.1,proto=tcp,nconnect=8,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 10.100.20.100:/data/ai_models /mnt/vast-nfs4</span>
+                <button class="clipboard-btn" onclick="copyText('dep-nfs4-cmd')">Copy</button>
+              </div>
+            </div>
+            <div class="tunable-item">
+              <div class="tunable-name">SMB &mdash; Windows (PowerShell)</div>
+              <div class="tunable-desc">Maps a persistent network drive on Windows clients using SMB 3.x with NTLM or Kerberos authentication.</div>
+              <div class="tunable-code">
+                <span id="dep-smb-cmd">New-PSDrive -Name "V" -PSProvider FileSystem -Root "\\10.100.20.100\data_ai_models" -Persist -Credential (Get-Credential)</span>
+                <button class="clipboard-btn" onclick="copyText('dep-smb-cmd')">Copy</button>
+              </div>
+            </div>
+            <div class="tunable-item">
+              <div class="tunable-name">S3 &mdash; AWS CLI Configuration</div>
+              <div class="tunable-desc">Configure the AWS CLI to target the VAST S3-compatible endpoint. Tune concurrent requests for maximum throughput on large object workloads.</div>
+              <div class="tunable-code">
+                <span id="dep-s3-cmd">aws configure set default.s3.max_concurrent_requests 32 &amp;&amp; aws configure set default.s3.multipart_threshold 64MB &amp;&amp; aws s3 ls s3://vast-bucket/ --endpoint-url http://10.100.20.100:9000</span>
+                <button class="clipboard-btn" onclick="copyText('dep-s3-cmd')">Copy</button>
+              </div>
+            </div>
+            <div class="tunable-item">
+              <div class="tunable-name">Kubernetes &mdash; PVC YAML</div>
+              <div class="tunable-desc">Create a ReadWriteMany PersistentVolumeClaim backed by the VAST CSI driver.</div>
+              <div class="tunable-code" style="display:block;">
+                <pre id="dep-k8s-pvc" style="font-family:var(--font-mono);font-size:.75rem;color:#A7F3D0;line-height:1.6;margin:0;white-space:pre;">apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vast-pvc
+  namespace: default
+spec:
+  storageClassName: vast-storageclass
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Ti</pre>
+                <button class="clipboard-btn" onclick="copyText('dep-k8s-pvc')" style="margin-top:.5rem;">Copy YAML</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:1.5rem;">
+            <h4 style="color:var(--accent-teal);">Persistent Mount (fstab)</h4>
+            <div class="tunable-code">
+              <span id="dep-fstab-cmd">10.100.20.100:/data/ai_models  /mnt/vast  nfs  vers=3,proto=tcp,nconnect=8,rsize=1048576,wsize=1048576,hard,timeo=600,_netdev  0 0</span>
+              <button class="clipboard-btn" onclick="copyText('dep-fstab-cmd')">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ATP -->
+      <div id="dep-content-atp" class="dep-content">
+        <div class="glass-panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h3>Acceptance Test Plan (ATP)</h3>
+            <button class="btn btn-secondary" onclick="exportAtpText()" style="font-size:.8rem;padding:.4rem .9rem;">Export ATP (.txt)</button>
+          </div>
+          <div class="document-preview" id="dep-content-atp-doc">VAST DATA &mdash; ACCEPTANCE TEST PLAN (ATP)
+&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
+
+TEST ENVIRONMENT:
+  Cluster Name : (from Panel 6)     Test Date  : _______________
+  Tested By    : _______________    Witnessed  : _______________
+
+&#9552;&#9552;&#9552;&#9552; TEST 1: CLUSTER HEALTH VERIFICATION &#9552;&#9552;&#9552;&#9552;
+  1.1 All C-nodes online and HEALTHY
+    cmd: vcli node list
+    Expected: All nodes HEALTHY
+    Result: [ PASS / FAIL ] _______________
+
+  1.2 All D-nodes online, no drive failures
+    cmd: vcli dnode list
+    Result: [ PASS / FAIL ] _______________
+
+  1.3 All VIPs responsive (ping sweep)
+    Result: [ PASS / FAIL ] _______________
+
+&#9552;&#9552;&#9552;&#9552; TEST 2: SEQUENTIAL READ THROUGHPUT &#9552;&#9552;&#9552;&#9552;
+  2.1 Single-client fio large block read
+    cmd: fio --name=read --rw=read --bs=1M --numjobs=16 --iodepth=64
+         --size=100G --directory=/mnt/vast --time_based --runtime=60
+    Expected: &ge; (read target from Panel 4) GB/s
+    Result: [ PASS / FAIL ] ___ GB/s achieved
+
+&#9552;&#9552;&#9552;&#9552; TEST 3: SEQUENTIAL WRITE THROUGHPUT &#9552;&#9552;&#9552;&#9552;
+  Expected: &ge; (write target from Panel 4) GB/s
+  Result: [ PASS / FAIL ] ___ GB/s achieved
+
+&#9552;&#9552;&#9552;&#9552; TEST 4: DATA REDUCTION VALIDATION &#9552;&#9552;&#9552;&#9552;
+  cmd: vcli system data-reduction-ratio
+  Expected: &ge; (reduction target from Panel 4) : 1
+  Result: [ PASS / FAIL ] ___ : 1 achieved
+
+&#9552;&#9552;&#9552;&#9552; TEST 5: PROTOCOL CONNECTIVITY &#9552;&#9552;&#9552;&#9552;
+  5.1 NFS mount test from Linux client  [ PASS / FAIL ]
+  5.2 SMB mount test from Windows       [ PASS / FAIL ]
+  5.3 S3 PUT / GET test                 [ PASS / FAIL ]
+
+&#9552;&#9552;&#9552;&#9552; SIGN-OFF &#9552;&#9552;&#9552;&#9552;
+  Customer : _________________________ Date: _______
+  VAST SE  : _________________________ Date: _______</div>
+        </div>
+      </div>
+
+      <!-- BC/DR Runbook -->
+      <div id="dep-content-bcdr" class="dep-content">
+        <div class="glass-panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h3>BC/DR Operational Runbook</h3>
+            <button class="btn btn-secondary" onclick="exportBcdrRunbook()" style="font-size:.8rem;padding:.4rem .9rem;">Export (.txt)</button>
+          </div>
+          <div class="document-preview" id="dep-content-bcdr-doc">VAST DATA &mdash; BC/DR OPERATIONAL RUNBOOK
+&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;&#9552;
+
+REPLICATION STATUS CHECK:
+  vcli replication-peers list
+  vcli snapshots list --remote
+
+SCENARIO 1: PLANNED FAILOVER (maintenance)
+  Step 1: Pause replication
+    vcli replication-peer modify --name &lt;PEER&gt; --suspend
+  Step 2: Verify last snapshot replicated to DR site
+    vcli snapshots list --remote
+  Step 3: Redirect clients to DR site VIP pool (update DNS)
+  Step 4: Confirm DR site I/O
+
+SCENARIO 2: UNPLANNED FAILOVER (primary outage)
+  Step 1: Confirm primary site unreachable
+  Step 2: Promote DR snapshot to writable
+    vcli snapshot restore --name &lt;LAST_SNAPSHOT&gt; --writable
+  Step 3: Redirect clients to DR VIP pool
+  Step 4: Document RPO achieved
+
+FAILBACK:
+  Step 1: Restore primary cluster
+  Step 2: Re-establish replication (reverse direction)
+  Step 3: Sync delta changes back to primary
+  Step 4: Planned failback to primary site
+
+Configure BC/DR in Panel 7 to personalise this runbook.</div>
+        </div>
+      </div>
+
+      <!-- Handover Checklist -->
+      <div id="dep-content-handover" class="dep-content">
+        <div class="glass-panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h3>Project Handover Checklist</h3>
+            <button class="btn btn-primary" id="export-all-btn" onclick="exportAllDocuments()" style="font-size:.82rem;padding:.4rem 1rem;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              Export All Documents
+            </button>
+          </div>
+          <div class="handover-list">
+            <div style="font-size:.72rem;font-weight:700;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.08em;padding:.5rem 0;border-bottom:1px solid var(--panel-border);margin-bottom:.25rem;">Documentation</div>
+            <label class="handover-item"><input type="checkbox"> HLD document delivered and signed off</label>
+            <label class="handover-item"><input type="checkbox"> LLD document delivered and signed off</label>
+            <label class="handover-item"><input type="checkbox"> BOM confirmed against physical hardware</label>
+            <label class="handover-item"><input type="checkbox"> Firewall port matrix delivered to network team</label>
+            <label class="handover-item"><input type="checkbox"> VCLI provisioning runbook delivered</label>
+            <label class="handover-item"><input type="checkbox"> Client mount guide delivered to application teams</label>
+            <div style="font-size:.72rem;font-weight:700;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.08em;padding:.5rem 0;border-bottom:1px solid var(--panel-border);margin:.75rem 0 .25rem;">Infrastructure</div>
+            <label class="handover-item"><input type="checkbox"> All nodes racked, cabled, and powered on</label>
+            <label class="handover-item"><input type="checkbox"> Backend switch fabric configured (PFC, MTU 9000, VLANs)</label>
+            <label class="handover-item"><input type="checkbox"> Cluster bootstrapped &mdash; all nodes HEALTHY</label>
+            <label class="handover-item"><input type="checkbox"> VIP pool created and floating correctly</label>
+            <label class="handover-item"><input type="checkbox"> All protocols configured and tested</label>
+            <label class="handover-item"><input type="checkbox"> Storage views created with correct quotas</label>
+            <label class="handover-item"><input type="checkbox"> Authentication integrated (AD / Kerberos)</label>
+            <label class="handover-item"><input type="checkbox"> Monitoring and alerting configured (syslog, SNMP)</label>
+            <div style="font-size:.72rem;font-weight:700;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.08em;padding:.5rem 0;border-bottom:1px solid var(--panel-border);margin:.75rem 0 .25rem;">Security</div>
+            <label class="handover-item"><input type="checkbox"> DARE encryption enabled and key management configured</label>
+            <label class="handover-item"><input type="checkbox"> Admin passwords changed from factory defaults</label>
+            <label class="handover-item"><input type="checkbox"> SSH keys deployed, password auth reviewed</label>
+            <label class="handover-item"><input type="checkbox"> Audit logging active and shipping to syslog target</label>
+            <label class="handover-item"><input type="checkbox"> Compliance framework requirements validated</label>
+            <div style="font-size:.72rem;font-weight:700;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.08em;padding:.5rem 0;border-bottom:1px solid var(--panel-border);margin:.75rem 0 .25rem;">BC/DR &amp; Data Protection</div>
+            <label class="handover-item"><input type="checkbox"> Replication configured &mdash; first synchronisation completed</label>
+            <label class="handover-item"><input type="checkbox"> Snapshot schedule enabled and retention validated</label>
+            <label class="handover-item"><input type="checkbox"> Failover procedure tested (if synchronous mirror)</label>
+            <label class="handover-item"><input type="checkbox"> Cloud tiering configured and first tier-out verified</label>
+            <div style="font-size:.72rem;font-weight:700;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.08em;padding:.5rem 0;border-bottom:1px solid var(--panel-border);margin:.75rem 0 .25rem;">Acceptance &amp; Sign-Off</div>
+            <label class="handover-item"><input type="checkbox"> ATP executed &mdash; all tests PASSED</label>
+            <label class="handover-item"><input type="checkbox"> Performance benchmarks meet or exceed targets from Panel 4</label>
+            <label class="handover-item"><input type="checkbox"> Customer operations team trained on VAST UI and VCLI</label>
+            <label class="handover-item"><input type="checkbox"> VAST support case opened and portal access granted</label>
+            <label class="handover-item"><input type="checkbox"> Customer sign-off obtained on all deliverable documents</label>
+          </div>
+
+          <div style="margin-top:2rem;padding:1.25rem;background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.2);border-radius:10px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+              <div>
+                <div style="font-size:.72rem;color:var(--color-text-muted);text-transform:uppercase;font-weight:700;letter-spacing:.05em;margin-bottom:.5rem;">Customer Sign-off</div>
+                <div style="font-size:.85rem;color:var(--color-text-secondary);">Name: ____________________________</div>
+                <div style="font-size:.85rem;color:var(--color-text-secondary);margin-top:.5rem;">Date: ____________________________</div>
+                <div style="font-size:.85rem;color:var(--color-text-secondary);margin-top:.5rem;">Signature: _______________________</div>
+              </div>
+              <div>
+                <div style="font-size:.72rem;color:var(--color-text-muted);text-transform:uppercase;font-weight:700;letter-spacing:.05em;margin-bottom:.5rem;">VAST SE Sign-off</div>
+                <div style="font-size:.85rem;color:var(--color-text-secondary);">Name: ____________________________</div>
+                <div style="font-size:.85rem;color:var(--color-text-secondary);margin-top:.5rem;">Date: ____________________________</div>
+                <div style="font-size:.85rem;color:var(--color-text-secondary);margin-top:.5rem;">Signature: _______________________</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ════════════ FOOTER NAV ════════════ -->
+  <footer class="actions-bar">
+    <button id="prev-btn" class="btn btn-secondary" onclick="navigateStep(-1)" disabled>
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+      Previous
+    </button>
+    <div style="font-size:.8rem;color:var(--color-text-muted);">
+      Step <span id="current-step-indicator">1</span> of 10
+    </div>
+    <button id="next-btn" class="btn btn-primary" onclick="navigateStep(1)">
+      Next
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+  </footer>
+
+</div><!-- end .main-wrapper -->
+</div><!-- end .app-container -->
+
+<!-- ═══════════════════════════════════════════ -->
+<!--                  MODALS                     -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="modal-overlay" onclick="closeModalOnOverlay(event)">
+
+  <!-- Import/Export Modal -->
+  <div class="modal" id="modal-config" style="display:none;">
+    <div class="modal-header">
+      <h2>Import / Export Configuration</h2>
+      <button class="modal-close" onclick="hideModal('modal-config')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <h4 style="color:var(--accent-teal);margin-bottom:.75rem;">Import Configuration</h4>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('config-file-input').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleConfigDrop(event)">
+        <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto .75rem;display:block;color:var(--color-text-muted);"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+        <div>Drag &amp; drop a <strong>.json</strong> config file here</div>
+        <div style="font-size:.8rem;margin-top:.35rem;color:var(--color-text-muted);">or click to browse</div>
+        <input type="file" id="config-file-input" accept=".json" style="display:none;" onchange="handleConfigFileInput(event)">
+      </div>
+      <div style="border-top:1px solid var(--panel-border);padding-top:1.25rem;">
+        <h4 style="color:var(--accent-teal);margin-bottom:.75rem;">Export Configuration</h4>
+        <p style="font-size:.85rem;color:var(--color-text-secondary);margin-bottom:1rem;">Export your current configuration as a portable JSON file, or download all generated documents.</p>
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="exportJsonConfig()" style="font-size:.85rem;">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Export JSON Config
+          </button>
+          <button class="btn btn-primary" onclick="exportAllDocuments()" style="font-size:.85rem;">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+            Export All Documents
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Catalog Modal -->
+  <div class="modal wide" id="modal-catalog" style="display:none;">
+    <div class="modal-header">
+      <h2>VAST Product Catalog</h2>
+      <button class="modal-close" onclick="hideModal('modal-catalog')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="text" class="catalog-search" id="catalog-search-input" placeholder="Search hardware, SKU, or capability..." oninput="filterCatalog(this.value)">
+      <div class="table-container">
+        <table class="catalog-table" id="catalog-table">
+          <thead>
+            <tr><th>SKU / Model</th><th>Type</th><th>Specifications</th><th>Throughput</th><th>Capacity</th><th>RU</th></tr>
+          </thead>
+          <tbody id="catalog-tbody">
+            <tr><td><strong>Ceres C10</strong></td><td><span class="badge badge-success">C-Node</span></td><td>2&times;100GbE client, 2&times;100GbE backend, 28-core CPU</td><td>40 GB/s read</td><td>N/A</td><td>1U</td></tr>
+            <tr><td><strong>Ceres Pro C20</strong></td><td><span class="badge badge-success">C-Node</span></td><td>4&times;100GbE client, 2&times;200GbE backend, 56-core CPU</td><td>80 GB/s read</td><td>N/A</td><td>1U</td></tr>
+            <tr><td><strong>Voyager V10</strong></td><td><span class="badge badge-warning">D-Node</span></td><td>2&times;100GbE backend, 24&times;QLC NVMe SSD, SCM buffer</td><td>NVMe-oF Target</td><td>384TB raw</td><td>2U</td></tr>
+            <tr><td><strong>Voyager Pro V20</strong></td><td><span class="badge badge-warning">D-Node</span></td><td>2&times;200GbE backend, 48&times;QLC NVMe SSD, SCM buffer</td><td>NVMe-oF Target</td><td>768TB raw</td><td>4U</td></tr>
+            <tr><td><strong>Arista 7050CX3-32S</strong></td><td><span class="badge badge-info">Switch</span></td><td>32&times;100GbE QSFP28, RoCEv2, PFC, ECN</td><td>6.4Tbps fabric</td><td>N/A</td><td>1U</td></tr>
+            <tr><td><strong>Arista 7060CX2-32S</strong></td><td><span class="badge badge-info">Switch</span></td><td>32&times;100GbE QSFP28, RDMA optimised, lossless</td><td>6.4Tbps fabric</td><td>N/A</td><td>1U</td></tr>
+            <tr><td><strong>Cisco Nexus 9336C-FX2</strong></td><td><span class="badge badge-info">Switch</span></td><td>36&times;100GbE QSFP28, VXLAN, RDMA</td><td>7.2Tbps fabric</td><td>N/A</td><td>1U</td></tr>
+            <tr><td><strong>NVIDIA QM8700</strong></td><td><span class="badge badge-info">Switch</span></td><td>40&times;HDR 200Gbps InfiniBand ports</td><td>16Tbps fabric</td><td>N/A</td><td>1U</td></tr>
+            <tr><td><strong>VastOS v5.3</strong></td><td><span class="badge" style="background:rgba(99,102,241,.15);color:var(--accent-violet);">Software</span></td><td>Unified storage OS, DASE runtime, global namespace</td><td>All protocols</td><td>Unlimited</td><td>&mdash;</td></tr>
+            <tr><td><strong>DataSpace Sync</strong></td><td><span class="badge" style="background:rgba(99,102,241,.15);color:var(--accent-violet);">Software</span></td><td>Async/Sync replication, global namespace federation</td><td>WAN-optimised</td><td>Unlimited</td><td>&mdash;</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="hideModal('modal-catalog')">Close</button>
+    </div>
+  </div>
+
+  <!-- Onboarding Modal -->
+  <div class="modal" id="modal-onboarding" style="display:none;">
+    <div class="modal-header">
+      <h2>Welcome to VAST Architect v2.0</h2>
+      <button class="modal-close" onclick="hideModal('modal-onboarding')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--color-text-secondary);font-size:.9rem;margin-bottom:.5rem;">This tool guides VAST SEs and AEs through a complete enterprise engagement workflow &mdash; from customer discovery to deployment handover.</p>
+      <div class="onboarding-steps">
+        <div class="ob-step">
+          <div class="ob-num">1</div>
+          <div class="ob-text">
+            <h4>Discovery (Steps 1&ndash;3)</h4>
+            <p>Capture customer profile, business requirements, use cases, compliance obligations, and workload characteristics.</p>
+          </div>
+        </div>
+        <div class="ob-step">
+          <div class="ob-num">2</div>
+          <div class="ob-text">
+            <h4>Technical Design (Steps 4&ndash;7)</h4>
+            <p>Size hardware, design the network fabric, generate VCLI provisioning scripts, and configure BC/DR, security, and integrations.</p>
+          </div>
+        </div>
+        <div class="ob-step">
+          <div class="ob-num">3</div>
+          <div class="ob-text">
+            <h4>Deliverables (Steps 8&ndash;10)</h4>
+            <p>Auto-generate professional proposal documents, technical HLD/LLD/BOM, and the complete deployment package for project handover.</p>
+          </div>
+        </div>
+      </div>
+      <div style="background:rgba(16,185,129,.06);border:1px dashed rgba(16,185,129,.25);border-radius:8px;padding:.85rem 1rem;font-size:.82rem;color:var(--color-text-secondary);">
+        <strong style="color:var(--accent-teal);">Pro tip:</strong> Use the <strong>Checkpoints</strong> button in the toolbar to save named snapshots of your configuration as you progress through each stage.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="hideModal('modal-onboarding');localStorage.setItem('vast-onboarded','1');">
+        Get Started &rarr;
+      </button>
+    </div>
+  </div>
+
+</div><!-- end #modal-overlay -->
+
+<!-- ═══════════════════════════════════════════ -->
+<!--         CHECKPOINTS SLIDE-OUT PANEL         -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="checkpoints-panel" class="checkpoints-sidebar">
+  <div class="checkpoints-header">
+    <h3>Design Checkpoints</h3>
+    <button class="checkpoints-close-btn" onclick="toggleCheckpointsPanel()">&times;</button>
+  </div>
+  <div class="checkpoints-body">
+    <p class="panel-intro-text">Save named restore points of your configuration. Checkpoints persist across browser sessions.</p>
+    <div class="create-checkpoint-form">
+      <label style="font-size:.75rem;color:var(--color-text-secondary);margin-bottom:.1rem;">Label this checkpoint</label>
+      <input type="text" id="new-checkpoint-name" placeholder="e.g. Initial sizing for Acme">
+      <button class="btn btn-primary" onclick="createCheckpoint()" style="margin-top:.25rem;justify-content:center;font-size:.85rem;padding:.5rem;">Save Checkpoint</button>
+    </div>
+    <div class="checkpoints-list" id="checkpoints-list-container">
+      <div class="no-checkpoints">No checkpoints saved yet.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-msg" id="toast">
+  <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+  <span id="toast-text">Done</span>
+</div>
+
+<script src="app.js"></script>
+<script>
+/* ── v2.0 UI Helpers ─────────────────────────────────────── */
+function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}
+
+function switchAdvTab(t){
+  document.querySelectorAll('.adv-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.adv-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('adv-tab-'+t).classList.add('active');
+  document.getElementById('adv-content-'+t).classList.add('active');
+}
+function switchPropTab(t){
+  document.querySelectorAll('.prop-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.prop-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('prop-tab-'+t).classList.add('active');
+  document.getElementById('prop-content-'+t).classList.add('active');
+}
+function switchDelTab(t){
+  document.querySelectorAll('.del-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.del-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('del-tab-'+t).classList.add('active');
+  document.getElementById('del-content-'+t).classList.add('active');
+}
+function switchDepTab(t){
+  document.querySelectorAll('.dep-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.dep-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('dep-tab-'+t).classList.add('active');
+  document.getElementById('dep-content-'+t).classList.add('active');
+}
+
+function showModal(id){
+  const ov=document.getElementById('modal-overlay');
+  ov.classList.add('active');
+  document.querySelectorAll('.modal').forEach(m=>m.style.display='none');
+  const tgt=document.getElementById(id);
+  if(tgt) tgt.style.display='flex';
+}
+function hideModal(id){
+  const tgt=document.getElementById(id);
+  if(tgt) tgt.style.display='none';
+  const any=[...document.querySelectorAll('.modal')].some(m=>m.style.display!=='none');
+  if(!any) document.getElementById('modal-overlay').classList.remove('active');
+}
+function closeModalOnOverlay(e){
+  if(e.target===document.getElementById('modal-overlay')){
+    document.querySelectorAll('.modal').forEach(m=>m.style.display='none');
+    document.getElementById('modal-overlay').classList.remove('active');
+  }
+}
+
+function toggleColdTier(){
+  const en=document.getElementById('cold-tier-enabled').checked;
+  document.getElementById('cold-tier-details-group').style.display=en?'block':'none';
+  if(typeof calculateSizing==='function') calculateSizing();
+}
+function toggleAdConfig(){
+  const src=document.getElementById('prov-auth-source').value;
+  const grp=document.getElementById('ad-config-group');
+  if(grp) grp.style.display=(src==='ldap'||src==='kerberos')?'block':'none';
+  if(typeof generateVcliCommands==='function') generateVcliCommands();
+}
+function toggleWorm(){
+  const en=document.getElementById('sec-worm').checked;
+  const grp=document.getElementById('worm-retention-group');
+  if(grp) grp.style.display=en?'block':'none';
+}
+function toggleIntegration(type){
+  const idMap={vmware:'int-vmware',k8s:'int-k8s',openstack:'int-openstack',tier:'tier-enable'};
+  const cfgMap={vmware:'int-vmware-config',k8s:'int-k8s-config',openstack:'int-openstack-config',tier:'int-tier-config'};
+  const cb=document.getElementById(idMap[type]);
+  const cfg=document.getElementById(cfgMap[type]);
+  if(cb&&cfg) cfg.style.display=cb.checked?'block':'none';
+}
+
+function updateComplianceBadges(){
+  const fws=['hipaa','gdpr','pci','soc2','fedramp','iso27001'];
+  const labs={hipaa:'HIPAA',gdpr:'GDPR',pci:'PCI-DSS',soc2:'SOC 2',fedramp:'FedRAMP',iso27001:'ISO 27001'};
+  const dare=document.getElementById('sec-dare')?.checked;
+  const audit=document.getElementById('sec-audit-log')?.checked;
+  const con=document.getElementById('compliance-badges-display');
+  if(!con) return;
+  con.innerHTML=fws.map(fw=>{
+    const sel=document.getElementById('comp-'+fw)?.checked;
+    const met=sel&&dare&&audit;
+    return `<span class="comp-badge ${met?'met':'unmet'}">${labs[fw]}</span>`;
+  }).join('');
+}
+
+function generateK8sYaml(){
+  const ns=document.getElementById('int-k8s-namespace')?.value||'vast-csi';
+  const sc=document.getElementById('int-k8s-storageclass')?.value||'vast-storageclass';
+  const am=document.getElementById('int-k8s-access-mode')?.value||'RWX';
+  const vip=document.getElementById('prov-vip-start')?.value||'10.100.20.100';
+  const vp=document.getElementById('prov-view-path')?.value||'/data';
+  const y=`apiVersion: storage.k8s.io/v1\nkind: StorageClass\nmetadata:\n  name: ${sc}\n  namespace: ${ns}\nprovisioner: csi.vastdata.com\nparameters:\n  nfsVersion: "4"\n  vipPool: "${vip}"\n  viewPath: "${vp}"\nreclaimPolicy: Delete\nvolumeBindingMode: Immediate\nallowVolumeExpansion: true\naccessModes:\n  - ${am==='RWX'?'ReadWriteMany':am==='RWO'?'ReadWriteOnce':'ReadOnlyMany'}`;
+  const o=document.getElementById('k8s-yaml-output');
+  if(o) o.textContent=y;
+}
+
+function calculateRoi(){
+  const cost=parseFloat(document.getElementById('roi-current-storage-cost')?.value)||500;
+  const cap=parseFloat(document.getElementById('roi-current-capacity')?.value)||500;
+  const hrs=parseFloat(document.getElementById('roi-staff-hours')?.value)||40;
+  const rate=parseFloat(document.getElementById('roi-staff-rate')?.value)||150;
+  const cur=((cost*cap)+(hrs*rate*12))*3;
+  const vast=cur*0.38;
+  const sav=cur-vast;
+  const pb=Math.round((vast/3)/(sav/36));
+  const fmt=n=>n>=1000000?`$${(n/1000000).toFixed(1)}M`:`$${Math.round(n/1000)}K`;
+  const el=id=>document.getElementById(id);
+  if(el('roi-current-tco')) el('roi-current-tco').textContent=fmt(cur);
+  if(el('roi-vast-tco')) el('roi-vast-tco').textContent=fmt(vast);
+  if(el('roi-savings')) el('roi-savings').textContent=fmt(sav);
+  if(el('roi-payback')) el('roi-payback').textContent=pb+' mo';
+}
+
+function filterCatalog(q){
+  document.querySelectorAll('#catalog-tbody tr').forEach(r=>{
+    r.style.display=r.textContent.toLowerCase().includes(q.toLowerCase())?'':'none';
+  });
+}
+
+function handleConfigDrop(e){
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('dragover');
+  const f=e.dataTransfer?.files[0];
+  if(f&&f.name.endsWith('.json')) readConfigFile(f);
+}
+function handleConfigFileInput(e){
+  const f=e.target.files[0];
+  if(f) readConfigFile(f);
+}
+function readConfigFile(file){
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const cfg=JSON.parse(ev.target.result);
+      if(typeof loadConfig==='function') loadConfig(cfg);
+      hideModal('modal-config');
+      showToast('Configuration imported successfully!');
+    } catch{showToast('Error: invalid JSON file.');}
+  };
+  r.readAsText(file);
+}
+
+function showToast(msg,dur=2800){
+  const t=document.getElementById('toast');
+  const tx=document.getElementById('toast-text');
+  if(t&&tx){tx.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
+}
+
+function exportHldText(){downloadText('VAST_HLD.txt',document.getElementById('del-content-hld-doc')?.innerText||'')}
+function exportAtpText(){downloadText('VAST_ATP.txt',document.getElementById('dep-content-atp-doc')?.innerText||'')}
+function exportBcdrRunbook(){downloadText('VAST_BCDR_Runbook.txt',document.getElementById('dep-content-bcdr-doc')?.innerText||'')}
+function exportFirewallMatrix(){
+  const rows=[...document.querySelectorAll('#firewall-tbody tr')];
+  const csv=rows.map(r=>[...r.querySelectorAll('td')].map(td=>`"${td.textContent.trim()}"`).join(',')).join('\n');
+  downloadText('VAST_Firewall_Matrix.csv','Source,Destination,Protocol,Ports,Service,Direction\n'+csv);
+}
+function exportAllDocuments(){
+  exportHldText();
+  setTimeout(()=>{if(typeof exportLldText==='function')exportLldText();},200);
+  setTimeout(()=>{if(typeof exportDeploymentGuideText==='function')exportDeploymentGuideText();},400);
+  setTimeout(()=>{if(typeof exportJsonConfig==='function')exportJsonConfig();},600);
+  showToast('Exporting all documents...');
+}
+function downloadText(fn,ct){
+  const a=document.createElement('a');
+  a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(ct);
+  a.download=fn;a.click();
+}
+function markDirty(){if(typeof pushUndoState==='function')pushUndoState();}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  calculateRoi();
+  updateComplianceBadges();
+  if(!localStorage.getItem('vast-onboarded')){
+    setTimeout(()=>showModal('modal-onboarding'),700);
+  }
+  // Wrap switchStep to update footer indicator
+  const origSS=window.switchStep;
+  window.switchStep=function(n){
+    if(typeof origSS==='function') origSS(n);
+    const ind=document.getElementById('current-step-indicator');
+    if(ind) ind.textContent=n;
+  };
+});
+</script>
+</body>
+</html>
