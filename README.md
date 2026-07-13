@@ -4,7 +4,7 @@
 
 ![VAST Builder](https://img.shields.io/badge/VAST_AI_OS-5.4.1--SP4-10B981?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTEyIDJMMiA3bDEwIDUgMTAtNS0xMC01ek0yIDE3bDEwIDUgMTAtNS0xMC01ek0yIDEybDEwIDUgMTAtNS0xMC01eiIvPjwvc3ZnPg==)
 ![License](https://img.shields.io/badge/License-Proprietary-EF4444?style=for-the-badge)
-![Version](https://img.shields.io/badge/Version-2.0.0-6366F1?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-2.1.0-6366F1?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/Platform-Browser--Native-F59E0B?style=for-the-badge)
 
 **A fully browser-native, wizard-driven design and configuration tool for VAST Data Enterprise Storage — producing complete technical and commercial deliverables from a single guided session.**
@@ -30,30 +30,62 @@ All logic runs entirely in the browser — no backend, no server, no cloud depen
 ## Features
 
 ### 🧭 10-Stage Guided Wizard
+
 | Stage | Panel | Content |
 |-------|-------|---------|
 | **Discovery** | 1 · Customer Profile | Organisation, contact, engagement type, region, SE/AE details |
-| **Discovery** | 2 · Business Requirements | Use cases, SLAs, compliance frameworks (HIPAA/GDPR/PCI/SOC2/FedRAMP), budget |
-| **Discovery** | 3 · Workload Analysis | 8 workload presets, protocol mix, file size profile, GPU count |
-| **Technical Design** | 4 · Architecture & Sizing | DASE engine: CNode/DNode sizing, rack/power/heat, growth projections, cloud options |
-| **Technical Design** | 5 · Network & Cabling | IP addressing, VLAN config, interactive SVG cabling diagram, port matrix |
+| **Discovery** | 2 · Business Requirements | Use cases (multi-select), SLAs, compliance frameworks (HIPAA/GDPR/PCI/SOC2/FedRAMP), budget |
+| **Discovery** | 3 · Workload Analysis | 8 multi-selectable workload presets, protocol mix, file size profile, GPU count, tier sliders |
+| **Technical Design** | 4 · Architecture & Sizing | Real-time VAST sizing engine: C-node/D-node counts, rack/power/heat, growth projections |
+| **Technical Design** | 5 · Network & Cabling | IP addressing, VLANs, dynamic SVG topology diagram, per-node port map, IP allocation table |
 | **Technical Design** | 6 · Cluster Provisioning | VCLI command generator, VIP pool, protocols, authentication, QoS |
-| **Technical Design** | 7 · Advanced Features | BC/DR replication, security (DARE/WORM/KMS), VMware/K8s/OpenStack integrations |
+| **Technical Design** | 7 · Advanced Features | BC/DR replication, WAN sizing calculator, security (DARE/WORM/KMS), VMware/K8s/OpenStack |
 | **Deliverables** | 8 · Design Proposal | Executive summary, solution overview, ROI calculator (3-year TCO) |
-| **Deliverables** | 9 · Technical Deliverables | HLD, LLD, BOM, Firewall Port Matrix |
+| **Deliverables** | 9 · Technical Deliverables | HLD, LLD, BOM, Firewall Port Matrix — all live-generated from wizard state |
 | **Deliverables** | 10 · Deployment Package | Full VCLI runbook, Ansible playbooks, client mount guide, ATP, BC/DR runbook, handover checklist |
 
-### 🔧 Key Capabilities
-- **Real-time DASE sizing engine** — Ceres DF-3015V2/DF-3060V2, EC overhead, SCM buffer, rack/power calculations
+### 🔗 Full Wizard Interconnection Engine (v2.1)
+
+Every field in every step drives all downstream steps in real-time:
+
+| Change in | Drives |
+|-----------|--------|
+| **Step 1** — Industry | Step 2 compliance framework suggestion banner |
+| **Step 2** — Use cases | Step 3 preset tiles highlighted as suggested |
+| **Step 2** — RTO/RPO | Step 7 BC/DR replication type + RPO minutes |
+| **Step 2** — Compliance | Step 7 DARE / WORM / audit log / Kerberos auto-enabled |
+| **Step 3** — GPU count | Steps 4/5/6 NVMe/TCP, 100GbE, RoCEv2, switch model |
+| **Step 3** — Cold tier % | Step 4 cold tiering auto-enabled |
+| **Step 3** — Workloads | Protocol auto-selection in Steps 3 and 6 |
+| **Step 4** — All sizing inputs | Live C/D-node counts, capacity tables, footprint, growth projections |
+| **Step 4** — Sizing results | Step 5 VIP pool auto-sized, switches pre-selected, MTU recommended |
+| **Step 7** — BC/DR RPO | Live WAN bandwidth requirement with pass/fail vs configured link |
+
+### ⚙️ VAST Sizing Engine (v2.1)
+
+Based on VAST Data public hardware specifications:
+
+| Component | Spec Used |
+|-----------|-----------|
+| **Ceres C-Node** | 40 GB/s read, 20 GB/s write, 2U |
+| **Ceres Pro C-Node** | 100 GB/s read (auto-selected when target >120 GB/s), 2U |
+| **Voyager D-Node** | 1,920 TB raw QLC NVMe, 8 TB SCM buffers, 4U |
+| **C-node sizing rule** | `max(readTP/40, writeTP/20, clients/200, GPUs/16, 3)` |
+| **D-node sizing rule** | `ceil(rawTB / 1920)`, HA pairs enforced |
+| **Power model** | 600 W/C-node, 3,500 W/D-node |
+| **Erasure coding** | 150+4 (~2.67% overhead) |
+| **Growth projections** | 1yr / 3yr / 5yr at configured annual growth rate |
+
+### 🔧 Other Key Capabilities
 - **50-deep undo/redo** with named checkpoint save/restore (IndexedDB)
 - **Auto-save** every 30 seconds, JSON import/export
-- **8 workload presets** — AI/ML, HPC, VMware, K8s, Backup, OpenStack, Media/VFX, Hybrid DR
 - **VCLI command generator** — paste-ready VAST CLI script from your inputs
 - **Ansible playbook generator** — complete infrastructure-as-code deployment playbooks
 - **Firewall port matrix** — auto-generated from your protocol selections
 - **Product Catalog modal** — searchable hardware/software reference with latest specs
 - **Knowledge base updater** — tracks current VastOS version and product data
 - **Print-to-PDF** for all documents
+- **Hot/Warm/Cold tier sliders** — always-linked, sum locked to 100%
 
 ---
 
@@ -69,9 +101,9 @@ All logic runs entirely in the browser — no backend, no server, no cloud depen
 ### Panel 9 — Technical Deliverables
 | Document | Contents |
 |----------|----------|
-| High-Level Design (HLD) | Introduction, DASE overview, solution components table, network architecture, data protection, security, scalability |
-| Low-Level Design (LLD) | Hardware specs, full IP addressing table, switch configuration (PFC/ECN/VLAN), VAST cluster parameters |
-| Bill of Materials (BOM) | Line-item hardware, cabling, rack, software with quantities and part notes |
+| High-Level Design (HLD) | Introduction, DASE overview, solution components table, network architecture, data protection, security, scalability, compliance in scope |
+| Low-Level Design (LLD) | Cluster identity (name/DNS/NTP/syslog), full IP addressing table, switch configuration (PFC/ECN/VLAN), port map summary |
+| Bill of Materials (BOM) | Line-item hardware (C-nodes, D-nodes, switches, cabling, racks), software licenses, support contracts with quantities |
 | Firewall Port Matrix | All required ports with source/destination/service/direction for each protocol |
 
 ### Panel 10 — Deployment Package
@@ -90,16 +122,21 @@ All logic runs entirely in the browser — no backend, no server, no cloud depen
 
 ```
 VASTbuilder/
-├── index.html          # 10-panel wizard SPA (2,400+ lines)
-├── styles.css          # Dark glassmorphism design system (710 lines)
-├── app.js              # All business logic (2,200+ lines)
+├── index.html          # 10-panel wizard SPA + Interconnection Engine (3,500+ lines)
+│   ├── Inline <script> — switchStep, navigateStep, updateAll(), _readCfg()
+│   ├── Sizing Engine   — _computeSizing(), Ceres/Voyager specs
+│   ├── Cascade Logic   — _cascadeIndustry/Compliance/Sla/Workload/Network
+│   ├── Panel 5 Engine  — _rebuildCablingSVG(), _rebuildPortMap(), _rebuildIpAlloc()
+│   └── Deliverables    — _buildInlineDeliverables() (HLD, LLD, BOM)
+├── styles.css          # Dark glassmorphism design system (72KB)
+├── app.js              # Full business logic engine (2,353 lines)
 │   ├── Section 1:  IndexedDB persistence layer
 │   ├── Section 2:  Product catalog (hardware/software data)
 │   ├── Section 3:  Wizard navigation engine
 │   ├── Section 4:  DASE sizing engine
 │   ├── Section 5:  Network configuration engine
 │   ├── Section 6:  VCLI command generator
-│   ├── Section 7:  Document engine (HLD/LLD/BOM/ATP/BC-DR)
+│   ├── Section 7:  Document engine (HLD/LLD/BOM/ATP/BC-DR/Proposal)
 │   ├── Section 8:  Export engine (JSON/CSV/TXT)
 │   ├── Section 9:  Import engine (JSON restore)
 │   ├── Section 10: Knowledge base / update engine
@@ -119,19 +156,23 @@ VASTbuilder/
 ```
 Target Usable TB
   ÷ Data Reduction Ratio
-  = Physical On-Flash TB
+  × 1.25 (overhead factor)
+  = Raw TB Required
 
-Physical On-Flash TB
-  ÷ (1 - EC Overhead)          [EC = 150+4 → 4/154 ≈ 2.597% overhead]
-  = Raw SSD Required TB
+Raw TB Required
+  ÷ 1,920 TB/D-Node (Voyager)
+  = D-Node Count (min 4, HA pairs enforced)
 
-Raw SSD Required TB
-  + SCM Buffer (4% of Raw SSD)
-  = Total Raw TB needed
+Target Read GB/s ÷ 40 GB/s/C-Node = C-nodes (throughput)
+Target Write GB/s ÷ 20 GB/s/C-Node = C-nodes (write)
+Concurrent Clients ÷ 200 = C-nodes (client density)
+GPU Count ÷ 16 = C-nodes (GPU workload)
+→ C-Node Count = max(all above, 3)
 
-Total Raw TB ÷ DBox Raw Capacity = DNode Count (rounded up, min 2)
-DNode Count × 4 = Recommended CNode Count
-CNode Count ÷ 4 = CBox Chassis Count (rounded up)
+[If target > 120 GB/s read → upgrade to Ceres Pro at 100 GB/s/node]
+
+C-Node Count × 600W + D-Node Count × 3,500W = Total Power
+C-Node Count × 2U + D-Node Count × 4U + Switches × 2U = Total Rack Units
 ```
 
 ---
@@ -147,11 +188,12 @@ xdg-open index.html       # Linux
 ```
 
 ### Workflow
-1. **Fill Panel 1–3** (Discovery) — customer details, requirements, workload profile
-2. **Fill Panel 4** — adjust sizing targets; results update in real-time
-3. **Fill Panel 5–6** — network config; VCLI script generates automatically
-4. **Configure Panel 7** — BC/DR, security, integrations
-5. **Navigate to Panels 8–10** — all documents generate automatically
+1. **Fill Panels 1–3** (Discovery) — as you fill in use-cases and compliance, Panels 3 and 7 auto-suggest matching configurations
+2. **Fill Panel 4** — sizing targets; C/D-node counts, capacity, power, growth projections update in real-time
+3. **Navigate to Panel 5** — cabling SVG, port map, and IP table auto-populate from your sizing
+4. **Fill Panels 5–6** — network config; VCLI script generates automatically
+5. **Configure Panel 7** — BC/DR WAN bandwidth calculator validates your link against RPO targets
+6. **Navigate to Panels 8–10** — HLD, LLD, BOM, proposal, runbooks all generate from your wizard state
 
 ### Keyboard Shortcuts
 | Shortcut | Action |
@@ -205,11 +247,12 @@ The following official VAST Data documentation sources were used in building the
 | VAST CBox (Standard) | AMD EPYC 9555P "Turin" 64-core | 384 GB DDR5-6400 | 4× 200GbE NDR | 2U/4-nodes |
 | VAST CNode-X (GPU) | AMD EPYC 5th Gen | 4 TB DDR5 | 4× 200GbE NDR + 8× RTX PRO 6000 | 2U |
 
-### Storage Nodes (DBox / Ceres)
+### Storage Nodes (DBox / Ceres / Voyager)
 | Model | QLC Capacity | SCM Buffer | Total Raw | RU |
 |-------|-------------|------------|-----------|-----|
 | Ceres DF-3015V2 | 338 TB | 6.4 TB | 344 TB | 1U |
 | Ceres DF-3060V2 | 1,352 TB | 12 TB | 1,364 TB | 1U |
+| Voyager | 1,920 TB | 8 TB | 1,928 TB | 4U |
 
 ### Software
 | Product | Version | Key Features |

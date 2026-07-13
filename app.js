@@ -2345,7 +2345,7 @@ async function initApp() {
     }
   });
 
-  console.log('%cVAST Enterprise Architect v2.0 initialized.','color:#10B981;font-weight:700;font-size:14px;');
+  console.log('%cVAST Enterprise Architect v2.1 initialized.','color:#10B981;font-weight:700;font-size:14px;');
   console.log('%cVastOS 5.4.1-SP4 | DASE CBOX+DBOX | RoCEv2/IB backends | 150+4 EC (2.67% overhead)','color:#38BDF8;');
 }
 
