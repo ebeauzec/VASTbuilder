@@ -2045,449 +2045,368 @@ function _buildHLD() {
 
 // ----- ATP Generator -----
 function _buildATP() {
-  const cfg = AppState.config;
-  const r   = cfg.results || {};
-  const p   = cfg.provisioning || {};
-  const s   = cfg.sizing || {};
-  const n   = cfg.network || {};
-  const adv = cfg.advanced || {};
-  const org = (cfg.customer && cfg.customer.orgName) ? _esc(cfg.customer.orgName) : 'Customer';
-  const clN = p.clusterName || 'vast-cluster-01';
-  const vipS= p.vipStart    || '10.100.20.100';
-  const vPath=p.viewPath    || '/data';
-  const rGBs= r.readThroughputGBs  || s.readThroughputGBs  || 40;
-  const wGBs= r.writeThroughputGBs || s.writeThroughputGBs || 10;
-  const cc  = r.cnodeCount  || 4;
-  const dc  = r.dnodeCount  || 2;
-  const eTB = r.effectiveTB || 500;
-  const date= new Date().toLocaleDateString('en-GB', {year:'numeric',month:'long',day:'numeric'});
-  const dare= adv.secDare !== false;
-  const nfs = p.protoNfs3 !== false || p.protoNfs4 !== false;
-  const smb = p.protoSmb || false;
-  const s3  = p.protoS3  || false;
-  const repl= adv.bcEnabled || false;
-  const quotaTB = p.quotaTB || 100;
+  var cfg = AppState.config;
+  var r   = cfg.results || {};
+  var p   = cfg.provisioning || {};
+  var s   = cfg.sizing || {};
+  var adv = cfg.advanced || {};
+  var org = (cfg.customer && cfg.customer.orgName) ? _esc(cfg.customer.orgName) : 'Customer';
+  var clN = p.clusterName || 'vast-cluster-01';
+  var vipS= p.vipStart    || '10.100.20.100';
+  var vPath=p.viewPath    || '/data';
+  var rGBs= r.readThroughputGBs  || s.readThroughputGBs  || 40;
+  var wGBs= r.writeThroughputGBs || s.writeThroughputGBs || 10;
+  var cc  = r.cnodeCount  || 4;
+  var dc  = r.dnodeCount  || 2;
+  var eTB = r.effectiveTB || s.targetUsableTB || 500;
+  var date= new Date().toLocaleDateString('en-GB', {year:'numeric',month:'long',day:'numeric'});
+  var dare= adv.secDare !== false;
+  var nfs = p.protoNfs3 !== false || p.protoNfs4 !== false;
+  var smb = p.protoSmb || false;
+  var s3  = p.protoS3  || false;
+  var repl= adv.bcEnabled || false;
+  var quotaTB = p.quotaTB || 100;
 
-  const _row = (n, cat, test, expected, act, pass_) =>
-    `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-      <td style="padding:0.5rem 0.75rem;font-weight:600;color:#A7F3D0;">${n}</td>
-      <td style="padding:0.5rem 0.75rem;font-size:0.78rem;color:#6366F1;">${cat}</td>
-      <td style="padding:0.5rem 0.75rem;font-size:0.82rem;">${test}</td>
-      <td style="padding:0.5rem 0.75rem;font-size:0.82rem;color:#10B981;">${expected}</td>
-      <td style="padding:0.5rem 0.75rem;font-size:0.82rem;color:#6B7280;font-style:italic;">${act}</td>
-      <td style="padding:0.5rem 0.75rem;text-align:center;">${pass_ ? '<span style="color:#10B981;">&#10003;</span>' : '<span style="color:#F59E0B;">&#9633;</span>'}</td>
-    </tr>`;
+  var ROW = function(n, cat, test, expected) {
+    return '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">'
+      + '<td style="padding:0.5rem 0.75rem;font-weight:600;color:#A7F3D0;">' + n + '</td>'
+      + '<td style="padding:0.5rem 0.75rem;font-size:0.78rem;color:#6366F1;">' + cat + '</td>'
+      + '<td style="padding:0.5rem 0.75rem;font-size:0.82rem;">' + test + '</td>'
+      + '<td style="padding:0.5rem 0.75rem;font-size:0.82rem;color:#10B981;">' + expected + '</td>'
+      + '<td style="padding:0.5rem 0.75rem;font-size:0.82rem;color:#6B7280;font-style:italic;">___</td>'
+      + '<td style="padding:0.5rem 0.75rem;text-align:center;color:#F59E0B;">&#9633;</td>'
+      + '</tr>';
+  };
+  var cb = function(c) {
+    return '<pre style="background:#040608;border:1px solid rgba(16,185,129,0.2);border-radius:6px;padding:0.75rem 1rem;font-family:JetBrains Mono,monospace;font-size:0.78rem;color:#10B981;line-height:1.6;margin:0.5rem 0;overflow-x:auto;white-space:pre;">' + c + '</pre>';
+  };
+  var TH = '<thead><tr><th>#</th><th>Category</th><th>Test</th><th>Expected Result</th><th>Actual Result</th><th>Pass?</th></tr></thead>';
+  var TH5 = '<thead><tr><th>#</th><th>Test</th><th>Acceptance Criteria</th><th>Actual Result</th><th>Pass?</th></tr></thead>';
+  var protoList = [nfs ? 'NFS' : '', smb ? 'SMB' : '', s3 ? 'S3' : ''].filter(Boolean).join(', ') || 'NFS';
+  var out = '';
 
-  const cb = (c) => `<pre style="background:#040608;border:1px solid rgba(16,185,129,0.2);border-radius:6px;padding:0.75rem 1rem;font-family:'JetBrains Mono',monospace;font-size:0.78rem;color:#10B981;line-height:1.6;margin:0.5rem 0;overflow-x:auto;white-space:pre;">${c}</pre>`;
+  out += '<h1>Acceptance Test Plan (ATP) &mdash; VAST Enterprise Storage</h1>';
+  out += '<p class="doc-meta">Customer: ' + org + ' &nbsp;|&nbsp; Cluster: ' + clN + ' &nbsp;|&nbsp; Date: ' + date + ' &nbsp;|&nbsp; Version: 1.0</p>';
+  out += '<p style="font-size:0.85rem;color:#9CA3AF;margin-bottom:2rem;">This ATP defines mandatory tests for the VAST Data storage cluster. All tests must be signed off before the engagement is complete. Reference: VAST AI OS Admin Guide | FIO: https://fio.readthedocs.io/</p>';
 
-  return `
-<h1>Acceptance Test Plan (ATP) &mdash; VAST Enterprise Storage</h1>
-<p class="doc-meta">Customer: ${org} &nbsp;|&nbsp; Cluster: ${clN} &nbsp;|&nbsp; Date: ${date} &nbsp;|&nbsp; Version: 1.0</p>
-<p style="font-size:0.85rem;color:#9CA3AF;margin-bottom:2rem;">
-  This Acceptance Test Plan defines the mandatory tests and acceptance criteria for the VAST Data storage cluster deployment.
-  All tests must be completed and signed off by the customer and VAST SE before the engagement is considered complete.<br>
-  <strong style="color:#A7F3D0;">Reference:</strong> VAST AI OS Admin Guide &bull; FIO docs: https://fio.readthedocs.io/ &bull; VAST VCLI Reference: https://kb.vastdata.com/
-</p>
+  out += '<div class="doc-section"><h2>1. Environment Summary</h2>';
+  out += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Specification</th><th>Value</th></tr></thead><tbody>';
+  out += '<tr><td>Cluster Name</td><td>VAST cluster hostname</td><td><strong>' + clN + '</strong></td></tr>';
+  out += '<tr><td>VAST AI OS Version</td><td>Installed OS</td><td>5.4.1-SP4</td></tr>';
+  out += '<tr><td>C-Nodes</td><td>Stateless compute</td><td><strong>' + cc + ' CNodes</strong></td></tr>';
+  out += '<tr><td>D-Nodes</td><td>NVMe storage enclosures</td><td><strong>' + dc + ' DNodes (Ceres)</strong></td></tr>';
+  out += '<tr><td>Usable Capacity</td><td>After data reduction</td><td><strong>' + eTB.toFixed(1) + ' TB</strong></td></tr>';
+  out += '<tr><td>VIP Pool Start</td><td>Client-facing floating IPs</td><td><strong>' + vipS + '</strong></td></tr>';
+  out += '<tr><td>Target Read</td><td>Aggregate across all clients</td><td><strong>' + rGBs + ' GB/s</strong></td></tr>';
+  out += '<tr><td>Target Write</td><td>Aggregate across all clients</td><td><strong>' + wGBs + ' GB/s</strong></td></tr>';
+  out += '<tr><td>Protocols</td><td>Enabled client protocols</td><td>' + protoList + '</td></tr>';
+  out += '<tr><td>DARE Encryption</td><td>AES-256-GCM at rest</td><td>' + (dare ? '&#10003; Enabled' : '&#10007; Disabled') + '</td></tr>';
+  out += '<tr><td>View Quota</td><td>Storage limit</td><td>' + quotaTB + ' TB</td></tr>';
+  out += '</tbody></table></div>';
 
-<div class="doc-section">
-  <h2>1. Pre-Acceptance Environment Summary</h2>
-  <table class="cabling-table">
-    <thead><tr><th>Parameter</th><th>Specification</th><th>Configured Value</th></tr></thead>
-    <tbody>
-      <tr><td>Cluster Name</td><td>VAST cluster hostname</td><td><strong>${clN}</strong></td></tr>
-      <tr><td>VAST AI OS Version</td><td>Installed OS version</td><td>5.4.1-SP4</td></tr>
-      <tr><td>C-Nodes (Compute)</td><td>Stateless compute nodes</td><td><strong>${cc} CNodes</strong></td></tr>
-      <tr><td>D-Nodes (Storage)</td><td>NVMe storage enclosures</td><td><strong>${dc} DNodes (Ceres)</strong></td></tr>
-      <tr><td>Usable Capacity</td><td>After data reduction</td><td><strong>${eTB.toFixed(1)} TB</strong></td></tr>
-      <tr><td>VIP Pool</td><td>Client-facing floating IPs</td><td><strong>${vipS} (pool)</strong></td></tr>
-      <tr><td>Target Read Throughput</td><td>Aggregate across all clients</td><td><strong>${rGBs} GB/s</strong></td></tr>
-      <tr><td>Target Write Throughput</td><td>Aggregate across all clients</td><td><strong>${wGBs} GB/s</strong></td></tr>
-      <tr><td>Protocols</td><td>Enabled client protocols</td><td>${[nfs?'NFS':'',smb?'SMB':'',s3?'S3':''].filter(Boolean).join(', ')}</td></tr>
-      <tr><td>DARE Encryption</td><td>AES-256-GCM at rest</td><td>${dare ? '&#10003; Enabled' : '&#10007; Disabled'}</td></tr>
-      <tr><td>View Quota</td><td>Storage limit on data view</td><td>${quotaTB} TB</td></tr>
-    </tbody>
-  </table>
-</div>
+  out += '<div class="doc-section"><h2>2. Hardware Verification</h2>';
+  out += '<table class="cabling-table">' + TH + '<tbody>';
+  out += ROW('H-01', 'Hardware', 'All C-Nodes visible: <code>vcli admin&gt; node list</code>', cc + ' CNodes with status ONLINE');
+  out += ROW('H-02', 'Hardware', 'All D-Nodes visible: <code>vcli admin&gt; node list --type dnode</code>', dc + ' DNodes with status ONLINE');
+  out += ROW('H-03', 'Hardware', 'Cluster health: <code>vcli admin&gt; cluster list</code>', 'No CRITICAL or ERROR alerts');
+  out += ROW('H-04', 'Hardware', 'NVMe drives healthy: <code>vcli admin&gt; drive list</code>', 'All drives ONLINE, none FAILED');
+  out += ROW('H-05', 'Hardware', 'VAST AI OS version: <code>vcli admin&gt; node show</code>', 'VAST AI OS 5.4.1-SP4 on all nodes');
+  out += ROW('H-06', 'Hardware', 'Dual PSU on all D-Nodes', 'Both PSUs PRESENT and HEALTHY per DNode');
+  out += '</tbody></table></div>';
 
-<div class="doc-section">
-  <h2>2. Hardware Verification Tests</h2>
-  <table class="cabling-table">
-    <thead><tr><th>#</th><th>Category</th><th>Test Description</th><th>Expected Result</th><th>Actual Result</th><th>Pass?</th></tr></thead>
-    <tbody>
-      ${_row('H-01','Hardware','Verify all C-Nodes visible: <code>vcli admin&gt; node list</code>',cc + ' CNodes with status ONLINE','',false)}
-      ${_row('H-02','Hardware','Verify all D-Nodes visible: <code>vcli admin&gt; node list --type dnode</code>',dc + ' DNodes with status ONLINE','',false)}
-      ${_row('H-03','Hardware','Verify cluster health: <code>vcli admin&gt; cluster list</code>','No CRITICAL or ERROR alerts','',false)}
-      ${_row('H-04','Hardware','Verify all NVMe drives healthy: <code>vcli admin&gt; drive list</code>','All drives ONLINE, no FAILED/DEGRADED','',false)}
-      ${_row('H-05','Hardware','Verify total raw capacity: <code>vcli admin&gt; drive list --output capacity</code>',`>= ${(r.rawTB || 0).toFixed(0)} TB raw NVMe`,'',false)}
-      ${_row('H-06','Hardware','Verify dual PSU on all D-Nodes','Both PSUs PRESENT and HEALTHY per DNode','',false)}
-      ${_row('H-07','Hardware','Verify firmware: <code>vcli admin&gt; node show</code>','VAST AI OS 5.4.1-SP4 on all nodes','',false)}
-    </tbody>
-  </table>
-</div>
+  out += '<div class="doc-section"><h2>3. Network Verification</h2>';
+  out += '<table class="cabling-table">' + TH + '<tbody>';
+  out += ROW('N-01', 'Network', 'Ping VIP from 3 separate clients', '&lt; 1ms RTT, 0% packet loss');
+  out += ROW('N-02', 'Network', 'iperf3 client-to-VIP: <code>iperf3 -c ' + vipS + ' -P 8 -t 30</code>', '&ge; line rate (limited by client NIC)');
+  out += ROW('N-03', 'Network', 'Jumbo frame test: <code>ping -M do -s 8972 ' + vipS + '</code>', 'Frames pass without fragmentation (MTU 9000)');
+  out += ROW('N-04', 'Network', 'VIP load balancing (4+ clients simultaneous)', 'Connections distributed across all CNodes');
+  out += ROW('N-05', 'Network', 'DNS resolution: <code>nslookup ' + clN + '</code>', 'Returns management IP without error');
+  out += ROW('N-06', 'Network', 'NTP sync: <code>chronyc tracking</code> on all nodes', 'Time within 50ms of NTP server on all nodes');
+  out += '</tbody></table></div>';
 
-<div class="doc-section">
-  <h2>3. Network Verification Tests</h2>
-  <table class="cabling-table">
-    <thead><tr><th>#</th><th>Category</th><th>Test</th><th>Expected</th><th>Actual</th><th>Pass?</th></tr></thead>
-    <tbody>
-      ${_row('N-01','Network','Ping VIP from 3 separate client hosts','&lt; 1ms RTT, 0% loss from all clients','',false)}
-      ${_row('N-02','Network','iperf3 between client and VIP: <code>iperf3 -c ' + vipS + ' -P 8 -t 30</code>','&ge; ' + Math.min(rGBs*0.8, 100).toFixed(0) + ' Gbps per client link (limited by client NIC)','',false)}
-      ${_row('N-03','Network','Verify MTU: <code>ping -M do -s 8972 ' + vipS + '</code>',`Jumbo frames (MTU ${(n.mtu||9000)}) pass without fragmentation`,'',false)}
-      ${_row('N-04','Network','Verify VIP load balancing: mount from 4+ clients, run traffic simultaneously','Connections distributed across all CNodes (check <code>vcli admin&gt; vippool show</code>)','',false)}
-      ${_row('N-05','Network','Verify DNS resolves cluster name','<code>nslookup ' + clN + '</code> returns management IP','',false)}
-      ${_row('N-06','Network','Verify NTP sync: <code>chronyc tracking</code> on all nodes','System time within 50ms of NTP server on all nodes','',false)}
-    </tbody>
-  </table>
-</div>
+  out += '<div class="doc-section"><h2>4. Storage Protocol Tests</h2>';
+  out += '<table class="cabling-table">' + TH + '<tbody>';
+  if (nfs) {
+    out += ROW('P-01', 'NFS', 'Mount NFSv3: <code>mount -t nfs -o vers=3,nconnect=8 ' + vipS + ':' + vPath + ' /mnt/test</code>', 'Mount succeeds, share shows ' + eTB.toFixed(0) + ' TB capacity');
+    out += ROW('P-02', 'NFS', 'Mount NFSv4.1 (if enabled)', 'Mount succeeds, share accessible');
+    out += ROW('P-03', 'NFS', 'File create/delete: <code>touch /mnt/test/atp-test.txt</code>', 'File created, visible, and deleted successfully');
+  }
+  if (smb) {
+    out += ROW('P-04', 'SMB', 'SMB mount from Windows: <code>net use V: \\\\\\\\' + vipS + '\\\\' + vPath.replace('/','') + '</code>', 'Drive mapped, R/W access confirmed');
+  }
+  if (s3) {
+    out += ROW('P-05', 'S3', 'S3 list: <code>aws s3 ls --endpoint-url http://' + vipS + ':9000</code>', 'Bucket list returned without error');
+    out += ROW('P-06', 'S3', 'S3 put/get 1GB object, verify checksum', 'SHA256 checksum matches on download');
+  }
+  out += ROW('P-07', 'Quota', 'Write to quota limit, verify hard block at ' + quotaTB + ' TB', 'Soft warning at ' + Math.round(quotaTB*0.9) + ' TB, hard block at ' + quotaTB + ' TB');
+  out += '</tbody></table></div>';
 
-<div class="doc-section">
-  <h2>4. Storage Protocol Tests</h2>
-  <table class="cabling-table">
-    <thead><tr><th>#</th><th>Category</th><th>Test</th><th>Expected</th><th>Actual</th><th>Pass?</th></tr></thead>
-    <tbody>
-      ${nfs ? _row('P-01','NFS','Mount NFSv3: <code>mount -t nfs -o vers=3,nconnect=8 ' + vipS + ':' + vPath + ' /mnt/test</code>','Mount succeeds, <code>df -h /mnt/test</code> shows ' + eTB.toFixed(0) + ' TB','',false) : ''}
-      ${nfs ? _row('P-02','NFS','Mount NFSv4.1: <code>mount -t nfs -o vers=4.1,nconnect=8 ' + vipS + ':' + vPath + ' /mnt/test4</code>','Mount succeeds, share accessible','',false) : ''}
-      ${nfs ? _row('P-03','NFS','NFS file create/delete: <code>touch /mnt/test/acceptance-test.txt &amp;&amp; ls -la /mnt/test/</code>','File created and visible, correctly deleted','',false) : ''}
-      ${smb ? _row('P-04','SMB','SMB mount from Windows: <code>net use V: \\\\\\\\' + vipS + '\\\\' + vPath.replace('/','') + '</code>','Drive mapped successfully, R/W access confirmed','',false) : ''}
-      ${s3 ? _row('P-05','S3','S3 bucket list: <code>aws s3 ls --endpoint-url http://' + vipS + ':9000</code>','Bucket list returned without error','',false) : ''}
-      ${s3 ? _row('P-06','S3','S3 object put/get: upload 1GB object, download and verify checksum','MD5/SHA256 checksum matches on download','',false) : ''}
-      ${_row('P-07','Quota','Write data to quota limit, verify soft warning and hard block','Quota warning emitted at ' + Math.round(quotaTB*0.9) + 'TB; writes blocked at ' + quotaTB + 'TB hard limit','',false)}
-    </tbody>
-  </table>
-</div>
+  out += '<div class="doc-section"><h2>5. Performance Benchmarks</h2>';
+  out += '<p style="font-size:0.85rem;color:#9CA3AF;">Run FIO from mounted NFS on 2+ client hosts simultaneously and sum results. Reference: https://fio.readthedocs.io/</p>';
 
-<div class="doc-section">
-  <h2>5. Performance Benchmark Tests</h2>
-  <p style="font-size:0.85rem;color:#9CA3AF;">Run FIO from the mounted NFS volume on 2+ client hosts simultaneously. Sum results for aggregate figures. Reference: <a href="https://fio.readthedocs.io/" style="color:#38BDF8;">https://fio.readthedocs.io/</a></p>
-  
-  <h3>5.1 Sequential Read Throughput</h3>
-  ${cb('fio --name=vast-atp-read \\\n    --filename=/mnt/vast/fio-seq-read \\\n    --size=100G --numjobs=32 --rw=read --bs=1M --direct=1 \\\n    --ioengine=libaio --iodepth=64 --group_reporting --runtime=60')}
-  <table class="cabling-table">
-    <thead><tr><th>#</th><th>Test</th><th>Acceptance Criteria</th><th>Actual Result</th><th>Pass?</th></tr></thead>
-    <tbody>
-      ${_row('B-01','Sequential Read',`Aggregate read throughput across all clients`,`&ge; ${rGBs} GB/s`,'__ GB/s',false)}
-      ${_row('B-02','Sequential Read','Read latency (average)','&lt; 2ms average','__ ms',false)}
-    </tbody>
-  </table>
-  
-  <h3>5.2 Sequential Write Throughput</h3>
-  ${cb('fio --name=vast-atp-write \\\n    --filename=/mnt/vast/fio-seq-write \\\n    --size=100G --numjobs=32 --rw=write --bs=1M --direct=1 \\\n    --ioengine=libaio --iodepth=64 --group_reporting --runtime=60')}
-  <table class="cabling-table">
-    <thead><tr><th>#</th><th>Test</th><th>Acceptance Criteria</th><th>Actual Result</th><th>Pass?</th></tr></thead>
-    <tbody>
-      ${_row('B-03','Sequential Write',`Aggregate write throughput`,`&ge; ${wGBs} GB/s`,'__ GB/s',false)}
-      ${_row('B-04','Sequential Write','Write latency (average)','&lt; 5ms average','__ ms',false)}
-    </tbody>
-  </table>
-  
-  <h3>5.3 Random 4K IOPS</h3>
-  ${cb('fio --name=vast-atp-rand \\\n    --filename=/mnt/vast/fio-rand \\\n    --size=20G --numjobs=16 --rw=randread --bs=4k --direct=1 \\\n    --ioengine=libaio --iodepth=256 --group_reporting --runtime=60')}
-  <table class="cabling-table">
-    <thead><tr><th>#</th><th>Test</th><th>Acceptance Criteria</th><th>Actual Result</th><th>Pass?</th></tr></thead>
-    <tbody>
-      ${_row('B-05','Random IOPS','4K Random Read IOPS (aggregate)','&ge; 500K IOPS','__ IOPS',false)}
-      ${_row('B-06','Random IOPS','4K Random Read Latency (p99)','&lt; 1ms (1000&mu;s)','__ &mu;s',false)}
-    </tbody>
-  </table>
-</div>
+  out += '<h3>5.1 Sequential Read</h3>';
+  out += cb('fio --name=vast-atp-read \\\n    --filename=/mnt/vast/fio-seq-read \\\n    --size=100G --numjobs=32 --rw=read --bs=1M --direct=1 \\\n    --ioengine=libaio --iodepth=64 --group_reporting --runtime=60');
+  out += '<table class="cabling-table">' + TH5 + '<tbody>';
+  out += '<tr><td>B-01</td><td>Sequential Read throughput</td><td>&ge; ' + rGBs + ' GB/s aggregate</td><td>___ GB/s</td><td>&#9633;</td></tr>';
+  out += '<tr><td>B-02</td><td>Read latency average</td><td>&lt; 2ms</td><td>___ ms</td><td>&#9633;</td></tr>';
+  out += '</tbody></table>';
 
-<div class="doc-section">
-  <h2>6. Security & Compliance Tests</h2>
-  <table class="cabling-table">
-    <thead><tr><th>#</th><th>Category</th><th>Test</th><th>Expected</th><th>Actual</th><th>Pass?</th></tr></thead>
-    <tbody>
-      ${dare ? _row('S-01','Encryption','Verify DARE enabled: <code>vcli admin&gt; cluster show | grep encrypt</code>','Encryption: ENABLED, FIPS 140-3','',false) : ''}
-      ${_row('S-02','Access Control','Verify un-authenticated user cannot access NFS share','Permission denied without valid credentials','',false)}
-      ${_row('S-03','Audit Log','Verify audit events logged on file access','Events visible in syslog at ' + (p.syslog||'<SYSLOG-IP>') + '','',false)}
-      ${repl ? _row('S-04','Replication','Verify replication to DR site: <code>vcli admin&gt; protectedpath list</code>','Status: SYNCED, lag within RPO target','',false) : ''}
-      ${_row('S-05','Snapshot','Verify snapshot created: <code>vcli admin&gt; snapshot list</code>','Snapshot exists for data path ' + vPath,'',false)}
-      ${_row('S-06','Snapshot','Verify snapshot restore: create file, take snapshot, delete file, restore from snapshot','File restored successfully from snapshot','',false)}
-    </tbody>
-  </table>
-</div>
+  out += '<h3>5.2 Sequential Write</h3>';
+  out += cb('fio --name=vast-atp-write \\\n    --filename=/mnt/vast/fio-seq-write \\\n    --size=100G --numjobs=32 --rw=write --bs=1M --direct=1 \\\n    --ioengine=libaio --iodepth=64 --group_reporting --runtime=60');
+  out += '<table class="cabling-table">' + TH5 + '<tbody>';
+  out += '<tr><td>B-03</td><td>Sequential Write throughput</td><td>&ge; ' + wGBs + ' GB/s aggregate</td><td>___ GB/s</td><td>&#9633;</td></tr>';
+  out += '<tr><td>B-04</td><td>Write latency average</td><td>&lt; 5ms</td><td>___ ms</td><td>&#9633;</td></tr>';
+  out += '</tbody></table>';
 
-<div class="doc-section">
-  <h2>7. High Availability / Resilience Tests</h2>
-  <table class="cabling-table">
-    <thead><tr><th>#</th><th>Category</th><th>Test</th><th>Expected</th><th>Actual</th><th>Pass?</th></tr></thead>
-    <tbody>
-      ${_row('HA-01','HA','Simulate CNode failure: power off one CNode during active FIO test','IO resumes within 30 seconds. No data loss. VIP migrates automatically.','',false)}
-      ${_row('HA-02','HA','Simulate network link failure: unplug one frontend cable during active IO','IO resumes within 30 seconds via redundant path.','',false)}
-      ${_row('HA-03','HA','Test graceful CNode restart: <code>vcli admin&gt; node reboot --node cnode-01</code>','CNode rejoins cluster within 10 minutes. IO uninterrupted.','',false)}
-      ${_row('HA-04','HA','Verify dual PSU redundancy on D-Nodes','Both PSUs present, AC input OK on all DNodes','',false)}
-    </tbody>
-  </table>
-</div>
+  out += '<h3>5.3 Random 4K IOPS</h3>';
+  out += cb('fio --name=vast-atp-rand \\\n    --filename=/mnt/vast/fio-rand \\\n    --size=20G --numjobs=16 --rw=randread --bs=4k --direct=1 \\\n    --ioengine=libaio --iodepth=256 --group_reporting --runtime=60');
+  out += '<table class="cabling-table">' + TH5 + '<tbody>';
+  out += '<tr><td>B-05</td><td>4K Random Read IOPS</td><td>&ge; 500K IOPS aggregate</td><td>___ IOPS</td><td>&#9633;</td></tr>';
+  out += '<tr><td>B-06</td><td>4K Read Latency p99</td><td>&lt; 1ms (1000&mu;s)</td><td>___ &mu;s</td><td>&#9633;</td></tr>';
+  out += '</tbody></table></div>';
 
-<div class="doc-section">
-  <h2>8. Sign-Off</h2>
-  <table class="cabling-table">
-    <thead><tr><th>Role</th><th>Name</th><th>Signature</th><th>Date</th></tr></thead>
-    <tbody>
-      <tr><td>VAST Solutions Engineer</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-      <tr><td>Customer Storage Team Lead</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-      <tr><td>Customer IT Manager</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-      <tr><td>VAST Account Executive</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-    </tbody>
-  </table>
-  <div class="highlight-box" style="margin-top:1.5rem;">
-    <strong>Acceptance Statement:</strong> The above tests have been completed and all acceptance criteria have been met. The VAST storage cluster for ${org} is accepted into production service. Generated by VASTbuilder v2.0 &mdash; &copy; 2024&ndash;2026 Eugene Beauzec.
-  </div>
-</div>`;
+  out += '<div class="doc-section"><h2>6. Security &amp; Compliance</h2>';
+  out += '<table class="cabling-table">' + TH + '<tbody>';
+  if (dare) {
+    out += ROW('S-01', 'Encryption', 'Verify DARE: <code>vcli admin&gt; cluster show | grep encrypt</code>', 'Encryption: ENABLED, FIPS 140-3');
+  }
+  out += ROW('S-02', 'Access', 'Un-authenticated user cannot access NFS share', 'Permission denied without valid credentials');
+  out += ROW('S-03', 'Audit', 'Verify audit events logged on file access', 'Events visible in syslog');
+  if (repl) {
+    out += ROW('S-04', 'Replication', 'Verify replication: <code>vcli admin&gt; protectedpath list</code>', 'Status: SYNCED, lag within RPO target');
+  }
+  out += ROW('S-05', 'Snapshot', 'Snapshot created: <code>vcli admin&gt; snapshot list</code>', 'Snapshot exists for ' + vPath);
+  out += ROW('S-06', 'Snapshot', 'Snapshot restore: create, snapshot, delete, restore', 'File restored successfully from snapshot');
+  out += '</tbody></table></div>';
+
+  out += '<div class="doc-section"><h2>7. High Availability Tests</h2>';
+  out += '<table class="cabling-table">' + TH + '<tbody>';
+  out += ROW('HA-01', 'HA', 'Power off one CNode during active FIO test', 'IO resumes within 30s, VIP migrates, no data loss');
+  out += ROW('HA-02', 'HA', 'Unplug one frontend cable during active IO', 'IO resumes within 30s via redundant path');
+  out += ROW('HA-03', 'HA', 'Graceful CNode restart: <code>vcli admin&gt; node reboot --node cnode-01</code>', 'CNode rejoins within 10 min, IO uninterrupted');
+  out += ROW('HA-04', 'HA', 'Verify dual PSU on all D-Nodes', 'Both PSUs present, AC input OK on all DNodes');
+  out += '</tbody></table></div>';
+
+  out += '<div class="doc-section"><h2>8. Sign-Off</h2>';
+  out += '<table class="cabling-table"><thead><tr><th>Role</th><th>Name</th><th>Signature</th><th>Date</th></tr></thead><tbody>';
+  out += '<tr><td>VAST Solutions Engineer</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
+  out += '<tr><td>Customer Storage Team Lead</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
+  out += '<tr><td>Customer IT Manager</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
+  out += '<tr><td>VAST Account Executive</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
+  out += '</tbody></table>';
+  out += '<div class="highlight-box" style="margin-top:1.5rem;"><strong>Acceptance Statement:</strong> All tests completed and acceptance criteria met. The VAST storage cluster for ' + org + ' is accepted into production. Generated by VASTbuilder v2.0 &mdash; &copy; 2024&ndash;2026 Eugene Beauzec.</div>';
+  out += '</div>';
+
+  return out;
 }
 
 // ----- BC/DR Runbook Generator -----
 function _buildBCDRRunbook() {
-  const cfg = AppState.config;
-  const adv = cfg.advanced || {};
-  const p   = cfg.provisioning || {};
-  const r   = cfg.results || {};
-  const s   = cfg.sizing || {};
-  const n   = cfg.network || {};
-  const org = (cfg.customer && cfg.customer.orgName) ? _esc(cfg.customer.orgName) : 'Customer';
-  const clN = p.clusterName || 'vast-cluster-01';
-  const vipS= p.vipStart    || '10.100.20.100';
-  const vPath=p.viewPath    || '/data';
-  const date= new Date().toLocaleDateString('en-GB', {year:'numeric',month:'long',day:'numeric'});
-  const repl= adv.bcEnabled || false;
-  const replType= adv.bcReplicationType || 'async';
-  const remoteIP= adv.bcRemoteClusterIP || '<DR-CLUSTER-IP>';
-  const remoteClN= adv.bcRemoteClusterName || clN + '-dr';
-  const rpoMin  = adv.bcRPOMinutes || 60;
-  const snapSch = adv.bcSnapshotSchedule || 'hourly';
-  const snapRet = adv.bcSnapshotRetentionDays || 30;
-  const wanGbps = adv.bcWanBandwidthGbps || 10;
-  const rtoHours= rpoMin <= 15 ? '<15 minutes' : rpoMin <= 60 ? '<1 Hour' : '<4 Hours';
-  const eTB = r.effectiveTB || s.targetUsableTB || 500;
-  const dailyChangePct = (cfg.workload && cfg.workload.changeRate) || 10;
-  const dailyChangeGB  = Math.round(eTB * dailyChangePct / 100 * 1024);
-  const wanRequiredGbps= ((dailyChangeGB / (24 * 3600)) * 8).toFixed(2);
-  const snapSchedVCLI  = snapSch === 'hourly' ? '1 hour' : snapSch.includes('4') ? '4 hours' : snapSch === 'daily' ? '1 day' : '1 week';
+  var cfg  = AppState.config;
+  var adv  = cfg.advanced || {};
+  var p    = cfg.provisioning || {};
+  var r    = cfg.results || {};
+  var s    = cfg.sizing || {};
+  var n    = cfg.network || {};
+  var org  = (cfg.customer && cfg.customer.orgName) ? _esc(cfg.customer.orgName) : 'Customer';
+  var clN  = p.clusterName || 'vast-cluster-01';
+  var vipS = p.vipStart    || '10.100.20.100';
+  var vPath= p.viewPath    || '/data';
+  var date = new Date().toLocaleDateString('en-GB', {year:'numeric',month:'long',day:'numeric'});
+  var repl      = adv.bcEnabled || false;
+  var replType  = adv.bcReplicationType || 'async';
+  var remoteIP  = adv.bcRemoteClusterIP || '&lt;DR-CLUSTER-IP&gt;';
+  var remoteClN = adv.bcRemoteClusterName || clN + '-dr';
+  var rpoMin    = adv.bcRPOMinutes || 60;
+  var snapSch   = adv.bcSnapshotSchedule || 'hourly';
+  var snapRet   = adv.bcSnapshotRetentionDays || 30;
+  var wanGbps   = adv.bcWanBandwidthGbps || 10;
+  var eTB       = r.effectiveTB || s.targetUsableTB || 500;
+  var dailyChg  = (cfg.workload && cfg.workload.changeRate) || 10;
+  var dailyGB   = Math.round(eTB * dailyChg / 100 * 1024);
+  var wanReqGbps= (dailyGB / (24 * 3600) * 8).toFixed(2);
+  var snapSchedVCLI = snapSch === 'hourly' ? '1 hour' : (snapSch.indexOf('4') !== -1 ? '4 hours' : (snapSch === 'daily' ? '1 day' : '1 week'));
+  var rtoStr    = rpoMin <= 15 ? '&lt;15 minutes' : (rpoMin <= 60 ? '&lt;1 Hour' : '&lt;4 Hours');
 
-  const cb = (c) => `<pre style="background:#040608;border:1px solid rgba(99,102,241,0.25);border-radius:6px;padding:0.9rem 1.1rem;font-family:'JetBrains Mono',monospace;font-size:0.79rem;color:#10B981;line-height:1.65;margin:0.5rem 0;overflow-x:auto;white-space:pre;">${c}</pre>`;
-  const warn = (t) => `<div style="background:rgba(239,68,68,0.07);border-left:3px solid #EF4444;border-radius:0 6px 6px 0;padding:0.75rem 1rem;margin:0.75rem 0;font-size:0.84rem;color:#FCA5A5;">${t}</div>`;
-  const note = (t) => `<div style="background:rgba(245,158,11,0.07);border-left:3px solid #F59E0B;border-radius:0 6px 6px 0;padding:0.75rem 1rem;margin:0.75rem 0;font-size:0.84rem;color:#FCD34D;">${t}</div>`;
-  const info = (t) => `<div style="background:rgba(16,185,129,0.06);border-left:3px solid #10B981;border-radius:0 6px 6px 0;padding:0.75rem 1rem;margin:0.75rem 0;font-size:0.84rem;color:#A7F3D0;">${t}</div>`;
+  var cb   = function(c) { return '<pre style="background:#040608;border:1px solid rgba(99,102,241,0.25);border-radius:6px;padding:0.9rem 1.1rem;font-family:JetBrains Mono,monospace;font-size:0.79rem;color:#10B981;line-height:1.65;margin:0.5rem 0;overflow-x:auto;white-space:pre;">' + c + '</pre>'; };
+  var warn = function(t) { return '<div style="background:rgba(239,68,68,0.07);border-left:3px solid #EF4444;border-radius:0 6px 6px 0;padding:0.75rem 1rem;margin:0.75rem 0;font-size:0.84rem;color:#FCA5A5;">' + t + '</div>'; };
+  var note = function(t) { return '<div style="background:rgba(245,158,11,0.07);border-left:3px solid #F59E0B;border-radius:0 6px 6px 0;padding:0.75rem 1rem;margin:0.75rem 0;font-size:0.84rem;color:#FCD34D;">' + t + '</div>'; };
+  var info = function(t) { return '<div style="background:rgba(16,185,129,0.06);border-left:3px solid #10B981;border-radius:0 6px 6px 0;padding:0.75rem 1rem;margin:0.75rem 0;font-size:0.84rem;color:#A7F3D0;">' + t + '</div>'; };
+  var h2   = function(t) { return '<h2 style="color:#10B981;font-size:1.15rem;font-weight:700;margin:2rem 0 0.75rem;padding-bottom:0.5rem;border-bottom:1px solid rgba(255,255,255,0.07);">' + t + '</h2>'; };
+  var h3   = function(t) { return '<h3 style="color:#A7F3D0;font-size:1rem;font-weight:600;margin:1.25rem 0 0.5rem;">' + t + '</h3>'; };
 
-  return `
-<h1>BC/DR Operational Runbook &mdash; VAST Enterprise Storage</h1>
-<p class="doc-meta">Customer: ${org} &nbsp;|&nbsp; Primary Cluster: ${clN} &nbsp;|&nbsp; Date: ${date} &nbsp;|&nbsp; Version: 1.0</p>
-<p style="font-size:0.85rem;color:#9CA3AF;margin-bottom:2rem;">
-  This runbook documents the Business Continuity and Disaster Recovery procedures for the VAST storage cluster.
-  It covers monitoring, planned failover, unplanned failover (DR), failback, and monthly DR test procedures.<br>
-  <strong style="color:#A7F3D0;">Reference:</strong> VAST AI OS Admin Guide &rarr; Protection Policies &bull; https://kb.vastdata.com/
-</p>
+  var wanWarn = (parseFloat(wanReqGbps) > wanGbps)
+    ? warn('<strong>WARNING:</strong> Required WAN bandwidth (' + wanReqGbps + ' Gbps) exceeds available WAN (' + wanGbps + ' Gbps). Replication lag may exceed RPO target.')
+    : info('WAN bandwidth sufficient for continuous replication with headroom.');
 
-<div class="doc-section">
-  <h2>1. BC/DR Architecture Overview</h2>
-  <table class="cabling-table">
-    <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
-    <tbody>
-      <tr><td>Primary Site</td><td><strong>${clN}</strong> (${r.cnodeCount || 4}x CNodes, ${r.dnodeCount || 2}x DNodes)</td></tr>
-      <tr><td>DR Site</td><td><strong>${repl ? remoteClN + ' at ' + remoteIP : 'Not configured &mdash; configure in Panel 7 &rarr; BC/DR'}</strong></td></tr>
-      <tr><td>Replication Type</td><td>${replType === 'sync' ? '&#10003; Synchronous Mirror (Active-Active, RPO = 0)' : '&#10003; Asynchronous Mirror (RPO = ~' + rpoMin + ' min)'}</td></tr>
-      <tr><td>RPO Target</td><td><strong>${rpoMin} minutes</strong> (Recovery Point Objective)</td></tr>
-      <tr><td>RTO Target</td><td><strong>${rtoHours}</strong> (Recovery Time Objective)</td></tr>
-      <tr><td>Snapshot Schedule</td><td>${snapSch} (${snapRet} days retention)</td></tr>
-      <tr><td>Dataset Size</td><td>${eTB.toFixed(1)} TB usable</td></tr>
-      <tr><td>Daily Change Rate</td><td>${dailyChangePct}% = ~${dailyChangeGB.toLocaleString()} GB/day</td></tr>
-      <tr><td>WAN Bandwidth Required</td><td><strong>${wanRequiredGbps} Gbps</strong> (continuous replication) &bull; Available: ${wanGbps} Gbps</td></tr>
-      <tr><td>VAST Mirror (VAST-to-VAST)</td><td>Native async/sync replication &mdash; no middleware required</td></tr>
-    </tbody>
-  </table>
-  ${parseFloat(wanRequiredGbps) > wanGbps ? warn('<strong>WARNING:</strong> Required WAN bandwidth (' + wanRequiredGbps + ' Gbps) exceeds available WAN (' + wanGbps + ' Gbps). Replication lag may exceed RPO target. Consider increasing WAN capacity or reducing replication scope.') : info('WAN bandwidth sufficient for continuous replication with headroom.')}
-</div>
+  var out = '';
+  out += '<h1>BC/DR Operational Runbook &mdash; VAST Enterprise Storage</h1>';
+  out += '<p class="doc-meta">Customer: ' + org + ' &nbsp;|&nbsp; Primary Cluster: ' + clN + ' &nbsp;|&nbsp; Date: ' + date + ' &nbsp;|&nbsp; Version: 1.0</p>';
+  out += '<p style="font-size:0.85rem;color:#9CA3AF;margin-bottom:2rem;">This runbook documents BC/DR procedures for the VAST storage cluster. Covers monitoring, planned failover, unplanned DR, failback, and monthly DR tests.<br><strong style="color:#A7F3D0;">Reference:</strong> VAST AI OS Admin Guide &rarr; Protection Policies &bull; https://kb.vastdata.com/</p>';
 
-<div class="doc-section">
-  <h2>2. Snapshot & Replication Monitoring</h2>
-  <h3>2.1 Daily Health Checks</h3>
-  ${cb('# Check cluster health (no CRITICAL or ERROR alerts)
+  out += '<div class="doc-section">';
+  out += h2('1. BC/DR Architecture Overview');
+  out += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>';
+  out += '<tr><td>Primary Site</td><td><strong>' + clN + '</strong> (' + (r.cnodeCount||4) + 'x CNodes, ' + (r.dnodeCount||2) + 'x DNodes)</td></tr>';
+  out += '<tr><td>DR Site</td><td><strong>' + (repl ? remoteClN + ' at ' + remoteIP : 'Not configured &mdash; configure in Panel 7 &rarr; BC/DR') + '</strong></td></tr>';
+  out += '<tr><td>Replication Type</td><td>' + (replType === 'sync' ? '&#10003; Synchronous Mirror (Active-Active, RPO = 0)' : '&#10003; Asynchronous Mirror (RPO = ~' + rpoMin + ' min)') + '</td></tr>';
+  out += '<tr><td>RPO Target</td><td><strong>' + rpoMin + ' minutes</strong></td></tr>';
+  out += '<tr><td>RTO Target</td><td><strong>' + rtoStr + '</strong></td></tr>';
+  out += '<tr><td>Snapshot Schedule</td><td>' + snapSch + ' (' + snapRet + ' days retention)</td></tr>';
+  out += '<tr><td>Dataset Size</td><td>' + eTB.toFixed(1) + ' TB usable</td></tr>';
+  out += '<tr><td>Daily Change Rate</td><td>' + dailyChg + '% = ~' + dailyGB.toLocaleString() + ' GB/day</td></tr>';
+  out += '<tr><td>WAN Bandwidth Required</td><td><strong>' + wanReqGbps + ' Gbps</strong> continuous &bull; Available: ' + wanGbps + ' Gbps</td></tr>';
+  out += '</tbody></table>';
+  out += wanWarn;
+  out += '</div>';
+
+  out += '<div class="doc-section">';
+  out += h2('2. Daily Monitoring Checks');
+  out += cb('# Check cluster health
 vcli admin> cluster list
 
 # Check replication status and lag
 vcli admin> protectedpath list
-# Key field: "Replication Lag" should be < ' + rpoMin + ' minutes
+# Key field: Replication Lag should be < ' + rpoMin + ' minutes
 
 # Check snapshot inventory
 vcli admin> snapshot list --policy-name "' + clN + '-snap-policy"
 
-# Check active protection policies
-vcli admin> protectionpolicy list
-
 # Verify DR site connectivity
-vcli admin> remoteserver list
-# Status should be CONNECTED')}
+vcli admin> remoteserver list   # Status should be CONNECTED');
+  out += note('VAST REST API at https://' + vipS + '/api &mdash; integrate with Prometheus/Grafana, Zabbix, or Datadog via VMS REST API for automated monitoring.');
+  out += '</div>';
 
-  <h3>2.2 Automated Monitoring Integration</h3>
-  ${note('VAST exposes a REST API at https://' + vipS + '/api — integrate with your monitoring platform (Prometheus/Grafana, Zabbix, Datadog) using the VMS REST API.')}
-  ${cb('# VAST REST API — Get replication lag (curl example)
-# Reference: https://' + vipS + '/docs/index.html (Swagger UI when on cluster)
-curl -k -u admin:<PASSWORD> \\
-  "https://' + vipS + '/api/protectedpaths/?format=json" | \\
-  python3 -c "import json,sys; data=json.load(sys.stdin); [print(p[\'name\'], \'lag:\', p.get(\'replication_lag_seconds\',\'N/A\'), \'s\') for p in data[\'results\']]"
-
-# VAST SNMP MIB is available — configure SNMP community in cluster settings
-vcli admin> cluster modify --snmp-community <COMMUNITY-STRING>')}
-</div>
-
-<div class="doc-section">
-  <h2>3. Planned Failover Procedure</h2>
-  ${note('Planned failover is used for scheduled maintenance on the primary site. Both sites must be healthy and in sync.')}
-  <h3>3.1 Pre-Failover Checks</h3>
-  ${cb('# 1. Verify replication is in sync (lag should be near 0)
-vcli admin> protectedpath list   # check "lag" column
-
-# 2. Notify all users/teams that services will be briefly interrupted
-# 3. Quiesce applications on the primary site (stop all writes)
-
-# 4. Force a final snapshot (flush all pending changes)
-vcli admin> snapshot create \\
-  --policy-name "' + clN + '-snap-policy" \\
-  --comment "Pre-planned-failover-snapshot"')}
-
-  <h3>3.2 Initiate Planned Failover</h3>
-  ${cb('# On PRIMARY cluster:
-vcli admin> protectedpath promote \\
-  --name "' + clN + '-data-snap" \\
-  --planned
-
-# Status transitions: SYNCED -> FAILING_OVER -> FAILED_OVER
-# Monitor: vcli admin> protectedpath list
-
-# When status shows FAILED_OVER on primary:
-# Re-mount clients at DR site VIP (remoteIP: ' + remoteIP + ')')}
-
-  <h3>3.3 Client Re-mount at DR Site</h3>
-  ${cb('# Linux clients — remount to DR VIP:
-umount /mnt/vast
-mount -t nfs -o vers=3,proto=tcp,nconnect=8,rsize=1048576,wsize=1048576,hard \\
-  ' + remoteIP + ':' + vPath + ' /mnt/vast
-
-# Update /etc/fstab to point to DR VIP
-# Update DNS entry: ' + clN + ' -> ' + remoteIP)}
-</div>
-
-<div class="doc-section">
-  <h2>4. Unplanned Failover (Disaster Recovery)</h2>
-  ${warn('<strong>EMERGENCY PROCEDURE:</strong> Only invoke this when the primary site is genuinely unreachable. Forced failover may result in data loss up to the last successful replication cycle (RPO = ' + rpoMin + ' minutes).')}
-  <h3>4.1 Declare Disaster</h3>
-  ${cb('# STEP 1: Confirm primary site is unrecoverable (not just a network blip)
-# Attempt management access to primary cluster: ssh admin@<PRIMARY-MGMT-IP>
-# Check with data centre ops team — confirm physical failure
-
-# STEP 2: On DR CLUSTER (at ' + remoteIP + '), force-promote the protected path
-vcli admin> protectedpath force-failover \\
-  --name "' + clN + '-data-snap"
-
-# WARNING: This breaks the replication relationship — changes will need to be resync\'d after recovery
-# Status: FORCED_FAILOVER — DR site now serves as primary
-
-# STEP 3: Verify data integrity on DR site
-vcli admin> view list
-vcli admin> view show --name "' + remoteClN + '-data"
-ls -la /mnt/vast/   # from a DR-site client')}
-
-  <h3>4.2 Client Re-mount at DR Site</h3>
-  ${cb('# Update DNS OR update /etc/fstab on all clients:
-mount -t nfs -o vers=3,proto=tcp,nconnect=8,rsize=1048576,wsize=1048576,hard \\
-  ' + remoteIP + ':' + vPath + ' /mnt/vast
-
-# Kubernetes: Update VAST CSI VIP pool setting to DR site VIP
-# VMware: Update NFS datastore IP in vCenter')}
-
-  <h3>4.3 Incident Tracking</h3>
-  ${cb('# Document RTO (time from disaster declaration to services restored):
-#   Disaster declared:    _________________ (UTC)
-#   DR services online:   _________________ (UTC)
-#   RTO achieved:         _________________ hours / minutes
-#   Data loss (RPO):      _________________ minutes (based on last snapshot timestamp)
-#   Root cause:           _________________ (hardware / network / software / power)')}
-</div>
-
-<div class="doc-section">
-  <h2>5. Failback Procedure</h2>
-  ${note('Failback is performed after the primary site is restored. Primary cluster must be rebuilt or repaired before failback.')}
-  ${cb('# STEP 1: Restore primary site infrastructure (rack/power/network)
-# STEP 2: Reinstall VAST AI OS on primary C-Nodes if necessary
-# STEP 3: Re-register primary as replication target from DR site
-
-# On DR cluster (current primary):
-vcli admin> remoteserver create \\
-  --name "' + clN + '-primary-recovered" \\
-  --mgmt-ip <PRIMARY-RECOVERED-IP>
-
-# STEP 4: Reverse-replicate (DR back to Primary) — creates new protection policy
-vcli admin> protectionpolicy create \\
-  --name "' + clN + '-failback-policy" \\
-  --frame "' + snapSchedVCLI + '" \\
-  --keep-local 7d \\
-  --keep-remote 30d \\
-  --remote-server-name "' + clN + '-primary-recovered" \\
-  --remote-dir ' + vPath + '
-
-# STEP 5: Wait for initial sync to complete (monitor lag)
+  out += '<div class="doc-section">';
+  out += h2('3. Planned Failover Procedure');
+  out += note('Use for scheduled primary site maintenance. Both sites must be healthy and in-sync.');
+  out += h3('3.1 Pre-Failover Checks');
+  out += cb('# Verify replication in sync (lag should be near 0)
 vcli admin> protectedpath list
 
-# STEP 6: Perform planned failover back to primary (Section 3 above)
-# STEP 7: Verify all clients re-mounted to primary VIP ' + vipS + '
-# STEP 8: Resume normal operations and monitoring')}
-</div>
+# Notify users of planned maintenance window
+# Quiesce applications (stop all writes to primary)
 
-<div class="doc-section">
-  <h2>6. Monthly DR Test Procedure</h2>
-  ${info('VAST recommends monthly DR tests. Use the <strong>planned failover</strong> procedure (Section 3) for quarterly full tests. For monthly non-disruptive tests, use snapshot-based testing below.')}
-  ${cb('# Non-disruptive monthly test — creates a temporary mount from the latest replication snapshot
-# Does NOT interrupt production workloads
+# Force a final snapshot
+vcli admin> snapshot create \
+  --policy-name "' + clN + '-snap-policy" \
+  --comment "Pre-planned-failover-snapshot"');
+  out += h3('3.2 Initiate Planned Failover');
+  out += cb('# On PRIMARY cluster:
+vcli admin> protectedpath promote \
+  --name "' + clN + '-data-snap" \
+  --planned
 
-# On DR cluster — list latest received snapshots:
+# Monitor status transition: SYNCED -> FAILING_OVER -> FAILED_OVER
+vcli admin> protectedpath list
+
+# When FAILED_OVER: re-mount clients at DR site VIP (' + remoteIP + ')');
+  out += h3('3.3 Client Re-mount at DR Site');
+  out += cb('# Linux:
+umount /mnt/vast
+mount -t nfs -o vers=3,proto=tcp,nconnect=8,rsize=1048576,wsize=1048576,hard \
+  ' + remoteIP + ':' + vPath + ' /mnt/vast
+
+# Update /etc/fstab and DNS to point to DR site VIP');
+  out += '</div>';
+
+  out += '<div class="doc-section">';
+  out += h2('4. Unplanned Failover (Disaster Recovery)');
+  out += warn('<strong>EMERGENCY PROCEDURE:</strong> Only invoke when primary site is genuinely unreachable. Forced failover may result in data loss up to the last replication cycle (RPO = ' + rpoMin + ' min).');
+  out += h3('4.1 Declare Disaster and Force Failover');
+  out += cb('# STEP 1: Confirm primary is unrecoverable (check with DC ops team)
+
+# STEP 2: On DR CLUSTER at ' + remoteIP + ':
+vcli admin> protectedpath force-failover \
+  --name "' + clN + '-data-snap"
+
+# WARNING: Breaks replication relationship - resync needed after recovery
+# Status: FORCED_FAILOVER
+
+# STEP 3: Verify data on DR site
+vcli admin> view list
+vcli admin> view show --name "' + remoteClN + '-data"');
+  out += h3('4.2 Client Re-mount at DR Site');
+  out += cb('mount -t nfs -o vers=3,proto=tcp,nconnect=8,rsize=1048576,wsize=1048576,hard \
+  ' + remoteIP + ':' + vPath + ' /mnt/vast
+
+# Kubernetes: Update VAST CSI VIP pool to DR site
+# VMware: Update NFS datastore IP in vCenter to ' + remoteIP);
+  out += h3('4.3 Incident Record');
+  out += cb('#   Disaster declared:    _________________ (UTC)
+#   DR services online:   _________________ (UTC)
+#   RTO achieved:         _________________ hours/minutes
+#   Data loss (RPO):      _________________ minutes (from last snapshot)
+#   Root cause:           _________________ (hardware/network/software/power)');
+  out += '</div>';
+
+  out += '<div class="doc-section">';
+  out += h2('5. Failback Procedure');
+  out += note('Failback after primary site is restored. Primary must be rebuilt/repaired first.');
+  out += cb('# STEP 1: Restore primary infrastructure
+# STEP 2: Re-register primary as replication target from DR site
+
+# On DR cluster (current primary):
+vcli admin> remoteserver create \
+  --name "' + clN + '-primary-recovered" \
+  --mgmt-ip <PRIMARY-RECOVERED-IP>
+
+# STEP 3: Create reverse replication policy
+vcli admin> protectionpolicy create \
+  --name "' + clN + '-failback-policy" \
+  --frame "' + snapSchedVCLI + '" \
+  --keep-local 7d --keep-remote 30d \
+  --remote-server-name "' + clN + '-primary-recovered" \
+  --remote-dir ' + vPath + '
+
+# STEP 4: Wait for sync, then perform planned failover back (Section 3)
+# STEP 5: Verify clients re-mounted to primary VIP ' + vipS);
+  out += '</div>';
+
+  out += '<div class="doc-section">';
+  out += h2('6. Monthly DR Test (Non-Disruptive)');
+  out += info('VAST recommends monthly DR tests. This procedure tests DR data accessibility without interrupting production.');
+  out += cb('# List latest snapshots replicated to DR site:
 vcli admin> snapshot list --remote Yes
 
-# Mount latest snapshot as a separate test volume:
-vcli admin> view create \\
-  --name "dr-test-view" \\
-  --path ' + vPath + '/dr-test \\
-  --source-snapshot-name <LATEST-SNAPSHOT-NAME> \\
-  --policy-name "' + clN + '-nfs-policy" \\
+# Mount latest snapshot as read-only test volume at DR site:
+vcli admin> view create \
+  --name "dr-test-view" \
+  --path ' + vPath + '/dr-test \
+  --source-snapshot-name <LATEST-SNAPSHOT-NAME> \
+  --policy-name "' + clN + '-nfs-policy" \
   --vip-pool-name "<DR-VIP-POOL>"
 
-# Mount from a test client at DR site:
+# Mount from test client at DR site (read-only):
 mount -t nfs -o vers=3,nconnect=8,ro ' + remoteIP + ':' + vPath + '/dr-test /mnt/dr-test
-
-# Verify data integrity:
 ls -la /mnt/dr-test/
-# Sample file check: md5sum /mnt/dr-test/<known-file> | compare to primary
 
-# Clean up test view:
+# Clean up:
 umount /mnt/dr-test
 vcli admin> view delete --name "dr-test-view"
 
-# Document test results:
-#   Test Date:               _________________
-#   Latest Snapshot Age:     _________________ minutes (vs RPO target: ' + rpoMin + ' min)
-#   Data Accessibility:      _________________ (PASS / FAIL)
-#   Tested By:               _________________
-#   Next Test Date:          _________________')}
-</div>
+# Test Record:
+#   Test Date:             _________________
+#   Snapshot Age (vs RPO=' + rpoMin + 'min): ___________ minutes
+#   Data Accessible:       PASS / FAIL
+#   Tested By:             _________________');
+  out += '</div>';
 
-<div class="doc-section">
-  <h2>7. Escalation Contacts</h2>
-  <table class="cabling-table">
-    <thead><tr><th>Role</th><th>Name</th><th>Contact</th><th>Available</th></tr></thead>
-    <tbody>
-      <tr><td>VAST Data Support</td><td>&nbsp;</td><td>support.vastdata.com &bull; 1-800-VAST-HELP</td><td>24/7</td></tr>
-      <tr><td>VAST Solutions Engineer</td><td>&nbsp;</td><td>&nbsp;</td><td>Business hours + on-call</td></tr>
-      <tr><td>Customer Storage Lead</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-      <tr><td>Customer IT Manager</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
-      <tr><td>Customer NOC / Helpdesk</td><td>&nbsp;</td><td>&nbsp;</td><td>24/7</td></tr>
-      <tr><td>Data Centre Ops</td><td>&nbsp;</td><td>&nbsp;</td><td>24/7</td></tr>
-    </tbody>
-  </table>
-</div>
+  out += '<div class="doc-section">';
+  out += h2('7. Escalation Contacts');
+  out += '<table class="cabling-table"><thead><tr><th>Role</th><th>Name</th><th>Contact</th><th>Hours</th></tr></thead><tbody>';
+  out += '<tr><td>VAST Data Support</td><td></td><td>support.vastdata.com</td><td>24/7</td></tr>';
+  out += '<tr><td>VAST Solutions Engineer</td><td></td><td></td><td>Business hours + on-call</td></tr>';
+  out += '<tr><td>Customer Storage Lead</td><td></td><td></td><td></td></tr>';
+  out += '<tr><td>Customer IT Manager</td><td></td><td></td><td></td></tr>';
+  out += '<tr><td>Customer NOC / Helpdesk</td><td></td><td></td><td>24/7</td></tr>';
+  out += '<tr><td>Data Centre Ops</td><td></td><td></td><td>24/7</td></tr>';
+  out += '</tbody></table>';
+  out += '</div>';
 
-<div class="highlight-box" style="margin-top:2rem;">
-  <strong>Document Control:</strong> This runbook must be reviewed and tested quarterly. Last reviewed: ${date}. 
-  Generated by VASTbuilder v2.0 &mdash; &copy; 2024&ndash;2026 Eugene Beauzec. All Rights Reserved.
-</div>`;
+  out += '<div class="highlight-box" style="margin-top:2rem;">Document Control: Reviewed and tested quarterly. Last reviewed: ' + date + '. Generated by VASTbuilder v2.0 &mdash; &copy; 2024&ndash;2026 Eugene Beauzec. All Rights Reserved.</div>';
+
+  return out;
 }
 
 // ============================================================
