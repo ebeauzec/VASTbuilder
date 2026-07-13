@@ -2258,26 +2258,34 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783965214"></script>
+<script src="app.js?v=1783965644"></script>
 <script>
 /* ── GLOBAL UI BRIDGE: all onclick-needed functions defined here ── */
 
 /* ── Navigation ──────────────────────────────────────────── */
 function switchStep(n){
-  var total=10;
-  if(n<1||n>total)return;
-  document.querySelectorAll('.wizard-panel').forEach(function(p){p.classList.remove('active');});
+  n=parseInt(n,10);
+  if(isNaN(n)||n<1||n>10)return;
+  console.log('[VAST] switchStep',n);
+  document.querySelectorAll('.wizard-panel').forEach(function(p){
+    p.style.display='none'; p.classList.remove('active');
+  });
+  var target=document.getElementById('panel-'+n);
+  if(target){ target.style.display='block'; target.classList.add('active'); }
+  else{ console.warn('[VAST] panel-'+n+' NOT FOUND'); }
   document.querySelectorAll('.step-item').forEach(function(s){s.classList.remove('active');});
-  var panel=document.getElementById('panel-'+n);
-  if(panel)panel.classList.add('active');
-  var item=document.querySelector('.step-item[data-step="'+n+'"]');
-  if(item)item.classList.add('active');
-  if(window._appSwitchStep)window._appSwitchStep(n);
+  var si=document.querySelector('[data-step="'+n+'"]');
+  if(si)si.classList.add('active');
   var ind=document.getElementById('current-step-indicator');
   if(ind)ind.textContent=n;
+  var pb=document.getElementById('prev-btn'),nb=document.getElementById('next-btn');
+  if(pb)pb.disabled=(n===1); if(nb)nb.disabled=(n===10);
+  if(window._appSwitchStep)window._appSwitchStep(n);
 }
 function navigateStep(dir){
-  var cur=parseInt((document.getElementById('current-step-indicator')||{}).textContent||1);
+  var ind=document.getElementById('current-step-indicator');
+  var cur=ind?parseInt(ind.textContent,10)||1:1;
+  console.log('[VAST] navigateStep',dir,'from',cur);
   switchStep(cur+dir);
 }
 function markDirty(){if(typeof pushUndoState==='function')pushUndoState();}
