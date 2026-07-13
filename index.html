@@ -48,9 +48,9 @@
     .sidebar-footer{padding:1rem 1.25rem 1.5rem;font-size:.72rem;color:var(--color-text-muted);border-top:1px solid var(--panel-border);display:flex;flex-direction:column;gap:.35rem}
     /* Preset cards */
     .preset-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1.75rem}
-    .preset-card{background:rgba(255,255,255,.02);border:1px solid var(--panel-border);border-radius:10px;padding:.85rem .75rem;cursor:pointer;transition:var(--transition-smooth);display:flex;flex-direction:column;align-items:center;text-align:center;gap:.4rem}
+    .preset-card{background:rgba(255,255,255,.02);border:1px solid var(--panel-border);border-radius:10px;padding:.85rem .75rem;cursor:pointer;transition:var(--transition-smooth);display:flex;flex-direction:column;align-items:center;text-align:center;gap:.4rem;position:relative;}
     .preset-card:hover{border-color:var(--accent-teal);background:rgba(16,185,129,.06);transform:translateY(-2px)}
-    .preset-card.selected{border-color:var(--accent-teal);background:rgba(16,185,129,.1)}
+    .preset-card.selected{border-color:var(--accent-teal);background:rgba(16,185,129,.12);box-shadow:0 0 0 2px rgba(16,185,129,.25);}
     .preset-icon{font-size:1.5rem;line-height:1}
     .preset-title{font-size:.78rem;font-weight:600;color:#FFF}
     .preset-desc{font-size:.67rem;color:var(--color-text-muted)}
@@ -386,23 +386,29 @@
       <p class="panel-description">Capture use cases, SLA targets, compliance obligations, budget envelope, and decision timeline to drive the correct architecture.</p>
 
       <div class="glass-panel">
-        <h3>Use Cases</h3>
-        <p style="font-size:.85rem;color:var(--color-text-secondary);margin-bottom:.75rem;">Select all workloads this VAST cluster must serve.</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:.5rem;">
+          <h3 style="margin:0;">Use Cases</h3>
+          <span id="uc-count-badge" style="display:none;font-size:.72rem;font-family:var(--font-mono);color:var(--accent-violet);background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);padding:.2rem .65rem;border-radius:20px;">0 selected</span>
+        </div>
+        <p style="font-size:.82rem;color:var(--color-text-secondary);margin-bottom:.75rem;">Select <strong style="color:var(--accent-violet);">all workloads</strong> this VAST cluster must serve &mdash; recommendations and design details update automatically for the selected combination.</p>
         <div class="checkbox-grid">
-          <label class="check-card"><input type="checkbox" id="uc-aiml" onchange="markDirty()"> AI/ML Training</label>
-          <label class="check-card"><input type="checkbox" id="uc-inference" onchange="markDirty()"> AI/GPU Inference</label>
-          <label class="check-card"><input type="checkbox" id="uc-hpc" onchange="markDirty()"> HPC &amp; Genomics</label>
-          <label class="check-card"><input type="checkbox" id="uc-nas" onchange="markDirty()"> Enterprise NAS</label>
-          <label class="check-card"><input type="checkbox" id="uc-backup" onchange="markDirty()"> Backup &amp; Archive</label>
-          <label class="check-card"><input type="checkbox" id="uc-vmware" onchange="markDirty()"> VMware Storage</label>
-          <label class="check-card"><input type="checkbox" id="uc-k8s" onchange="markDirty()"> Kubernetes/Containers</label>
-          <label class="check-card"><input type="checkbox" id="uc-analytics" onchange="markDirty()"> OLAP &amp; Analytics</label>
-          <label class="check-card"><input type="checkbox" id="uc-media" onchange="markDirty()"> Media &amp; VFX</label>
-          <label class="check-card"><input type="checkbox" id="uc-database" onchange="markDirty()"> Database Storage</label>
-          <label class="check-card"><input type="checkbox" id="uc-compliance" onchange="markDirty()"> Compliance/Archive</label>
-          <label class="check-card"><input type="checkbox" id="uc-eda" onchange="markDirty()"> EDA / Design</label>
+          <label class="check-card"><input type="checkbox" id="uc-aiml" onchange="markDirty();updateUseCaseAnalysis()"> AI/ML Training</label>
+          <label class="check-card"><input type="checkbox" id="uc-inference" onchange="markDirty();updateUseCaseAnalysis()"> AI/GPU Inference</label>
+          <label class="check-card"><input type="checkbox" id="uc-hpc" onchange="markDirty();updateUseCaseAnalysis()"> HPC &amp; Genomics</label>
+          <label class="check-card"><input type="checkbox" id="uc-nas" onchange="markDirty();updateUseCaseAnalysis()"> Enterprise NAS</label>
+          <label class="check-card"><input type="checkbox" id="uc-backup" onchange="markDirty();updateUseCaseAnalysis()"> Backup &amp; Archive</label>
+          <label class="check-card"><input type="checkbox" id="uc-vmware" onchange="markDirty();updateUseCaseAnalysis()"> VMware Storage</label>
+          <label class="check-card"><input type="checkbox" id="uc-k8s" onchange="markDirty();updateUseCaseAnalysis()"> Kubernetes/Containers</label>
+          <label class="check-card"><input type="checkbox" id="uc-analytics" onchange="markDirty();updateUseCaseAnalysis()"> OLAP &amp; Analytics</label>
+          <label class="check-card"><input type="checkbox" id="uc-media" onchange="markDirty();updateUseCaseAnalysis()"> Media &amp; VFX</label>
+          <label class="check-card"><input type="checkbox" id="uc-database" onchange="markDirty();updateUseCaseAnalysis()"> Database Storage</label>
+          <label class="check-card"><input type="checkbox" id="uc-compliance" onchange="markDirty();updateUseCaseAnalysis()"> Compliance/Archive</label>
+          <label class="check-card"><input type="checkbox" id="uc-eda" onchange="markDirty();updateUseCaseAnalysis()"> EDA / Design</label>
         </div>
       </div>
+
+      <!-- Use Case Analysis Panel — populated by JS -->
+      <div id="uc-analysis-panel" style="display:none;"></div>
 
       <div class="glass-panel">
         <h3>SLA Requirements</h3>
@@ -486,45 +492,59 @@
       <p class="panel-description">Select a preset to auto-populate recommended parameters, then fine-tune for your specific environment.</p>
 
       <div class="glass-panel">
-        <h3>Quick-Start Preset Architectures</h3>
-        <p style="font-size:.85rem;color:var(--color-text-secondary);margin-bottom:1rem;">Click a preset to auto-configure sizing, protocols, and performance defaults for this workload type.</p>
-        <div class="preset-grid">
-          <div class="preset-card" data-preset="ai-ml-training" onclick="applyPreset('ai-ml-training')">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;flex-wrap:wrap;gap:.5rem;">
+          <h3 style="margin:0;">Workload Presets</h3>
+          <div style="display:flex;align-items:center;gap:.75rem;">
+            <span id="preset-selection-count" style="font-size:.75rem;font-family:var(--font-mono);color:var(--accent-teal);background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);padding:.2rem .65rem;border-radius:20px;display:none;">0 selected</span>
+            <button onclick="clearAllPresets()" style="font-size:.72rem;font-family:var(--font-sans);background:transparent;border:1px solid rgba(255,255,255,.12);color:var(--color-text-muted);padding:.25rem .65rem;border-radius:6px;cursor:pointer;" id="preset-clear-btn" style="display:none;">Clear all</button>
+          </div>
+        </div>
+        <p style="font-size:.82rem;color:var(--color-text-secondary);margin-bottom:1rem;">Select <strong style="color:var(--accent-teal);">one or more</strong> workloads &mdash; the tool blends sizing, protocols, and generates workload-specific best practice recommendations for the combined solution.</p>
+        <div class="preset-grid" id="preset-grid">
+          <div class="preset-card" data-preset="ai-ml-training" onclick="togglePreset('ai-ml-training')">
+            <div class="preset-check-badge" id="badge-ai-ml-training" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
             <div class="preset-icon">&#129504;</div>
             <div class="preset-title">AI/ML Training</div>
             <div class="preset-desc">GPU clusters, large sequential reads</div>
           </div>
-          <div class="preset-card" data-preset="hpc-genomics" onclick="applyPreset('hpc-genomics')">
+          <div class="preset-card" data-preset="hpc-genomics" onclick="togglePreset('hpc-genomics')">
+            <div class="preset-check-badge" id="badge-hpc-genomics" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
             <div class="preset-icon">&#128300;</div>
             <div class="preset-title">HPC/Genomics</div>
             <div class="preset-desc">High throughput, parallel I/O</div>
           </div>
-          <div class="preset-card" data-preset="vmware-vsphere" onclick="applyPreset('vmware-vsphere')">
+          <div class="preset-card" data-preset="vmware-vsphere" onclick="togglePreset('vmware-vsphere')">
+            <div class="preset-check-badge" id="badge-vmware-vsphere" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
             <div class="preset-icon">&#128421;</div>
             <div class="preset-title">VMware/vSphere</div>
             <div class="preset-desc">NFS datastores, VAAI offload</div>
           </div>
-          <div class="preset-card" data-preset="kubernetes-csi" onclick="applyPreset('kubernetes-csi')">
+          <div class="preset-card" data-preset="kubernetes-csi" onclick="togglePreset('kubernetes-csi')">
+            <div class="preset-check-badge" id="badge-kubernetes-csi" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
             <div class="preset-icon">&#9736;</div>
             <div class="preset-title">Kubernetes CSI</div>
             <div class="preset-desc">Dynamic PVC, RWX volumes</div>
           </div>
-          <div class="preset-card" data-preset="backup-archive" onclick="applyPreset('backup-archive')">
+          <div class="preset-card" data-preset="backup-archive" onclick="togglePreset('backup-archive')">
+            <div class="preset-check-badge" id="badge-backup-archive" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
             <div class="preset-icon">&#128230;</div>
             <div class="preset-title">Backup &amp; Archive</div>
             <div class="preset-desc">High reduction, object store</div>
           </div>
-          <div class="preset-card" data-preset="openstack" onclick="applyPreset('openstack')">
+          <div class="preset-card" data-preset="openstack" onclick="togglePreset('openstack')">
+            <div class="preset-check-badge" id="badge-openstack" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
             <div class="preset-icon">&#9729;</div>
             <div class="preset-title">OpenStack</div>
             <div class="preset-desc">Cinder/Manila backends</div>
           </div>
-          <div class="preset-card" data-preset="media-vfx" onclick="applyPreset('media-vfx')">
+          <div class="preset-card" data-preset="media-vfx" onclick="togglePreset('media-vfx')">
+            <div class="preset-check-badge" id="badge-media-vfx" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
             <div class="preset-icon">&#127916;</div>
             <div class="preset-title">Media/VFX</div>
             <div class="preset-desc">Ingest, render farm, streaming</div>
           </div>
-          <div class="preset-card" data-preset="hybrid-dr" onclick="applyPreset('hybrid-dr')">
+          <div class="preset-card" data-preset="hybrid-dr" onclick="togglePreset('hybrid-dr')">
+            <div class="preset-check-badge" id="badge-hybrid-dr" style="display:none;position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--accent-teal);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700;">&#10003;</div>
             <div class="preset-icon">&#128279;</div>
             <div class="preset-title">Hybrid/DR</div>
             <div class="preset-desc">Async mirror, cloud tiering</div>
@@ -555,6 +575,9 @@
           </div>
         </div>
       </div>
+
+      <!-- Workload Analysis Panel — populated by JS when presets are selected -->
+      <div id="workload-analysis-panel" style="display:none;"></div>
 
       <div class="glass-panel">
         <h3>Data Temperature Distribution</h3>
