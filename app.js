@@ -1372,6 +1372,77 @@ function generateBOM(results) {
 
   ];
 
+  // ── Replication rows (conditional) ─────────────────────────────────────────
+  var _bReplEnabled = _getCheck('bc-enable-replication') ||
+                      (_getSelect('replication-target-type') &&
+                       _getSelect('replication-target-type') !== 'none');
+  if (_bReplEnabled) {
+    var _bReplTgt = _getSelect('bc-remote-site-type') || _getSelect('replication-target-type') || 'vast-onprem';
+    var _bReplMode= _getSelect('bc-replication-type') === 'sync' ? 'Synchronous' : 'Asynchronous';
+    var _bRpoMin  = _getVal('bc-rpo-minutes') || '15';
+    rows.push(_bomRow(ln++, 'VAST-MIRROR-LIC',
+      'VAST Mirror Replication License (included with AI OS)',
+      'Software', 1, 'Included',
+      'Enables async/sync ' + _bReplMode + ' replication. RPO target: ' + _bRpoMin + ' min. Managed via VAST VMS and VCLI.'));
+    if (_bReplTgt === 'vast-onprem' || _bReplTgt === 'none') {
+      rows.push(_bomRow(ln++, 'WAN-CIRCUIT-REF',
+        'WAN / MPLS Circuit (customer-provided, for reference)',
+        'Networking', 1, 'Reference',
+        'Required bandwidth: daily-change-rate / RPO-window. Configured WAN: ' + (_getVal('bc-wan-bandwidth') || '10') + ' Gbps available.'));
+      rows.push(_bomRow(ln++, 'DR-VAST-CLUSTER-REF',
+        'DR Site VAST Cluster (secondary cluster, sized separately)',
+        'Hardware', 1, 'Reference',
+        'Secondary VAST cluster at DR site required. Configure with identical Views, VIP pool, and auth settings. See BC/DR Runbook.'));
+    } else {
+      rows.push(_bomRow(ln++, 'CLOUD-MIRROR-ENDPOINT',
+        'Cloud Replication Endpoint (' + ({'aws':'Amazon S3','azure':'Azure Blob','gcp':'GCP Storage'}[_bReplTgt] || 'Cloud') + ')',
+        'Software', 1, 'Subscription',
+        'VAST Mirror to cloud requires outbound HTTPS (TCP 443) from all C-Nodes to cloud storage endpoint.'));
+    }
+  }
+
+  // ── Cold tier rows (conditional) ───────────────────────────────────────────
+  var _bTierEnabled = _getCheck('cold-tier-enabled') || _getCheck('tier-enable');
+  if (_bTierEnabled) {
+    var _bTierPrv = _getSelect('cold-tier-provider') || _getSelect('tier-provider') || 'aws';
+    var _bTierPrvLbl = {'aws':'Amazon S3','azure':'Azure Blob Storage','gcp':'Google Cloud Storage','onprem':'On-Premises S3 (MinIO)'}[_bTierPrv] || 'Cloud Object Storage';
+    var _bTierTB  = _getVal('cold-tier-usable') || '—';
+    var _bTierCls = {'cool':'Cool / IA','cold':'Cold / Glacier','archive':'Archive'}[_getSelect('cold-tier-class')] || 'Cool';
+    rows.push(_bomRow(ln++, 'COLD-TIER-STORAGE',
+      'Cloud Cold Tier Storage — ' + _bTierPrvLbl + ' (' + _bTierCls + ')',
+      'Software', 1, 'Subscription',
+      _bTierTB + ' TB cold capacity target. Billed per GB by cloud provider. Policy: ' + (_getSelect('tier-policy') || 'capacity') + '-based. Requires outbound TCP 443 from C-Nodes.'));
+    rows.push(_bomRow(ln++, 'COLD-TIER-LICENSE',
+      'VAST DataStore Cold Tiering License (included with AI OS)',
+      'Software', 1, 'Included',
+      'Cloud tiering is a built-in VAST AI OS feature. No additional software license required.'));
+  }
+
+  // ── Replication firewall rules (conditional) ───────────────────────────────
+  var _fwReplEnabled = _getCheck('bc-enable-replication') ||
+                       (_getSelect('replication-target-type') &&
+                        _getSelect('replication-target-type') !== 'none');
+  if (_fwReplEnabled) {
+    var _fwReplTgt   = _getSelect('bc-remote-site-type') || _getSelect('replication-target-type') || 'vast-onprem';
+    var _fwReplMode  = _getSelect('bc-replication-type') === 'sync' ? 'Sync' : 'Async';
+    var _fwRemoteIP  = _getVal('prov-remote-mgmt-ip') || '<DR-MGMT-IP>';
+    if (_fwReplTgt === 'vast-onprem' || _fwReplTgt === 'none') {
+      rows.push(_fwRow('C-Nodes (' + mg + ')', 'DR VAST VMS (' + _fwRemoteIP + ')', 'Primary -> DR Site', 'TCP', '443', 'VAST Mirror ' + _fwReplMode + ' replication — data + control over HTTPS management channel'));
+      rows.push(_fwRow('DR VAST VMS (' + _fwRemoteIP + ')', 'C-Nodes (' + mg + ')', 'DR Site -> Primary', 'TCP', '443', 'VAST Mirror reverse path — DR cluster polls primary for replication health'));
+    } else {
+      var _fwCloudEP = {'aws':'s3.amazonaws.com (regional endpoint)','azure':'*.blob.core.windows.net','gcp':'storage.googleapis.com'}[_fwReplTgt] || 'cloud-endpoint';
+      rows.push(_fwRow('C-Nodes (' + mg + ')', _fwCloudEP, 'Outbound -> Cloud', 'TCP', '443', 'VAST Mirror to cloud target (' + _fwReplTgt.toUpperCase() + ') — encrypted HTTPS replication stream'));
+    }
+  }
+
+  // ── Cold tier firewall rules (conditional) ──────────────────────────────────
+  var _fwTierEnabled = _getCheck('cold-tier-enabled') || _getCheck('tier-enable');
+  if (_fwTierEnabled) {
+    var _fwTierPrv = _getSelect('cold-tier-provider') || _getSelect('tier-provider') || 'aws';
+    var _fwTierEP  = {'aws':'s3.amazonaws.com / s3.<region>.amazonaws.com','azure':'*.blob.core.windows.net','gcp':'storage.googleapis.com','onprem':'<On-Prem S3 Endpoint>'}[_fwTierPrv] || 'cloud-storage-endpoint';
+    rows.push(_fwRow('C-Nodes (' + mg + ')', _fwTierEP, 'Outbound -> Cloud', 'TCP', '443', 'VAST Cloud Tiering data transfer — HTTPS PUT/GET for cold object storage (' + _fwTierPrv.toUpperCase() + ')'));
+  }
+
   tbody.innerHTML=rows.join('');
 
 }
@@ -2104,6 +2175,10 @@ function _buildSolutionOverview() {
 
         <tr><td>VAST AI OS</td><td>${_esc(latest.version)} (${(latest.releaseDate || '2026-Q2')})</td></tr>
 
+        ${((_getCheck('bc-enable-replication') || (_getSelect('replication-target-type') && _getSelect('replication-target-type') !== 'none')) ? '<tr><td>Replication</td><td>VAST Mirror ' + (_getSelect('bc-replication-type') === 'sync' ? 'Synchronous' : 'Asynchronous') + ' &rarr; ' + ({'vast-onprem':'Remote VAST Cluster','aws':'AWS','azure':'Azure','gcp':'GCP'}[_getSelect('bc-remote-site-type') || _getSelect('replication-target-type')] || 'Remote Site') + ' (RPO: ' + (_getVal('bc-rpo-minutes') || '15') + ' min)</td></tr>' : '')}
+
+        ${((_getCheck('cold-tier-enabled') || _getCheck('tier-enable')) ? '<tr><td>Cloud Tiering</td><td>' + ({'aws':'Amazon S3','azure':'Azure Blob','gcp':'Google Cloud Storage','onprem':'On-Prem S3'}[_getSelect('cold-tier-provider') || _getSelect('tier-provider')] || 'Cloud Object Storage') + ' — ' + (_getVal('cold-tier-usable') || '—') + ' TB cold capacity</td></tr>' : '')}
+
       </tbody>
 
     </table>
@@ -2139,6 +2214,75 @@ function _buildSolutionOverview() {
     </ul>
 
   </div>`;
+
+  // ── Replication section (conditional) ──────────────────────────────────────
+  var _replEnabled = _getCheck('bc-enable-replication') ||
+                     (_getSelect('replication-target-type') &&
+                      _getSelect('replication-target-type') !== 'none');
+
+  var _replMode  = _getSelect('bc-replication-type') === 'sync' ? 'Synchronous (Active-Active)' : 'Asynchronous';
+  var _replTgtRaw= _getSelect('bc-remote-site-type') || _getSelect('replication-target-type') || 'vast-onprem';
+  var _replTgtLbl= {
+    'vast-onprem':  'Remote VAST On-Premises Cluster',
+    'public-cloud': 'Public Cloud (via VAST Mirror)',
+    'aws':  'Amazon Web Services',
+    'azure':'Microsoft Azure',
+    'gcp':  'Google Cloud Platform'
+  }[_replTgtRaw] || 'Remote VAST Cluster';
+  var _rpoMin    = _getVal('bc-rpo-minutes')       || '15';
+  var _snapSched = _getSelect('bc-snapshot-schedule') || 'hourly';
+  var _snapSchedLbl = {'hourly':'Hourly','4h':'Every 4 Hours','daily':'Daily','weekly':'Weekly'}[_snapSched] || 'Hourly';
+  var _snapRet   = _getVal('bc-snapshot-retention') || '30';
+  var _wanGbps   = _getVal('bc-wan-bandwidth')      || '10';
+
+  var _hldRepl = '';
+  if (_replEnabled) {
+    _hldRepl += '<div class="doc-section">';
+    _hldRepl += '<h2>8. Business Continuity &amp; Replication</h2>';
+    _hldRepl += '<p>This design includes <strong>VAST Mirror ' + _replMode + '</strong> replication to provide resilience against site-level failures. VAST Mirror replicates at the file and directory level, maintaining a consistent secondary copy with an RPO target of <strong>' + _rpoMin + ' minutes</strong>.</p>';
+    _hldRepl += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Configured Value</th><th>Notes</th></tr></thead><tbody>';
+    _hldRepl += '<tr><td>Mirror Mode</td><td>' + _replMode + '</td><td>' + (_replMode.indexOf('Sync') >= 0 ? 'Requires &lt;5ms WAN RTT between sites' : 'Eventual consistency — suitable for most RPO targets') + '</td></tr>';
+    _hldRepl += '<tr><td>Replication Target</td><td>' + _replTgtLbl + '</td><td>Secondary cluster must be pre-configured identically</td></tr>';
+    _hldRepl += '<tr><td>RPO Target</td><td><strong>' + _rpoMin + ' minutes</strong></td><td>Maximum acceptable data loss window</td></tr>';
+    _hldRepl += '<tr><td>Snapshot Schedule</td><td>' + _snapSchedLbl + '</td><td>Point-in-time recovery anchors</td></tr>';
+    _hldRepl += '<tr><td>Snapshot Retention</td><td>' + _snapRet + ' days</td><td>Local snapshot copies retained on primary</td></tr>';
+    _hldRepl += '<tr><td>WAN Bandwidth Available</td><td>' + _wanGbps + ' Gbps</td><td>Must exceed daily change rate / RPO window</td></tr>';
+    _hldRepl += '<tr><td>Replication Port</td><td>TCP 443 (HTTPS)</td><td>Management network; no additional ports required</td></tr>';
+    _hldRepl += '</tbody></table>';
+    _hldRepl += '<div class="highlight-box"><strong>Failover:</strong> Documented in BC/DR Runbook (Panel 10). Planned failover: quiesce apps &rarr; force snapshot &rarr; <code>vcli admin&gt; protectedpath force-failover</code> on DR cluster. RTO depends on DNS propagation and client remount time.</div>';
+    _hldRepl += '</div>';
+  }
+
+  // ── Cold Tier section (conditional) ────────────────────────────────────────
+  var _tierEnabled  = _getCheck('cold-tier-enabled') || _getCheck('tier-enable');
+  var _tierPrvRaw   = _getSelect('cold-tier-provider') || _getSelect('tier-provider') || 'aws';
+  var _tierPrvLbl   = {'aws':'Amazon S3','azure':'Microsoft Azure Blob Storage','gcp':'Google Cloud Storage','onprem':'On-Premises S3 (MinIO / Ceph)'}[_tierPrvRaw] || 'Cloud Object Storage';
+  var _tierUsable   = _getVal('cold-tier-usable') || '—';
+  var _tierClassRaw = _getSelect('cold-tier-class') || 'cool';
+  var _tierClassLbl = {'cool':'Cool / Infrequent Access','cold':'Cold / Glacier','archive':'Archive (retrieval delay applies)'}[_tierClassRaw] || 'Cool';
+  var _tierBucket   = _getVal('tier-bucket') || 'vast-cold-tier-bucket';
+  var _tierPolRaw   = _getSelect('tier-policy') || _getSelect('cold-tier-policy') || 'capacity';
+  var _tierPolLbl   = {'age':'Age-based (moved after inactivity threshold)','capacity':'Capacity-based (triggered at watermark)','manual':'Manual (administrator-initiated)'}[_tierPolRaw] || 'Capacity-based';
+  var _tierSecNum   = _replEnabled ? '9' : '8';
+
+  var _hldCold = '';
+  if (_tierEnabled) {
+    _hldCold += '<div class="doc-section">';
+    _hldCold += '<h2>' + _tierSecNum + '. Cloud Tiering</h2>';
+    _hldCold += '<p>This design includes <strong>VAST Cloud Tiering</strong> to automatically move cold or infrequently-accessed data to lower-cost object storage, freeing NVMe capacity for hot data while maintaining a unified namespace. Tiered data remains accessible transparently to all clients — no application changes required.</p>';
+    _hldCold += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Configured Value</th><th>Notes</th></tr></thead><tbody>';
+    _hldCold += '<tr><td>Tier Provider</td><td>' + _tierPrvLbl + '</td><td>Target for cold data objects</td></tr>';
+    _hldCold += '<tr><td>Tier Capacity</td><td>' + _tierUsable + ' TB (logical)</td><td>Cold data quota; object storage billed per GB</td></tr>';
+    _hldCold += '<tr><td>Storage Class</td><td>' + _tierClassLbl + '</td><td>Note: Archive classes incur retrieval delay/cost</td></tr>';
+    _hldCold += '<tr><td>Tiering Policy</td><td>' + _tierPolLbl + '</td><td>Automatically enforced by VAST DataStore engine</td></tr>';
+    _hldCold += '<tr><td>Target Bucket</td><td><code>' + _tierBucket + '</code></td><td>Must exist; VAST creates objects, not the bucket</td></tr>';
+    _hldCold += '<tr><td>Connectivity Port</td><td>TCP 443 (HTTPS)</td><td>C-Nodes require outbound HTTPS to cloud endpoint</td></tr>';
+    _hldCold += '</tbody></table>';
+    _hldCold += '<div class="highlight-box"><strong>Transparency:</strong> Tiered data is accessible at the same path via NFS, SMB, and S3. VAST retrieves objects on-demand when accessed. Clients observe no namespace change — only potential first-access latency for archived data.</div>';
+    _hldCold += '</div>';
+  }
+
+  return _hldBase + _hldRepl + _hldCold;
 
 }
 
@@ -4441,7 +4585,7 @@ function _buildHLD() {
 
 
 
-  return `
+  var _hldBase = `
 
   <h1>High-Level Design — VAST Enterprise Storage</h1>
 
@@ -4727,6 +4871,15 @@ function _buildATP() {
 
   }
 
+  if (_getCheck('cold-tier-enabled') || _getCheck('tier-enable')) {
+
+    var _atpTierPrv = ({'aws':'Amazon S3','azure':'Azure Blob','gcp':'GCS','onprem':'On-Prem S3'}[_getSelect('cold-tier-provider') || _getSelect('tier-provider')] || 'Cloud');
+    out += ROW('CT-01', 'Cold Tier', 'Verify tiering connectivity: C-Nodes can reach ' + _atpTierPrv + ' endpoint on TCP 443', 'curl -I https://[provider-endpoint] returns 200 or 403 (reachable)');
+    out += ROW('CT-02', 'Cold Tier', 'Trigger manual tier of test file, verify moved to cloud: <code>vcli admin&gt; datastore list</code>', 'File object appears in cloud bucket; local VAST shows data as TIERED');
+    out += ROW('CT-03', 'Cold Tier', 'Read tiered file from client (NFS/SMB)', 'File reads successfully; data retrieved from cloud tier transparently');
+
+  }
+
   out += ROW('P-07', 'Quota', 'Write to quota limit, verify hard block at ' + quotaTB + ' TB', 'Soft warning at ' + Math.round(quotaTB*0.9) + ' TB, hard block at ' + quotaTB + ' TB');
 
   out += '</tbody></table></div>';
@@ -4797,7 +4950,15 @@ function _buildATP() {
 
   if (repl) {
 
-    out += ROW('S-04', 'Replication', 'Verify replication: <code>vcli admin&gt; protectedpath list</code>', 'Status: SYNCED, lag within RPO target');
+    var _atpRpo = adv.bcRPOMinutes || parseInt(_getVal('bc-rpo-minutes') || '15');
+    var _atpWan = adv.bcWanBandwidthGbps || parseFloat(_getVal('bc-wan-bandwidth') || '10');
+    var _atpReplMode = adv.bcReplicationType || _getSelect('bc-replication-type') || 'async';
+
+    out += ROW('S-04', 'Replication', 'Verify replication status: <code>vcli admin&gt; protectedpath list</code>', 'Status: SYNCED; lag &lt; ' + _atpRpo + ' min RPO target');
+
+    out += ROW('S-05', 'Replication', 'Verify remote server registered: <code>vcli admin&gt; remoteserver list</code>', 'Remote server entry present; status: CONNECTED');
+
+    out += ROW('S-06', 'Replication', 'Force snapshot, verify appears on DR: <code>vcli admin&gt; snapshot create --policy-name *snap-policy</code>', 'Snapshot visible on DR cluster within ' + _atpRpo + ' min');
 
   }
 
@@ -4825,7 +4986,27 @@ function _buildATP() {
 
 
 
-  out += '<div class="doc-section"><h2>8. Sign-Off</h2>';
+  // ── Full DR / Replication ATP section (when replication enabled) ─────────────
+  if (repl) {
+    var _drRpo    = parseInt(_getVal('bc-rpo-minutes') || '15');
+    var _drWan    = parseFloat(_getVal('bc-wan-bandwidth') || '10');
+    var _drIsSync = (_getSelect('bc-replication-type') === 'sync');
+
+    out += '<div class="doc-section"><h2>8. Replication &amp; Disaster Recovery Tests</h2>';
+    out += '<p style="font-size:0.85rem;color:#9CA3AF;">RPO: ' + _drRpo + ' min | Mode: ' + (_drIsSync ? 'Synchronous' : 'Asynchronous') + ' | WAN: ' + _drWan + ' Gbps</p>';
+    out += '<table class="cabling-table">' + TH + '<tbody>';
+    out += ROW('DR-01', 'Connectivity', 'Ping DR management IP from primary C-Node', '0% packet loss; RTT ' + (_drIsSync ? '&lt; 5ms' : '&lt; 50ms'));
+    out += ROW('DR-02', 'Replication',  'Check remoteserver: <code>vcli admin&gt; remoteserver list</code>', 'Status: CONNECTED; no auth errors');
+    out += ROW('DR-03', 'Replication',  'Idle lag check: <code>vcli admin&gt; protectedpath list</code>', 'Lag &lt; ' + _drRpo + ' min; status SYNCED');
+    out += ROW('DR-04', 'Replication',  'Lag under load: run FIO write 5 min, then check lag', 'Lag &lt; ' + Math.round(_drRpo * 2) + ' min under sustained write');
+    out += ROW('DR-05', 'Bandwidth',    'Monitor WAN during peak replication', 'WAN &lt; ' + Math.round(_drWan * 0.8) + ' Gbps (80% of ' + _drWan + ' Gbps available)');
+    out += ROW('DR-06', 'Failover',     'Planned failover: <code>vcli admin&gt; protectedpath force-failover</code> on DR cluster', 'DR serves data; clients remount; no data corruption');
+    out += ROW('DR-07', 'Data Check',   'Spot-check 100 file checksums primary vs. DR after sync', '100% checksum match');
+    out += ROW('DR-08', 'Failback',     'Reverse mirror, sync, failover back to primary', 'Primary resumes; no loss of DR-period changes');
+    out += '</tbody></table></div>';
+  }
+
+    out += '<div class="doc-section"><h2>' + (repl ? '9' : '8') + '. Sign-Off</h2>';
 
   out += '<table class="cabling-table"><thead><tr><th>Role</th><th>Name</th><th>Signature</th><th>Date</th></tr></thead><tbody>';
 
