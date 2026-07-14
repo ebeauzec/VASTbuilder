@@ -6,6 +6,66 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.3.0] — 2026-07-14
+
+### Fixed
+
+#### Critical: `app.js` Parse Error (orphaned `catch` block)
+- `_propagateCatalogToUI()` contained a bare `catch(e){}` with no preceding `try`
+  left behind by an earlier regex edit that removed `generateAllDocuments()`.
+  This was a JavaScript syntax error that prevented the **entire `app.js` from
+  loading** — meaning `PRODUCT_CATALOG`, `checkForUpdates`, `calculateSizing`,
+  and all generators were completely unavailable on page load.
+- Removed the orphaned catch; confirmed brace balance (566/566).
+
+#### `_kbVer()` — Wrong Version Displayed
+- Was calling `.find(v => v.latest)` with no `latest:true` flag set in
+  `catalog.json`, causing fallback to hardcoded `'5.4.1-SP4'`.
+- Fixed to: prefer entry with `latest:true`, otherwise use last array entry.
+- Set `latest:true` on VastOS 5.5.0 in `catalog.json`.
+
+#### `kbUpdate()` — Zero-Second Fetch / No Modal Opening
+- Fetch was served from browser HTTP cache (elapsed showed `0.0s`).
+  Added `cache:'no-store'` to both catalog.json and CSI API requests.
+- `_showKBChangeModal()` was never called from `kbUpdate()` — the What's New
+  modal never opened. Fixed: `kbUpdate()` now calls `_showKBChangeModal()`
+  with a snapshot of old versions taken before the fetch.
+
+### Added
+
+#### KB Update Modal — "What's New in VAST AI OS" Section
+- Appears at the top of the modal after every `Update KB` click.
+- Shows version cards for any VastOS versions not in the previous cache;
+  falls back to showing the current latest release if nothing is new.
+- Each version card: version number, `LATEST` badge, release date pill,
+  track badge (on-prem / cloud), feature pills from `catalog.json`.
+- VastOS card header: **"Release Notes ↗"** teal link → `support.vastdata.com`.
+
+#### KB Modal — Clickable Source Links
+- Every catalog diff item (VMware, Kubernetes CSI, NVIDIA GPUDirect, etc.)
+  renders as a blue hyperlink opening the official documentation in a new tab.
+- Source URLs added to all 9 `thirdParty` entries in `catalog.json`:
+  `VMware vSphere`, `Kubernetes CSI`, `OpenStack Cinder`, `OpenStack Manila`,
+  `NVIDIA GPUDirect Storage`, `CoreWeave`, `Google Cloud`, `Microsoft Azure`, `AWS`.
+- `releaseNotesUrl` added to all 7 VastOS version entries.
+
+#### KB Modal — Opaque, Readable Design
+- Modal box: solid `#111827` dark-navy background (previously transparent/glassmorphism).
+- Header / footer clearly delineated with subtle borders.
+- Diff items replaced dense 3-column table with **card layout**:
+  type badge + item name (linked) + truncated detail (≤110 chars).
+- Typography: item name `#f1f5f9` near-white; detail `#94a3b8` visible grey.
+- Change count badge in header (e.g. `9 changes`).
+
+### Changed
+
+#### `kbUpdate()` — Reliability Improvements
+- Old versions snapshot taken **before** applying new catalog so diff is accurate.
+- Calls `_buildKBChangelog(oldCatalog, newCatalog)` for structured diff.
+- Falls back to minimal inline modal if `_showKBChangeModal` unavailable.
+
+---
+
 ## [2.2.0] — 2026-07-14
 
 ### Added

@@ -2312,7 +2312,7 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783996695"></script>
+<script src="app.js?v=1784006328"></script>
 <script>
 /* ── v2.0 UI Helpers ─────────────────────────────────────── */
 function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}
@@ -3101,7 +3101,7 @@ var PRESET_DATA = {
     rpo:'4hr',rto:'<4hr',dare:true,auditLog:true,
     protocols:['NFSv4.1','S3'],
     recs:[
-      'Deploy VAST CSI driver '+(typeof _kbCsiVer==='function'?_kbCsiVer():'v2.6.5')+' for dynamic PVC provisioning',
+      'Deploy VAST CSI driver '+(typeof _kbCsiVer==='function'?_kbCsiVer():'v2.3.0')+' for dynamic PVC provisioning',
       'Use ReadWriteMany (RWX) access mode for shared datasets across pods',
       'VAST StorageClass with volumeExpansion:true for elastic pod storage',
       'S3-compatible endpoint for object storage workloads (MinIO replacement)',

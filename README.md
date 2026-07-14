@@ -2,9 +2,9 @@
 
 <div align="center">
 
-![VAST Builder](https://img.shields.io/badge/VAST_AI_OS-5.4.1--SP4-10B981?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTEyIDJMMiA3bDEwIDUgMTAtNS0xMC01ek0yIDE3bDEwIDUgMTAtNS0xMC01ek0yIDEybDEwIDUgMTAtNS0xMC01eiIvPjwvc3ZnPg==)
+![VAST Builder](https://img.shields.io/badge/VAST_AI_OS-5.5.0-10B981?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTEyIDJMMiA3bDEwIDUgMTAtNS0xMC01ek0yIDE3bDEwIDUgMTAtNS0xMC01ek0yIDEybDEwIDUgMTAtNS0xMC01eiIvPjwvc3ZnPg==)
 ![License](https://img.shields.io/badge/License-Proprietary-EF4444?style=for-the-badge)
-![Version](https://img.shields.io/badge/Version-2.1.0-6366F1?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-2.3.0-6366F1?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/Platform-Browser--Native-F59E0B?style=for-the-badge)
 
 **A fully browser-native, wizard-driven design and configuration tool for VAST Data Enterprise Storage — producing complete technical and commercial deliverables from a single guided session.**
@@ -97,6 +97,7 @@ Based on VAST Data public hardware specifications:
 | Executive Summary | Architecture overview, security posture, HA description, protocol list |
 | Solution Overview | Detailed DASE architecture, component table, data reduction model, workload notes |
 | ROI Calculator | 3-year TCO: current vs VAST, storage savings, staff savings, payback period |
+| Live KB Update | Fetches `catalog.json` + CSI API from GitHub on demand; shows "What's New" modal with VastOS feature cards and clickable source links for every integration |
 
 ### Panel 9 — Technical Deliverables
 | Document | Contents |
