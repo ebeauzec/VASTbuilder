@@ -1410,7 +1410,7 @@ function exportFirewallMatrix() {
 
   ).filter(r => r !== '').join('\n');
 
-  downloadText(csv, (AppState.config.name || 'VAST').replace(/\s+/g, '-') + '-Firewall-Matrix.csv');
+  downloadText(csv, _buildFilename('Firewall-Matrix', 'csv'));
 
   showToast('Firewall matrix exported as CSV.', 'success');
 
@@ -2206,7 +2206,7 @@ function exportJsonConfig() {
 
   AppState.config.modified = new Date().toISOString();
 
-  downloadJSON(AppState.config, 'vast-config-'+(AppState.config.name||'design').replace(/\s+/g,'_')+'.json');
+  downloadJSON(AppState.config, _buildFilename('VAST-Configuration', 'json'));
 
   showToast('Configuration exported as JSON.','success');
 
@@ -2262,7 +2262,7 @@ function exportSizingBomText() {
 
   txt += '=====================================\n  END OF DOCUMENT\n=====================================\n';
 
-  downloadText(txt,'vast-sizing-bom-'+cls+'.txt');
+  downloadText(txt,_buildFilename('Bill-of-Materials', 'txt'));
 
   showToast('Sizing blueprint downloaded.','success');
 
@@ -2292,7 +2292,7 @@ function exportLldText() {
 
   });
 
-  downloadText(txt,'vast-cabling-lld-'+cls+'.txt');
+  downloadText(txt,_buildFilename('Network-LLD-and-Cabling', 'txt'));
 
   showToast('Cabling LLD downloaded.','success');
 
@@ -2310,7 +2310,7 @@ function exportProposalMarkdown() {
 
   if (el) md += el.innerText.replace(/\n{3,}/g,'\n\n');
 
-  downloadText(md,'vast-grc-proposal-'+cls+'.md');
+  downloadText(md,_buildFilename('Solution-Proposal', 'md'));
 
   showToast('GRC Proposal exported as Markdown.','success');
 
@@ -2328,13 +2328,46 @@ function exportDeploymentGuideText() {
 
   if (el) txt += el.innerText.replace(/\n{3,}/g,'\n\n');
 
-  downloadText(txt,'vast-deployment-guide-'+cls+'.txt');
+  downloadText(txt,_buildFilename('Deployment-Runbook', 'txt'));
 
   showToast('Deployment guide downloaded.','success');
 
 }
 
 
+
+
+// ============================================================
+// FILE NAMING HELPER
+// ============================================================
+
+/**
+ * Build a descriptive, human-readable download filename.
+ * Format: {OrgName}_{ProjectName}_{DocType}_{YYYY-MM-DD}.{ext}
+ * Falls back gracefully when customer fields are empty.
+ */
+function _buildFilename(docType, ext) {
+  var org  = (_getVal('cust-org-name')    || '').trim();
+  var proj = (_getVal('cust-project-name')|| '').trim()
+          || (_getVal('prov-cluster-name') || '').trim()
+          || (AppState && AppState.config && AppState.config.name ? AppState.config.name.trim() : '');
+  var now  = new Date();
+  var yyyy = now.getFullYear();
+  var mm   = String(now.getMonth()+1).padStart(2,'0');
+  var dd   = String(now.getDate()).padStart(2,'0');
+  var date = yyyy + '-' + mm + '-' + dd;
+
+  function slug(s) {
+    return s.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  }
+
+  var parts = [];
+  if (org)  parts.push(slug(org));
+  if (proj) parts.push(slug(proj));
+  parts.push(docType);
+  parts.push(date);
+  return parts.join('_') + '.' + ext;
+}
 
 function downloadText(content, filename) {
 
@@ -4108,7 +4141,7 @@ function exportHldText() {
 
   const text = el ? (el.innerText || el.textContent) : 'HLD not generated.';
 
-  downloadText(text, (AppState.config.name || 'VAST').replace(/\s+/g,'-') + '-HLD.txt');
+  downloadText(text, _buildFilename('High-Level-Design', 'txt'));
 
 }
 
@@ -4118,7 +4151,7 @@ function exportAtpText() {
 
   const text = el ? (el.innerText || el.textContent) : 'ATP not generated.';
 
-  downloadText(text, (AppState.config.name || 'VAST').replace(/\s+/g,'-') + '-AcceptanceTestPlan.txt');
+  downloadText(text, _buildFilename('Acceptance-Test-Plan', 'txt'));
 
 }
 
@@ -4128,7 +4161,7 @@ function exportBcdrRunbook() {
 
   const text = el ? (el.innerText || el.textContent) : 'BC/DR Runbook not generated.';
 
-  downloadText(text, (AppState.config.name || 'VAST').replace(/\s+/g,'-') + '-BCDR-Runbook.txt');
+  downloadText(text, _buildFilename('BCDR-Runbook', 'txt'));
 
 }
 
