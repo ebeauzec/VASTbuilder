@@ -1418,31 +1418,6 @@ function generateBOM(results) {
       'Cloud tiering is a built-in VAST AI OS feature. No additional software license required.'));
   }
 
-  // ── Replication firewall rules (conditional) ───────────────────────────────
-  var _fwReplEnabled = _getCheck('bc-enable-replication') ||
-                       (_getSelect('replication-target-type') &&
-                        _getSelect('replication-target-type') !== 'none');
-  if (_fwReplEnabled) {
-    var _fwReplTgt   = _getSelect('bc-remote-site-type') || _getSelect('replication-target-type') || 'vast-onprem';
-    var _fwReplMode  = _getSelect('bc-replication-type') === 'sync' ? 'Sync' : 'Async';
-    var _fwRemoteIP  = _getVal('prov-remote-mgmt-ip') || '<DR-MGMT-IP>';
-    if (_fwReplTgt === 'vast-onprem' || _fwReplTgt === 'none') {
-      rows.push(_fwRow('C-Nodes (' + mg + ')', 'DR VAST VMS (' + _fwRemoteIP + ')', 'Primary -> DR Site', 'TCP', '443', 'VAST Mirror ' + _fwReplMode + ' replication — data + control over HTTPS management channel'));
-      rows.push(_fwRow('DR VAST VMS (' + _fwRemoteIP + ')', 'C-Nodes (' + mg + ')', 'DR Site -> Primary', 'TCP', '443', 'VAST Mirror reverse path — DR cluster polls primary for replication health'));
-    } else {
-      var _fwCloudEP = {'aws':'s3.amazonaws.com (regional endpoint)','azure':'*.blob.core.windows.net','gcp':'storage.googleapis.com'}[_fwReplTgt] || 'cloud-endpoint';
-      rows.push(_fwRow('C-Nodes (' + mg + ')', _fwCloudEP, 'Outbound -> Cloud', 'TCP', '443', 'VAST Mirror to cloud target (' + _fwReplTgt.toUpperCase() + ') — encrypted HTTPS replication stream'));
-    }
-  }
-
-  // ── Cold tier firewall rules (conditional) ──────────────────────────────────
-  var _fwTierEnabled = _getCheck('cold-tier-enabled') || _getCheck('tier-enable');
-  if (_fwTierEnabled) {
-    var _fwTierPrv = _getSelect('cold-tier-provider') || _getSelect('tier-provider') || 'aws';
-    var _fwTierEP  = {'aws':'s3.amazonaws.com / s3.<region>.amazonaws.com','azure':'*.blob.core.windows.net','gcp':'storage.googleapis.com','onprem':'<On-Prem S3 Endpoint>'}[_fwTierPrv] || 'cloud-storage-endpoint';
-    rows.push(_fwRow('C-Nodes (' + mg + ')', _fwTierEP, 'Outbound -> Cloud', 'TCP', '443', 'VAST Cloud Tiering data transfer — HTTPS PUT/GET for cold object storage (' + _fwTierPrv.toUpperCase() + ')'));
-  }
-
   tbody.innerHTML=rows.join('');
 
 }
@@ -4498,182 +4473,470 @@ vlan ${vlanMgmt}
 
 function _buildHLD() {
 
-  const cfg = AppState.config;
+  try {
 
-  const r   = cfg.results || {};
+  var cfg = AppState.config;
+  var r   = cfg.results      || {};
+  var p   = cfg.provisioning || {};
+  var s   = cfg.sizing       || {};
+  var adv = cfg.advanced     || {};
 
-  const p   = cfg.provisioning || {};
+  var org    = (cfg.customer && cfg.customer.orgName) ? _esc(cfg.customer.orgName) : 'Customer';
+  var proj   = (cfg.customer && cfg.customer.projectName) ? _esc(cfg.customer.projectName) : 'VAST Storage Deployment';
+  var date   = new Date().toLocaleDateString('en-GB', {year:'numeric',month:'long',day:'numeric'});
+  var latest = PRODUCT_CATALOG.vastosVersions.find(function(v){return v.latest;}) || {version:_kbVer()};
+  var dbox   = PRODUCT_CATALOG.dboxModels.find(function(m){return m.id===(s.dboxModel||'ceres-df3015');}) || PRODUCT_CATALOG.dboxModels[0];
+  var swModel= PRODUCT_CATALOG.switchModels.find(function(m){return m.id===(s.backendSwitchModel||'arista-7050cx3');}) || PRODUCT_CATALOG.switchModels[0];
 
-  const s   = cfg.sizing || {};
+  // ── Live form reads ─────────────────────────────────────────────────────────
+  var vipStart  = _getVal('prov-vip-start')     || p.provVipStart   || '10.100.20.100';
+  var vipEnd    = _getVal('prov-vip-end')       || p.provVipEnd     || '10.100.20.119';
+  var vipMask   = _getVal('prov-vip-mask')      || '24';
+  var vipGw     = _getVal('prov-vip-gateway')   || '10.100.20.1';
+  var clName    = _getVal('prov-cluster-name')  || p.clusterName    || 'vast-storage-01';
+  var viewPath  = _getVal('prov-view-path')     || p.viewPath       || '/data';
+  var dns       = _getVal('prov-dns')           || p.dns            || '10.100.20.10';
+  var mtu       = _getSelect('net-mtu')         || p.mtu            || '9000';
+  var bkSubnet  = _getVal('net-backend-subnet') || p.backendSubnet  || '172.16.100.0/22';
+  var feSubnet  = _getVal('net-frontend-subnet')|| p.frontendSubnet || '10.100.20.0/24';
+  var mgSubnet  = _getVal('net-mgmt-subnet')    || p.mgmtSubnet     || '10.100.10.0/24';
+  var authSrc   = _getSelect('prov-auth-source')|| p.authSource     || 'local';
+  var quotaTB   = _getVal('prov-quota-gb')      || p.quotaGb        || '0';
+  var vipPolicy = _getSelect('prov-vip-policy') || 'round-robin';
 
-  const org = (cfg.customer && cfg.customer.orgName) ? _esc(cfg.customer.orgName) : 'Customer';
+  var nfs3  = _getCheck('proto-nfs3')  || p.protoNfs3prov  || false;
+  var nfs4  = _getCheck('proto-nfs4')  || p.protoNfs4prov  || false;
+  var smb   = _getCheck('proto-smb')   || p.protoSmbProv   || false;
+  var s3p   = _getCheck('proto-s3')    || p.protoS3prov    || false;
+  var nvme  = _getCheck('proto-nvme')  || p.protoNvmeProv  || false;
 
-  const date = new Date().toLocaleDateString('en-GB', {year:'numeric',month:'long',day:'numeric'});
+  var cc    = r.cnodeCount   || 4;
+  var dc    = r.dnodeCount   || 2;
+  var cx    = r.cboxCount    || Math.ceil(cc/4);
+  var eTB   = (r.effectiveTB || s.targetUsableTB || 500);
+  var rGBs  = r.readThroughputGBs  || s.readThroughputGBs  || 40;
+  var wGBs  = r.writeThroughputGBs || s.writeThroughputGBs || 10;
+  var ru    = r.ru   || 10;
+  var rawTB = r.rawTB || 0;
+  var scmTB = r.scmTB || 0;
 
-  const latest = PRODUCT_CATALOG.vastosVersions.find(v=>v.latest) || {version:_kbVer()};
+  // Fabric type
+  var fabric = s.fabricType || 'RoCEv2';
+  var clientNet = s.clientNet || '100';
 
-  const dbox = PRODUCT_CATALOG.dboxModels.find(m=>m.id===(s.dboxModel||'ceres-df3015')) || PRODUCT_CATALOG.dboxModels[0];
+  // VIPs needed
+  var vipCount = cc * 4;
 
-  const swModel = PRODUCT_CATALOG.switchModels.find(m=>m.id===(s.backendSwitchModel||'arista-7050cx3')) || PRODUCT_CATALOG.switchModels[0];
+  // Protocols list
+  var protoArr = [];
+  if (nfs3) protoArr.push('NFSv3');
+  if (nfs4) protoArr.push('NFSv4.1');
+  if (smb)  protoArr.push('SMB 3.1.1');
+  if (s3p)  protoArr.push('S3 REST');
+  if (nvme) protoArr.push('NVMe/TCP');
+  var protoList = protoArr.join(', ') || 'NFSv3, NFSv4.1';
 
+  // Auth label
+  var authLbl = {'ldap':'Active Directory / LDAP (Kerberos capable)','local':'Local user database (VAST built-in)','nis':'NIS (Network Information Service)'}[authSrc] || authSrc;
 
+  // Security
+  var dareEnabled = (adv.secDare !== false);
+  var kmip = adv.secKeyMgmt && adv.secKeyMgmt !== 'built-in';
 
-  var _hldBase = `
+  // Replication
+  var replEnabled = adv.bcEnabled || _getCheck('bc-enable-replication') ||
+                    (_getSelect('replication-target-type') && _getSelect('replication-target-type') !== 'none') || false;
+  var replMode    = (_getSelect('bc-replication-type') === 'sync' || adv.bcRepType === 'sync') ? 'Synchronous (Active-Active)' : 'Asynchronous';
+  var replTgtRaw  = _getSelect('bc-remote-site-type') || adv.bcRemoteSiteType || _getSelect('replication-target-type') || 'vast-onprem';
+  var replTgtLbl  = {'vast-onprem':'Remote VAST On-Premises Cluster','remote-onprem':'Remote VAST On-Premises Cluster','aws':'Amazon Web Services (S3-compatible target)','azure':'Microsoft Azure Blob Storage','gcp':'Google Cloud Platform (GCS)'}[replTgtRaw] || 'Remote VAST Cluster';
+  var rpoMin  = _getVal('bc-rpo-minutes')      || String(adv.bcRpoMinutes || '15');
+  var snapSch = {'hourly':'Hourly','4h':'Every 4 Hours','daily':'Daily','weekly':'Weekly'}[_getSelect('bc-snapshot-schedule')] || 'Daily';
+  var snapRet = _getVal('bc-snapshot-retention') || '30';
+  var wanGbps = _getVal('bc-wan-bandwidth')    || String(adv.bcWanBw || '10');
 
-  <h1>High-Level Design — VAST Enterprise Storage</h1>
+  // DR site hardware from DOM
+  var drCnodes  = '';
+  var drDnodes  = '';
+  var drSwitches= '';
+  try {
+    drCnodes   = document.getElementById('remote-cnode-count')  ? document.getElementById('remote-cnode-count').innerText.trim()  : '';
+    drDnodes   = document.getElementById('remote-dnode-count')  ? document.getElementById('remote-dnode-count').innerText.trim()  : '';
+    drSwitches = document.getElementById('remote-switch-count') ? document.getElementById('remote-switch-count').innerText.trim() : '';
+  } catch(e) {}
 
-  <p class="doc-meta">Customer: ${org} &nbsp;|&nbsp; Date: ${date} &nbsp;|&nbsp; Version: 1.0 &nbsp;|&nbsp; Classification: Confidential</p>
+  // Cold tier
+  var tierEnabled = _getCheck('cold-tier-enabled') || _getCheck('tier-enable') || adv.coldTierEnabled || false;
+  var tierPrvRaw  = _getSelect('cold-tier-provider') || _getSelect('tier-provider') || 'aws';
+  var tierPrvLbl  = {'aws':'Amazon S3','azure':'Microsoft Azure Blob Storage','gcp':'Google Cloud Storage (GCS)','onprem-s3':'On-Premises S3 (MinIO / Ceph)','onprem':'On-Premises S3 (MinIO / Ceph)'}[tierPrvRaw] || 'Cloud Object Storage';
+  var tierBucket  = _getVal('tier-bucket') || 'vast-cold-tier-bucket';
+  var tierClassLbl= {'cool':'Cool / Infrequent Access','cold':'Cold / Glacier','archive':'Deep Archive (retrieval delay applies)'}[_getSelect('cold-tier-class')] || 'Cool / Infrequent Access';
+  var tierPolLbl  = {'age':'Age-based (data moved after inactivity threshold)','capacity':'Capacity-based (triggered at storage high-watermark)','manual':'Manual (administrator-initiated tiering)'}[_getSelect('tier-policy') || _getSelect('cold-tier-policy')] || 'Capacity-based';
 
-  <div class="doc-section">
-
-    <h2>1. Introduction</h2>
-
-    <p>This High-Level Design (HLD) document describes the architecture and design of the VAST Enterprise Storage solution proposed for ${org}. The solution is based on the VAST Disaggregated Shared-Everything (DASE) architecture running <strong>VAST AI OS ${_esc(latest.version)}</strong>.</p>
-
-    <p>The design has been sized to deliver <strong>${_esc(String(r.effectiveTB||s.targetUsableTB||'—'))} TB</strong> of usable capacity with a target read throughput of <strong>${_esc(String(r.readThroughputGBs||s.readThroughputGBs||'—'))} GB/s</strong> and write throughput of <strong>${_esc(String(r.writeThroughputGBs||s.writeThroughputGBs||'—'))} GB/s</strong>, leveraging global data reduction at a <strong>${_esc(String(s.reductionRatio||'3.0'))}:1</strong> ratio.</p>
-
-  </div>
-
-  <div class="doc-section">
-
-    <h2>2. DASE Architecture Overview</h2>
-
-    <p>VAST Data's Disaggregated Shared-Everything (DASE) architecture separates stateless compute processing (C-Nodes / CBox) from persistent storage media (D-Nodes / DBox). All CNodes connect to all DNodes over a high-speed NVMe-over-Fabrics (NVMe-oF) backend fabric, exposing a single global namespace to all clients simultaneously.</p>
-
-    <p>Unlike traditional shared-nothing architectures, DASE eliminates inter-node metadata synchronization, enabling linear performance and capacity scaling. Data reduction — combining global similarity detection, LZ4 compression, and deduplication — is applied cluster-wide, with a 150+4 erasure coding scheme providing resilience against 4 simultaneous drive failures with only ~2.7% storage overhead.</p>
-
-  </div>
-
-  <div class="doc-section">
-
-    <h2>3. Solution Components</h2>
-
-    <table class="cabling-table">
-
-      <thead><tr><th>Component</th><th>Model</th><th>Qty</th><th>Role</th></tr></thead>
-
-      <tbody>
-
-        <tr><td>Compute Nodes (CBox)</td><td>VAST CBox (Standard) — AMD EPYC Turin</td><td>${Math.ceil((r.cnodeCount||4)/4)}</td><td>Protocol processing, data reduction, client serving</td></tr>
-
-        <tr><td>Storage Nodes (DBox)</td><td>${_esc(dbox.name)}</td><td>${r.dnodeCount||2}</td><td>QLC NVMe flash storage + SCM write buffers</td></tr>
-
-        <tr><td>Backend Fabric Switches</td><td>${_esc(swModel.name)}</td><td>2</td><td>Redundant NVMe-oF fabric (${_esc(s.fabricType||'RoCEv2')})</td></tr>
-
-        <tr><td>Frontend/Client Switch</td><td>Customer-provided L3 switch</td><td>1+</td><td>Client access network (${_esc(s.clientNet||'100')} GbE)</td></tr>
-
-        <tr><td>OOB Management Switch</td><td>1GbE management switch</td><td>1</td><td>IPMI / BMC out-of-band management</td></tr>
-
-        <tr><td>VAST AI OS</td><td>${_esc(latest.version)}</td><td>—</td><td>Storage OS included with hardware</td></tr>
-
-      </tbody>
-
-    </table>
-
-  </div>
-
-  <div class="doc-section">
-
-    <h2>4. Network Architecture</h2>
-
-    <p><strong>Frontend (Client) Network:</strong> Clients connect to VAST Virtual IPs (VIPs) over ${_esc(s.clientNet||'100')} GbE Ethernet. A minimum of 4 VIPs per CNode is recommended for optimal load distribution. Supported protocols: ${(p.protoNfs3?'NFSv3 ':'')}${(p.protoNfs4?'NFSv4.1 ':'')}${(p.protoSmb?'SMB 3.x ':'')}${(p.protoS3?'S3 ':'')}${(p.protoNvme?'NVMe/TCP':'')}.  </p>
-
-    <p><strong>Backend (Storage) Fabric:</strong> CNodes and DNodes interconnect over a dedicated ${_esc(s.fabricType||'RoCEv2')} network using MTU 9000 (Jumbo Frames). Priority Flow Control (PFC) and Explicit Congestion Notification (ECN) are mandatory for lossless RDMA operation.</p>
-
-    <p><strong>Management Network:</strong> All nodes are connected to a dedicated out-of-band (OOB) 1GbE management network for IPMI/BMC access and the VAST Management System (VMS).</p>
-
-  </div>
-
-  <div class="doc-section">
-
-    <h2>5. Data Protection Strategy</h2>
-
-    <p>The cluster uses VAST's <strong>150+4 erasure coding</strong> scheme (~2.7% overhead) providing protection against simultaneous failure of up to 4 drives cluster-wide. Write traffic is committed to persistent SCM (Storage Class Memory) buffers before acknowledgement, guaranteeing data durability against power events.</p>
-
-    <p>Point-in-time snapshots are implemented using write-in-free-space methodology — zero performance impact, indestructible (admin-lockable for ransomware protection), and configurable per directory.</p>
-
-  </div>
-
-  <div class="doc-section">
-
-    <h2>6. Security</h2>
-
-    <p>Data-at-Rest Encryption (DARE) using 256-bit AES-XTS is ${_esc(s.secDare ? 'enabled' : 'available but not enabled in this design')}. ${s.secKeyMgmt && s.secKeyMgmt !== 'built-in' ? 'External Key Management via ' + _esc(s.secKeyMgmt) + ' (KMIP protocol).' : 'Key management via built-in VAST KMS.'} Multi-tenancy isolation and per-tenant authentication (${p.authSource==='ldap'?'Active Directory / LDAP':'local authentication'}) are configured as described in the LLD.</p>
-
-  </div>
-
-  <div class="doc-section">
-
-    <h2>7. Scalability</h2>
-
-    <p>The DASE architecture enables independent scaling of compute (CNodes) and storage (DBoxes) without data migration or downtime. The cluster can be expanded by adding CBox chassis or Ceres DBox enclosures to the existing backend fabric. Growth projections of ${_esc(String(s.growthRate||20))}% per year have been factored into the sizing, with capacity requirements of approximately <strong>${_esc(String(r.grow3yr||'—'))} TB</strong> raw at the 3-year mark.</p>
-
-  </div>`;
-
-  // ── Replication section (conditional on Panel 4 or Panel 7 BC/DR tab) ──────
-  var _hldReplEnabled = _getCheck('bc-enable-replication') ||
-                        (_getSelect('replication-target-type') &&
-                         _getSelect('replication-target-type') !== 'none');
-  var _hldReplMode    = _getSelect('bc-replication-type') === 'sync' ? 'Synchronous (Active-Active)' : 'Asynchronous';
-  var _hldReplTgtRaw  = _getSelect('bc-remote-site-type') || _getSelect('replication-target-type') || 'vast-onprem';
-  var _hldReplTgtLbl  = {
-    'vast-onprem':  'Remote VAST On-Premises Cluster',
-    'public-cloud': 'Public Cloud (via VAST Mirror)',
-    'aws':  'Amazon Web Services',
-    'azure':'Microsoft Azure',
-    'gcp':  'Google Cloud Platform'
-  }[_hldReplTgtRaw] || 'Remote VAST Cluster';
-  var _hldRpoMin    = _getVal('bc-rpo-minutes')       || '15';
-  var _hldSnapSched = {'hourly':'Hourly','4h':'Every 4 Hours','daily':'Daily','weekly':'Weekly'}[_getSelect('bc-snapshot-schedule')] || 'Hourly';
-  var _hldSnapRet   = _getVal('bc-snapshot-retention') || '30';
-  var _hldWanGbps   = _getVal('bc-wan-bandwidth')      || '10';
-
-  var _hldReplSec = '';
-  if (_hldReplEnabled) {
-    _hldReplSec += '<div class="doc-section">';
-    _hldReplSec += '<h2>8. Business Continuity &amp; Replication</h2>';
-    _hldReplSec += '<p>This design includes <strong>VAST Mirror ' + _hldReplMode + '</strong> replication to provide resilience against site-level failures. VAST Mirror replicates at the file and directory level, maintaining a consistent secondary copy with an RPO target of <strong>' + _hldRpoMin + ' minutes</strong>.</p>';
-    _hldReplSec += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Configured Value</th><th>Notes</th></tr></thead><tbody>';
-    _hldReplSec += '<tr><td>Mirror Mode</td><td>' + _hldReplMode + '</td><td>' + (_hldReplMode.indexOf('Sync') >= 0 ? 'Requires &lt;5ms WAN RTT between sites' : 'Eventual consistency — suitable for most RPO targets') + '</td></tr>';
-    _hldReplSec += '<tr><td>Replication Target</td><td>' + _hldReplTgtLbl + '</td><td>Secondary cluster must be pre-configured identically</td></tr>';
-    _hldReplSec += '<tr><td>RPO Target</td><td><strong>' + _hldRpoMin + ' minutes</strong></td><td>Maximum acceptable data loss window</td></tr>';
-    _hldReplSec += '<tr><td>Snapshot Schedule</td><td>' + _hldSnapSched + '</td><td>Point-in-time recovery anchors on primary cluster</td></tr>';
-    _hldReplSec += '<tr><td>Snapshot Retention</td><td>' + _hldSnapRet + ' days</td><td>Local copies retained on primary</td></tr>';
-    _hldReplSec += '<tr><td>WAN Bandwidth Available</td><td>' + _hldWanGbps + ' Gbps</td><td>Must exceed: daily change rate / RPO window</td></tr>';
-    _hldReplSec += '<tr><td>Replication Port</td><td>TCP 443 (HTTPS)</td><td>Management network; no additional ports required</td></tr>';
-    _hldReplSec += '</tbody></table>';
-    _hldReplSec += '<div class="highlight-box"><strong>Failover Procedure:</strong> Documented in the BC/DR Runbook (Panel 10). Planned failover: quiesce applications &rarr; force a final snapshot &rarr; execute <code>vcli admin&gt; protectedpath force-failover</code> on the DR cluster. RTO depends on DNS propagation time and client remount latency.</div>';
-    _hldReplSec += '</div>';
+  // Selected use cases
+  var selectedUCs = [];
+  try {
+    var ucBoxes = document.querySelectorAll('[id^="uc-"]:checked');
+    for (var ui = 0; ui < ucBoxes.length; ui++) {
+      selectedUCs.push(ucBoxes[ui].id.replace('uc-',''));
+    }
+  } catch(e) {}
+  if (selectedUCs.length === 0 && _selectedUseCases && _selectedUseCases.length) {
+    selectedUCs = _selectedUseCases;
   }
 
-  // ── Cold Tier section (conditional) ────────────────────────────────────────
-  var _hldTierEnabled  = _getCheck('cold-tier-enabled') || _getCheck('tier-enable');
-  var _hldTierPrvRaw   = _getSelect('cold-tier-provider') || _getSelect('tier-provider') || 'aws';
-  var _hldTierPrvLbl   = {'aws':'Amazon S3','azure':'Microsoft Azure Blob Storage','gcp':'Google Cloud Storage','onprem':'On-Premises S3 (MinIO / Ceph)'}[_hldTierPrvRaw] || 'Cloud Object Storage';
-  var _hldTierUsable   = _getVal('cold-tier-usable') || '—';
-  var _hldTierClassLbl = {'cool':'Cool / Infrequent Access','cold':'Cold / Glacier','archive':'Archive (retrieval delay applies)'}[_getSelect('cold-tier-class')] || 'Cool';
-  var _hldTierBucket   = _getVal('tier-bucket') || 'vast-cold-tier-bucket';
-  var _hldTierPolLbl   = {'age':'Age-based (moved after inactivity threshold)','capacity':'Capacity-based (triggered at high-watermark)','manual':'Manual (administrator-initiated)'}[_getSelect('tier-policy') || _getSelect('cold-tier-policy')] || 'Capacity-based';
-  var _hldTierSecNum   = _hldReplEnabled ? '9' : '8';
+  // Use-case specific content library
+  var UCContent = {
+    'ai-ml-training': {
+      label:'AI / ML Training',
+      overview:'Large sequential read/write workloads from GPU clusters training deep learning models. Checkpoint I/O is bursty and write-intensive; dataset loading is read-intensive with high concurrency.',
+      practices:[
+        'Enable <strong>NFSv3</strong> for maximum GPU direct I/O throughput — avoid NFSv4 for checkpoint-heavy workloads due to state machine overhead',
+        'Use <strong>VAST GPUDirect Storage</strong> (GDS) where supported — eliminates CPU from data path between GPU memory and VAST NVMe',
+        'Mount with <code>rsize=1048576,wsize=1048576,nconnect=16,async</code> for maximum sequential throughput',
+        'Place checkpoint directories on a dedicated View with snapshot schedule set to post-epoch frequency',
+        'Use <strong>View-level quotas</strong> per team/project to prevent dataset sprawl',
+        'Enable global deduplication — training datasets often contain duplicate file versions with high dedupe ratios (3-10x typical)',
+        'For model serving (inference), separate read-heavy inference paths from write-heavy training paths using separate Views and VIP pools',
+        'Configure RDMA (RoCEv2) backend for maximum internal bandwidth — essential for multi-GPU scale-out training'
+      ],
+      sizing:'Sequential write-dominated (checkpointing). High read throughput for data loading. Typical dedup ratio 2-4x on model checkpoints.'
+    },
+    'hpc-genomics': {
+      label:'HPC / Genomics',
+      overview:'High-performance computing with MPI parallel workloads, genomics pipelines (GATK, BWA, STAR), and molecular dynamics simulations. I/O pattern is mixed sequential and metadata-intensive.',
+      practices:[
+        'Use <strong>NFSv3</strong> for MPI workloads — lowest latency for small synchronous I/O typical in scatter-gather patterns',
+        'Mount HPC nodes with <code>rsize=1048576,wsize=1048576,nconnect=8,tcp,noatime,nodiratime</code>',
+        'Configure <strong>4+ VIPs per CNode</strong> with round-robin distribution for balanced MPI rank distribution across VIPs',
+        'Create per-project Views with independent quotas — prevents runaway jobs from filling the cluster',
+        'For genome sequencing pipelines: use separate Views for raw FASTQ (write-heavy), BAM (mixed), and VCF output (read-light)',
+        'Enable <strong>WORM on reference genome directories</strong> to prevent accidental deletion of shared reference data',
+        'Lustre-to-VAST migration: VAST NFS provides equivalent or superior metadata performance without Lustre tuning complexity'
+      ],
+      sizing:'Mixed I/O. Metadata-intensive phases (genome indexing). High sequential throughput during BAM sort and VCF calling.'
+    },
+    'media-vfx': {
+      label:'Media & VFX',
+      overview:'Large file sequential I/O: ProRes, ARRIRAW, RED media ingest and playback. Simultaneous multi-stream editing with 4K-8K uncompressed frames. Storage must sustain concurrent read and write without performance degradation.',
+      practices:[
+        'Use <strong>SMB 3.1.1</strong> for Windows workstations and <strong>NFSv3</strong> for Linux render farms — VAST supports both simultaneously on the same namespace',
+        'SMB multichannel: ensure workstations have 2+ NICs configured — VAST automatically uses multiple paths for bandwidth aggregation',
+        'Provision a dedicated <strong>VIP pool for editorial</strong> (NLE workstations) and a separate pool for <strong>render farm</strong> to isolate traffic classes',
+        'Configure <strong>4K/8K frame directories</strong> as VAST Views with per-show quotas — prevents production sprawl',
+        'Use VAST S3 endpoint for <strong>media asset MAM integration</strong> — object addresses map to the same namespace',
+        'For Aspera/Signiant remote delivery: configure VAST S3 endpoint as target — avoids dedicated transfer appliances',
+        'Snapshot policy: hourly snaps of editorial projects with 14-day retention — protects against accidental sequence deletions',
+        'Enable <strong>cold tiering</strong> for archive: move completed projects to S3-IA/Glacier after wrap, accessible via same path on demand'
+      ],
+      sizing:'Sequential read/write dominated. High bandwidth. 4K+ frame sizes. Concurrent stream count determines C-Node requirement.'
+    },
+    'surveillance': {
+      label:'Video Surveillance',
+      overview:'Continuous high-throughput write streams from IP cameras. Write-once, read-occasionally pattern. Long retention windows (30-365 days) with compliance requirements.',
+      practices:[
+        'Use <strong>NFS</strong> for camera NVR/VMS integration — mount NVRs with <code>async</code> flag for maximum write throughput',
+        'Enable <strong>VAST WORM</strong> on surveillance directories — prevents tampering with recorded evidence (CJIS, court-admissible)',
+        'Configure <strong>capacity-based cold tiering</strong>: move recordings older than 30 days to object storage — drastically reduces primary NVMe cost',
+        'Use View-level quotas per camera region/floor — constrains runaway recording if a camera malfunctions',
+        'Snapshot policy: daily snapshots with 7-day retention for recent recordings, weekly for compliance archives',
+        'VAST 150+4 erasure coding provides protection without replica overhead — critical for cost efficiency at surveillance scale',
+        'VMS/NVR platforms tested with VAST: Milestone XProtect, Genetec Security Center, Avigilon Control Center'
+      ],
+      sizing:'Write-once dominant. High sustained write throughput. Capacity-driven sizing. Cold tier essential for long retention.'
+    },
+    'k8s-containers': {
+      label:'Kubernetes / Containers',
+      overview:'Dynamic storage provisioning for containerized applications using the VAST CSI driver. Supports RWX (ReadWriteMany) and RWO persistent volumes across Kubernetes clusters.',
+      practices:[
+        'Deploy <strong>VAST CSI driver v2.x</strong> from OperatorHub (OpenShift) or GitHub — supports dynamic provisioning, volume expansion, and snapshots',
+        'Use <strong>RWX PersistentVolumeClaims</strong> for shared ML datasets, model repositories, and build caches across pods',
+        'Configure StorageClass with <code>volumeExpansion: true</code> — resize PVCs without downtime',
+        'Separate StorageClasses per workload tier: AI training (high throughput), databases (low latency), archives (cold)',
+        'Enable <strong>VAST S3 endpoint</strong> for object storage workloads — eliminates need for MinIO or Ceph within the cluster',
+        'Use VAST View-per-namespace isolation: each Kubernetes namespace maps to a distinct VAST View with quotas',
+        'Monitor with VAST Prometheus exporter — feeds to Grafana dashboards for per-PVC I/O metrics'
+      ],
+      sizing:'Mixed workload profile. Scale with pod count. Plan for stateful application data growth and PVC churn.'
+    },
+    'backup-archive': {
+      label:'Backup & Archive',
+      overview:'High-throughput backup target for enterprise backup solutions (Veeam, Commvault, Veritas). Write-intensive during backup windows, read-intensive during restores.',
+      practices:[
+        'Use <strong>VAST S3 endpoint</strong> as backup target for modern data protection tools — eliminates appliance cost',
+        'For NFS-based backup: configure <code>async</code> mounts on backup proxies for maximum ingest throughput during backup windows',
+        'Enable global <strong>deduplication and compression</strong> — backup data typically achieves 5-20x reduction on VAST',
+        'Cold tier strategy: move backup sets older than 30 days to S3-IA, older than 90 days to Glacier — retain on-demand access',
+        'WORM-lock backup volumes for ransomware protection — immutable backups survive encryption attacks',
+        'Snapshot the VAST backup repository itself daily — enables rapid recovery of deleted backup catalogs',
+        'Veeam SmartObject mode: configure VAST S3 endpoint as capacity tier in Veeam SOBR for transparent offload'
+      ],
+      sizing:'Write-once dominant. High dedupe ratio (10-20x on backup data). Cold tier essential for long retention at low cost.'
+    }
+  };
 
-  var _hldColdSec = '';
-  if (_hldTierEnabled) {
-    _hldColdSec += '<div class="doc-section">';
-    _hldColdSec += '<h2>' + _hldTierSecNum + '. Cloud Tiering</h2>';
-    _hldColdSec += '<p>This design includes <strong>VAST Cloud Tiering</strong> to automatically move cold or infrequently-accessed data to lower-cost object storage, freeing NVMe capacity for active workloads while maintaining a unified namespace. Tiered data remains transparently accessible to all clients — no application changes required.</p>';
-    _hldColdSec += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Configured Value</th><th>Notes</th></tr></thead><tbody>';
-    _hldColdSec += '<tr><td>Tier Provider</td><td>' + _hldTierPrvLbl + '</td><td>Target object store for cold data</td></tr>';
-    _hldColdSec += '<tr><td>Cold Tier Capacity</td><td>' + _hldTierUsable + ' TB (logical)</td><td>Object storage billed per GB consumed</td></tr>';
-    _hldColdSec += '<tr><td>Storage Class</td><td>' + _hldTierClassLbl + '</td><td>Note: Archive classes incur retrieval delay and cost</td></tr>';
-    _hldColdSec += '<tr><td>Tiering Policy</td><td>' + _hldTierPolLbl + '</td><td>Automatically enforced by VAST DataStore engine</td></tr>';
-    _hldColdSec += '<tr><td>Target Bucket</td><td><code>' + _hldTierBucket + '</code></td><td>Bucket must exist; VAST creates object keys, not the bucket</td></tr>';
-    _hldColdSec += '<tr><td>Connectivity</td><td>TCP 443 (HTTPS) outbound</td><td>All C-Nodes require outbound HTTPS to cloud endpoint</td></tr>';
-    _hldColdSec += '</tbody></table>';
-    _hldColdSec += '<div class="highlight-box"><strong>Transparency:</strong> Tiered data appears at the same namespace path via NFS, SMB, and S3. VAST DataStore retrieves objects on-demand on first access — transparent to all clients, with potential first-access latency for archived tier data.</div>';
-    _hldColdSec += '</div>';
+  // Gather workload sections HTML
+  var ucSectHTML = '';
+  for (var uci = 0; uci < selectedUCs.length; uci++) {
+    var ucId  = selectedUCs[uci];
+    var ucDef = UCContent[ucId] || (_useCaseData && _useCaseData[ucId]);
+    if (!ucDef) continue;
+    var ucLbl = ucDef.label || ucId;
+    var ucPractices = ucDef.practices || ucDef.bps || [];
+    ucSectHTML += '<div class="doc-section">';
+    ucSectHTML += '<h3>' + _esc(ucLbl) + ' — Design Considerations &amp; Best Practices</h3>';
+    if (ucDef.overview) ucSectHTML += '<p>' + _esc(ucDef.overview) + '</p>';
+    if (ucPractices.length) {
+      ucSectHTML += '<ul style="margin:0.75rem 0 0.75rem 1.5rem;line-height:1.8;">';
+      for (var pi = 0; pi < ucPractices.length; pi++) {
+        ucSectHTML += '<li>' + ucPractices[pi] + '</li>';
+      }
+      ucSectHTML += '</ul>';
+    }
+    if (ucDef.sizing) ucSectHTML += '<div class="highlight-box"><strong>Sizing Note:</strong> ' + _esc(ucDef.sizing) + '</div>';
+    ucSectHTML += '</div>';
   }
 
-  return _hldBase + _hldReplSec + _hldColdSec;
+  // Section numbering
+  var secN = 1;
+  function sn() { return String(secN++); }
+
+  // ─── Build document ────────────────────────────────────────────────────────
+  var out = '';
+
+  out += '<h1>High-Level Design &mdash; VAST Enterprise Storage</h1>';
+  out += '<p class="doc-meta">Customer: ' + org + ' &nbsp;|&nbsp; Project: ' + proj + ' &nbsp;|&nbsp; Date: ' + date + ' &nbsp;|&nbsp; VAST AI OS: ' + _esc(latest.version) + ' &nbsp;|&nbsp; Version: 1.0 &nbsp;|&nbsp; Classification: Confidential</p>';
+
+  // ── SECTION 1: Introduction ────────────────────────────────────────────────
+  out += '<div class="doc-section">';
+  out += '<h2>' + sn() + '. Introduction</h2>';
+  out += '<p>This High-Level Design (HLD) document describes the architecture, design rationale, and configuration for a VAST Enterprise Storage deployment at <strong>' + org + '</strong>. The solution is based on the VAST Disaggregated Shared-Everything (DASE) architecture running <strong>VAST AI OS ' + _esc(latest.version) + '</strong>.</p>';
+  out += '<p>The design delivers <strong>' + eTB.toFixed(1) + ' TB</strong> of effective usable capacity with <strong>' + rGBs + ' GB/s</strong> aggregate read and <strong>' + wGBs + ' GB/s</strong> aggregate write throughput. A global data reduction ratio of <strong>' + _esc(String(s.reductionRatio || '3.0')) + ':1</strong> is projected based on the selected workload profile.</p>';
+  out += '<table class="cabling-table"><thead><tr><th>Metric</th><th>Value</th><th>Notes</th></tr></thead><tbody>';
+  out += '<tr><td>Effective Usable Capacity</td><td><strong>' + eTB.toFixed(1) + ' TB</strong></td><td>After ' + _esc(String(s.reductionRatio || '3.0')) + ':1 global data reduction</td></tr>';
+  out += '<tr><td>Raw NVMe (QLC)</td><td>' + rawTB.toFixed(1) + ' TB</td><td>Across all DNode enclosures</td></tr>';
+  out += '<tr><td>SCM Write Buffer</td><td>' + scmTB.toFixed(1) + ' TB</td><td>Storage Class Memory — persistent write acknowledgement</td></tr>';
+  out += '<tr><td>Aggregate Read</td><td>' + rGBs + ' GB/s</td><td>Sum across all C-Nodes at saturation</td></tr>';
+  out += '<tr><td>Aggregate Write</td><td>' + wGBs + ' GB/s</td><td>SCM-acknowledged; committed to QLC asynchronously</td></tr>';
+  out += '<tr><td>Rack Space</td><td>' + ru + ' RU</td><td>Including redundant switches; excludes customer racks</td></tr>';
+  out += '</tbody></table>';
+  out += '</div>';
+
+  // ── SECTION 2: DASE Architecture ──────────────────────────────────────────
+  out += '<div class="doc-section">';
+  out += '<h2>' + sn() + '. DASE Architecture Overview</h2>';
+  out += '<p>VAST Data\'s <strong>Disaggregated Shared-Everything (DASE)</strong> architecture separates stateless compute (C-Nodes / CBox) from persistent storage (D-Nodes / DBox). Unlike traditional shared-nothing architectures, every CNode can simultaneously access every DNode over a dedicated NVMe-over-Fabrics backend — eliminating data ownership boundaries and enabling linear performance scaling.</p>';
+  out += '<div class="highlight-box"><strong>Key DASE Principles:</strong><ul style="margin:0.5rem 0 0 1.2rem;line-height:1.8;">';
+  out += '<li><strong>No data migration:</strong> Add CNodes for more performance, add DNodes for more capacity — independently, without moving data</li>';
+  out += '<li><strong>Global namespace:</strong> All clients see the same data regardless of which CNode they connect to — no hot-node problem</li>';
+  out += '<li><strong>150+4 erasure coding:</strong> Protection against 4 simultaneous drive failures with only ~2.7% overhead (vs. 50% for RAID-10)</li>';
+  out += '<li><strong>SCM write guarantee:</strong> Writes acknowledged only after committed to Storage Class Memory — no data loss on power failure</li>';
+  out += '<li><strong>Global data reduction:</strong> Similarity detection, LZ4 compression, and deduplication applied cluster-wide across all data</li>';
+  out += '</ul></div>';
+  out += '</div>';
+
+  // ── SECTION 3: Primary Cluster Hardware ───────────────────────────────────
+  out += '<div class="doc-section">';
+  out += '<h2>' + sn() + '. Primary Cluster — Solution Components</h2>';
+  out += '<table class="cabling-table"><thead><tr><th>Component</th><th>Model / Specification</th><th>Qty</th><th>Role</th><th>Key Specs</th></tr></thead><tbody>';
+  out += '<tr><td>Compute Nodes (CBox)</td><td>VAST CBox Standard (4x CNode chassis)</td><td>' + cx + ' chassis (' + cc + ' CNodes)</td><td>Protocol processing, data reduction, client serving</td><td>AMD EPYC Turin 64-core, 384 GB DDR5/node, 4&times;200GbE QSFP56 per node</td></tr>';
+  out += '<tr><td>Storage Nodes (DBox)</td><td>' + _esc(dbox.name) + '</td><td>' + dc + '</td><td>QLC NVMe flash storage with SCM write buffer</td><td>BlueField-3 DPU D-Trays, dual redundant PSU, ' + (dbox.rawTB || '—') + ' TB raw capacity per unit</td></tr>';
+  out += '<tr><td>Backend Fabric Switches</td><td>' + _esc(swModel.name) + '</td><td>2 (A + B redundant pair)</td><td>Lossless ' + _esc(fabric) + ' NVMe-oF interconnect fabric</td><td>PFC + ECN mandatory; MTU 9214; dedicated VLAN; ISL between A and B</td></tr>';
+  out += '<tr><td>Frontend / Client Switch</td><td>Customer-provided L3 switch</td><td>1+</td><td>Client access network — carries VIP traffic</td><td>' + clientNet + ' GbE; SVI required for VIP gateway; jumbo frames optional</td></tr>';
+  out += '<tr><td>OOB Management Switch</td><td>1GbE management switch</td><td>1</td><td>IPMI / BMC out-of-band management for all nodes</td><td>Isolated from data plane; connected to all node BMC ports</td></tr>';
+  out += '<tr><td>VAST AI OS</td><td>' + _esc(latest.version) + '</td><td>—</td><td>Storage OS — included with hardware</td><td>VMS, REST API, VCLI, pNFS, S3, SMB, NFS, NVMe/TCP, Kubernetes CSI</td></tr>';
+  out += '</tbody></table>';
+
+  if (replEnabled && drCnodes) {
+    out += '<h3 style="margin-top:1.5rem;">DR Site — Secondary Cluster Hardware</h3>';
+    out += '<p style="font-size:0.85rem;color:#9CA3AF;">The following DR site configuration is recommended based on the replication target and primary cluster sizing.</p>';
+    out += '<table class="cabling-table"><thead><tr><th>Component</th><th>Qty (DR Site)</th><th>Notes</th></tr></thead><tbody>';
+    out += '<tr><td>C-Nodes (CBox)</td><td><strong>' + drCnodes + ' CNodes</strong></td><td>Sized for DR read-back and failover client serving — minimum 2 CNodes</td></tr>';
+    out += '<tr><td>D-Nodes (DBox)</td><td><strong>' + drDnodes + ' DNodes</strong></td><td>Capacity must accommodate replicated dataset; same DBox model recommended</td></tr>';
+    out += '<tr><td>Backend Fabric Switches</td><td><strong>' + (drSwitches || '2') + '</strong></td><td>Identical configuration to primary — PFC, ECN, same VLAN scheme</td></tr>';
+    out += '<tr><td>VAST AI OS</td><td>Same version as primary</td><td>Version parity required for replication compatibility</td></tr>';
+    out += '</tbody></table>';
+    out += '<div class="highlight-box"><strong>DR Cluster Setup Requirements:</strong> The DR cluster must be provisioned with identical View paths, VIP pool configuration, authentication source, and DARE settings. Run <code>vcli admin&gt; remoteserver add</code> from the primary cluster to register the DR peer. Replication topology: primary pushes, DR receives.</div>';
+  }
+  out += '</div>';
+
+  // ── SECTION 4: Network Architecture ───────────────────────────────────────
+  out += '<div class="doc-section">';
+  out += '<h2>' + sn() + '. Network Architecture &amp; IP Addressing</h2>';
+  out += '<p>The VAST cluster uses a <strong>three-plane network architecture</strong>: a dedicated backend fabric for NVMe-oF (lossless), a frontend client network carrying VIP traffic, and an out-of-band management network for IPMI/BMC. Traffic planes are strictly isolated by VLAN to prevent interference.</p>';
+  out += '<table class="cabling-table"><thead><tr><th>Network Plane</th><th>Subnet</th><th>Speed</th><th>MTU</th><th>Protocol</th><th>Notes</th></tr></thead><tbody>';
+  out += '<tr><td><strong>Backend Fabric</strong></td><td>' + _esc(bkSubnet) + '</td><td>100/200 GbE</td><td>9214</td><td>' + _esc(fabric) + ' (NVMe-oF)</td><td>Lossless — PFC + ECN mandatory. Dedicated VLAN. C-Nodes and D-Nodes only.</td></tr>';
+  out += '<tr><td><strong>Frontend / Client</strong></td><td>' + _esc(feSubnet) + '</td><td>' + clientNet + ' GbE</td><td>' + _esc(mtu) + '</td><td>Ethernet (VIP)</td><td>VAST Virtual IPs float across CNodes. L3 SVI with gateway ' + _esc(vipGw) + ' required.</td></tr>';
+  out += '<tr><td><strong>OOB Management</strong></td><td>' + _esc(mgSubnet) + '</td><td>1 GbE</td><td>1500</td><td>IP / IPMI</td><td>Isolated from data planes. VMS management UI accessible on this network.</td></tr>';
+  out += '</tbody></table>';
+  out += '<h3 style="margin-top:1.25rem;">Virtual IP Pool Configuration</h3>';
+  out += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead><tbody>';
+  out += '<tr><td>VIP Pool Start</td><td><code>' + _esc(vipStart) + '</code></td><td>First client-facing floating IP address</td></tr>';
+  out += '<tr><td>VIP Pool End</td><td><code>' + _esc(vipEnd) + '</code></td><td>Last client-facing floating IP address</td></tr>';
+  out += '<tr><td>Subnet Mask</td><td>/' + _esc(vipMask) + '</td><td>Must match the frontend subnet mask</td></tr>';
+  out += '<tr><td>Gateway</td><td><code>' + _esc(vipGw) + '</code></td><td>L3 SVI on the frontend switch</td></tr>';
+  out += '<tr><td>DNS Server</td><td><code>' + _esc(dns) + '</code></td><td>Used for cluster hostname resolution and AD/LDAP lookup</td></tr>';
+  out += '<tr><td>VIP Count</td><td>' + vipCount + ' VIPs (' + cc + ' CNodes &times; 4)</td><td>Minimum 4 VIPs per CNode for optimal load balancing</td></tr>';
+  out += '<tr><td>VIP Distribution Policy</td><td>' + _esc(vipPolicy) + '</td><td>VIPs automatically migrate on CNode failure (no client remount required)</td></tr>';
+  out += '</tbody></table>';
+  out += '<div class="highlight-box"><strong>Backend Fabric Requirements (' + _esc(fabric) + '):</strong> Both fabric switches must be configured with Priority Flow Control (PFC) on the NVMe-oF VLAN, Explicit Congestion Notification (ECN) enabled, DSCP marking for storage traffic, and MTU 9214. Any packet drop on the backend fabric will cause RDMA connection resets and performance degradation. Do NOT share the backend VLAN with any other traffic class.</div>';
+  out += '</div>';
+
+  // ── SECTION 5: Client Protocol Configuration ──────────────────────────────
+  out += '<div class="doc-section">';
+  out += '<h2>' + sn() + '. Client Protocol Configuration &amp; Front-End Tuning</h2>';
+  out += '<p>The following protocols are enabled for this deployment: <strong>' + protoList + '</strong>. All protocols share a single unified namespace &mdash; the same files and directories are accessible simultaneously via any enabled protocol without data format conversion.</p>';
+
+  if (nfs3 || nfs4) {
+    out += '<h3 style="margin-top:1rem;">NFS Configuration</h3>';
+    out += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Recommended Value</th><th>Rationale</th></tr></thead><tbody>';
+    if (nfs3) {
+      out += '<tr><td>NFSv3 Mount Options</td><td><code>rsize=1048576,wsize=1048576,tcp,nconnect=16,noatime,nodiratime,hard,intr,timeo=600,retrans=5</code></td><td>1 MB I/O size for sequential workloads; nconnect=16 parallelises TCP connections per mount</td></tr>';
+    }
+    if (nfs4) {
+      out += '<tr><td>NFSv4.1 Mount Options</td><td><code>rsize=1048576,wsize=1048576,tcp,nconnect=8,noatime,nodiratime,hard,intr,proto=tcp,port=2049</code></td><td>NFSv4.1 state machine adds overhead; use for environments requiring Kerberos or ACL inheritance</td></tr>';
+    }
+    out += '<tr><td>NFS Export Path</td><td><code>' + _esc(viewPath) + '</code></td><td>VAST View export configured on the cluster</td></tr>';
+    out += '<tr><td>NFS Server (VIP)</td><td><code>' + _esc(vipStart) + '</code> (round-robin across pool)</td><td>Clients should use a DNS round-robin CNAME or load-balanced VIP for distribution</td></tr>';
+    out += '<tr><td>Jumbo Frames (Client)</td><td>MTU ' + _esc(mtu) + ' recommended</td><td>Match frontend network MTU — improves throughput for large I/O; ensure end-to-end path MTU consistency</td></tr>';
+    out += '<tr><td>Kerberos (NFSv4.1)</td><td>' + (authSrc === 'ldap' ? 'sec=krb5p for privacy + integrity' : 'sec=sys (UID/GID based)') + '</td><td>' + (authSrc === 'ldap' ? 'AD/LDAP auth configured — Kerberos available for NFSv4.1 sec= option' : 'Local auth — Kerberos requires AD/LDAP integration') + '</td></tr>';
+    out += '</tbody></table>';
+    out += '<div class="highlight-box"><strong>pNFS Support:</strong> VAST AI OS supports parallel NFS (pNFS, RFC 5661) for NFSv4.1 clients. pNFS allows clients to perform data I/O directly to storage nodes in parallel, bypassing the metadata server bottleneck. Enable with <code>proto=tcp,minorversion=1</code> on supporting clients. Recommended for large HPC and AI/ML clusters with many parallel readers/writers.</div>';
+  }
+
+  if (smb) {
+    out += '<h3 style="margin-top:1.25rem;">SMB Configuration</h3>';
+    out += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead><tbody>';
+    out += '<tr><td>SMB Version</td><td>SMB 3.1.1</td><td>VAST enforces SMB 3.1.1 minimum — encryption, signing, and multichannel supported</td></tr>';
+    out += '<tr><td>SMB Multichannel</td><td>Enabled (automatic)</td><td>Windows clients with 2+ NICs automatically use multichannel for bandwidth aggregation — ensure client NICs are on the frontend VLAN</td></tr>';
+    out += '<tr><td>SMB Encryption</td><td>Optional (per-share)</td><td>Enable for sensitive shares: <code>vcli view modify --smb-encrypt required</code></td></tr>';
+    out += '<tr><td>Authentication</td><td>' + _esc(authLbl) + '</td><td>All SMB shares require an authentication source; Local auth supports basic Windows access</td></tr>';
+    out += '<tr><td>Share Path</td><td><code>\\\\' + _esc(vipStart) + '\\' + _esc(viewPath.replace(/^\//, '').replace(/\//g,'\\')) + '</code></td><td>Map using Windows net use or Group Policy</td></tr>';
+    out += '<tr><td>Opportunistic Locking</td><td>Enabled</td><td>Reduces server round-trips for sequential file access — standard for NLE workstations</td></tr>';
+    out += '</tbody></table>';
+  }
+
+  if (s3p) {
+    out += '<h3 style="margin-top:1.25rem;">S3 REST API Configuration</h3>';
+    out += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead><tbody>';
+    out += '<tr><td>S3 Endpoint</td><td><code>http://' + _esc(vipStart) + ':80</code> / <code>https://' + _esc(vipStart) + ':443</code></td><td>HTTP and HTTPS S3 endpoints available on all VIPs simultaneously</td></tr>';
+    out += '<tr><td>S3 Bucket</td><td>Mapped from VAST View path <code>' + _esc(viewPath) + '</code></td><td>Bucket name must match View name in VAST configuration</td></tr>';
+    out += '<tr><td>Authentication</td><td>S3 Access Key / Secret Key (VAST-managed)</td><td>Generate via VMS: <em>Access Policies &rarr; S3 Lifecycle Policies &rarr; Users</em></td></tr>';
+    out += '<tr><td>Path-style vs. Virtual-hosted</td><td>Path-style: <code>http://vip/bucket/key</code></td><td>Recommended for most S3 clients and tools; virtual-hosted requires DNS CNAME per bucket</td></tr>';
+    out += '<tr><td>S3 Multipart Upload</td><td>Required for objects &gt; 5 GB</td><td>Use <code>aws s3 cp --multipart-threshold 64MB --multipart-chunksize 64MB</code> for large files</td></tr>';
+    out += '<tr><td>POSIX-S3 Unified Namespace</td><td>Enabled</td><td>Files written via NFS/SMB are accessible via S3 and vice-versa — same inode, same data</td></tr>';
+    out += '</tbody></table>';
+  }
+
+  if (nvme) {
+    out += '<h3 style="margin-top:1.25rem;">NVMe/TCP Configuration</h3>';
+    out += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead><tbody>';
+    out += '<tr><td>NVMe/TCP Port</td><td>TCP 4420</td><td>Standard NVMe-oF/TCP port per NVMe-oF specification</td></tr>';
+    out += '<tr><td>Discovery Controller</td><td><code>' + _esc(vipStart) + ':8009</code></td><td>Clients discover NQNs via: <code>nvme discover -t tcp -a ' + _esc(vipStart) + ' -s 8009</code></td></tr>';
+    out += '<tr><td>Host NQN</td><td>Auto-generated per initiator</td><td>Register host NQNs in VAST VMS for access control</td></tr>';
+    out += '<tr><td>VAST OS Requirement</td><td>VAST AI OS 5.2+</td><td>NVMe/TCP requires VAST AI OS 5.2 or later</td></tr>';
+    out += '</tbody></table>';
+  }
+
+  out += '<h3 style="margin-top:1.25rem;">Authentication &amp; Access Control</h3>';
+  out += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead><tbody>';
+  out += '<tr><td>Authentication Source</td><td>' + _esc(authLbl) + '</td><td>Applies to all protocol paths (NFS, SMB, S3)</td></tr>';
+  out += '<tr><td>View Export Path</td><td><code>' + _esc(viewPath) + '</code></td><td>Primary namespace root; sub-directories can have independent access policies</td></tr>';
+  out += '<tr><td>View Quota</td><td>' + (parseInt(quotaTB) > 0 ? quotaTB + ' TB' : 'Unlimited') + '</td><td>Soft quota with configurable hard limit; alerts via VMS on threshold breach</td></tr>';
+  out += '<tr><td>Multi-tenancy</td><td>Via VAST Views and VIP pools</td><td>Each tenant gets a dedicated View + VIP pool for full isolation; shared underlying storage</td></tr>';
+  out += '</tbody></table>';
+  out += '</div>';
+
+  // ── SECTION 6: Data Protection ─────────────────────────────────────────────
+  out += '<div class="doc-section">';
+  out += '<h2>' + sn() + '. Data Protection Strategy</h2>';
+  out += '<p>VAST provides multiple layers of data protection that operate simultaneously and without performance compromise:</p>';
+  out += '<table class="cabling-table"><thead><tr><th>Protection Layer</th><th>Technology</th><th>Characteristic</th></tr></thead><tbody>';
+  out += '<tr><td>Drive Failure Protection</td><td><strong>150+4 Erasure Coding</strong></td><td>Protects against any 4 simultaneous drive failures cluster-wide. Only ~2.7% overhead (vs. 33% for RAID-6 or 50% for RAID-10). Rebuilds distribute across all nodes — no single-node bottleneck.</td></tr>';
+  out += '<tr><td>Write Durability</td><td><strong>SCM (Storage Class Memory) Write Buffer</strong></td><td>All writes are acknowledged only after committed to persistent SCM. Data survives power loss before being destaged to QLC flash. SCM capacity: ' + scmTB.toFixed(1) + ' TB.</td></tr>';
+  out += '<tr><td>Point-in-Time Recovery</td><td><strong>VAST Snapshots</strong></td><td>Write-in-free-space methodology — zero performance impact. Snapshots are indestructible (admin-lockable for ransomware protection), configured per-View or per-directory. Schedule: <strong>' + snapSch + '</strong>, Retention: <strong>' + snapRet + ' days</strong>.</td></tr>';
+  out += '<tr><td>Ransomware Protection</td><td><strong>WORM &amp; Snapshot Lock</strong></td><td>WORM (Write Once Read Many) mode per View. Snapshot lock prevents admin deletion. Combined with MFA-protected VMS access for defence-in-depth.</td></tr>';
+  out += '</tbody></table>';
+  out += '</div>';
+
+  // ── SECTION 7: Security ────────────────────────────────────────────────────
+  out += '<div class="doc-section">';
+  out += '<h2>' + sn() + '. Security Architecture</h2>';
+  out += '<table class="cabling-table"><thead><tr><th>Control</th><th>Implementation</th><th>Standard</th></tr></thead><tbody>';
+  out += '<tr><td>Data-at-Rest Encryption (DARE)</td><td>' + (dareEnabled ? '<strong>AES-256-XTS — Enabled</strong>' : 'Available; not enabled in this design') + '</td><td>FIPS 140-2 compliant drive-level encryption; zero performance impact (hardware AES on BlueField-3 DPU)</td></tr>';
+  out += '<tr><td>Key Management</td><td>' + (kmip ? 'External KMS via KMIP (' + _esc(adv.secKeyMgmt) + ')' : 'Built-in VAST KMS (AES-256 envelope key)') + '</td><td>' + (kmip ? 'KMIP 1.2 protocol — integrates with Thales, Vormetric, HashiCorp Vault' : 'Keys stored in encrypted, distributed form across cluster — no single key custodian') + '</td></tr>';
+  out += '<tr><td>Data-in-Transit</td><td>TLS 1.3 on VMS REST API; optional SMB encryption; S3 HTTPS</td><td>NFS data path unencrypted by default — use IPsec or Kerberos GSS-API privacy for compliance</td></tr>';
+  out += '<tr><td>Authentication</td><td>' + _esc(authLbl) + '</td><td>Multi-protocol auth: all NFS, SMB, S3 clients authenticate against the same source</td></tr>';
+  out += '<tr><td>Management Access</td><td>VMS HTTPS (TCP 443), VCLI SSH (TCP 22), REST API (TCP 443)</td><td>Role-based access control (RBAC) in VMS; MFA recommended for admin accounts</td></tr>';
+  out += '<tr><td>Audit Logging</td><td>File access audit via VMS Audit Log</td><td>Per-file read/write/delete events; exportable to SIEM (syslog, S3); configurable verbosity</td></tr>';
+  out += '</tbody></table>';
+  out += '</div>';
+
+  // ── SECTION 8: Workload-Specific Considerations ─────────────────────────────
+  if (ucSectHTML) {
+    out += '<div class="doc-section">';
+    out += '<h2>' + sn() + '. Workload-Specific Design Considerations</h2>';
+    out += '<p>The following sections describe design considerations and best practices specific to the selected workload profiles for this engagement.</p>';
+    out += ucSectHTML;
+    out += '</div>';
+  }
+
+  // ── SECTION 9: Scalability ─────────────────────────────────────────────────
+  out += '<div class="doc-section">';
+  out += '<h2>' + sn() + '. Scalability &amp; Growth Planning</h2>';
+  out += '<p>The DASE architecture enables independent scaling of compute and storage without data migration or service interruption:</p>';
+  out += '<table class="cabling-table"><thead><tr><th>Scaling Dimension</th><th>Method</th><th>Impact</th></tr></thead><tbody>';
+  out += '<tr><td>Performance Scale-Out</td><td>Add CBox chassis (4 CNodes per chassis)</td><td>Linear increase in throughput, IOPS, and protocol connections — no data movement</td></tr>';
+  out += '<tr><td>Capacity Scale-Out</td><td>Add DBox / Ceres enclosures to backend fabric</td><td>Capacity expands online; existing data spreads automatically across new enclosures</td></tr>';
+  out += '<tr><td>Fabric Expansion</td><td>Replace backend switches with higher-density models</td><td>Upgrade switches to add more ports; VAST supports mixed 100/200GbE backend speeds</td></tr>';
+  out += '</tbody></table>';
+  out += '<div class="highlight-box"><strong>3-Year Growth Projection:</strong> At ' + _esc(String(s.growthRate || 20)) + '% annual growth, raw capacity requirements are approximately <strong>' + _esc(String(r.grow3yr || '—')) + ' TB</strong> at the 3-year mark. Current rack space allocation of <strong>' + ru + ' RU</strong> provides headroom for planned expansion.</div>';
+  out += '</div>';
+
+  // ── SECTION 10: Replication (conditional) ──────────────────────────────────
+  if (replEnabled) {
+    out += '<div class="doc-section">';
+    out += '<h2>' + sn() + '. Business Continuity &amp; Replication</h2>';
+    out += '<p>This design includes <strong>VAST Mirror ' + replMode + '</strong> replication to provide resilience against site-level failures. VAST Mirror replicates at the file, directory, and metadata level between the primary cluster and the designated secondary target.</p>';
+    out += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Configured Value</th><th>Notes</th></tr></thead><tbody>';
+    out += '<tr><td>Mirror Mode</td><td><strong>' + replMode + '</strong></td><td>' + (replMode.indexOf('Sync') >= 0 ? 'Synchronous: write acknowledged on primary only after confirmed on DR — requires &lt;5ms WAN RTT' : 'Asynchronous: writes acknowledged on primary, replicated to DR within RPO window — suitable for most WAN links') + '</td></tr>';
+    out += '<tr><td>Replication Target</td><td>' + _esc(replTgtLbl) + '</td><td>DR cluster must be pre-configured with identical Views, VIP pool, and authentication</td></tr>';
+    out += '<tr><td>RPO Target</td><td><strong>' + rpoMin + ' minutes</strong></td><td>Maximum acceptable data loss window from last successful sync</td></tr>';
+    out += '<tr><td>Snapshot Schedule</td><td>' + snapSch + '</td><td>Point-in-time recovery anchors on both primary and DR clusters</td></tr>';
+    out += '<tr><td>Snapshot Retention</td><td>' + snapRet + ' days</td><td>Local copies on primary; replicated copies on DR cluster</td></tr>';
+    out += '<tr><td>WAN Bandwidth Available</td><td>' + wanGbps + ' Gbps</td><td>Required: (daily change rate GB) / (RPO window in seconds). Ensure available bandwidth exceeds peak change rate.</td></tr>';
+    out += '<tr><td>Replication Protocol</td><td>TCP 443 (HTTPS) — management plane</td><td>All replication traffic uses the management network. No additional firewall ports required beyond VMS management access.</td></tr>';
+    if (drCnodes) {
+      out += '<tr><td>DR Site C-Nodes</td><td>' + drCnodes + ' CNodes</td><td>Sized for failover client load; must be VAST AI OS version-matched to primary</td></tr>';
+      out += '<tr><td>DR Site D-Nodes</td><td>' + (drDnodes || '—') + ' DNodes</td><td>Capacity must accommodate full replicated dataset plus growth headroom</td></tr>';
+    }
+    out += '</tbody></table>';
+    out += '<div class="highlight-box"><strong>Failover Procedure (Planned):</strong> (1) Quiesce application I/O. (2) Force a final snapshot: <code>vcli admin&gt; snapshot create</code>. (3) Wait for final sync. (4) Execute on DR cluster: <code>vcli admin&gt; protectedpath force-failover</code>. (5) Update DNS to point to DR VIP pool. (6) Clients remount to DR VIPs. Full procedure documented in BC/DR Runbook.</div>';
+    out += '<div class="highlight-box" style="margin-top:0.75rem;"><strong>Unplanned Failover:</strong> In the event of primary site loss, the DR cluster can be promoted using <code>vcli admin&gt; protectedpath force-failover</code> on the DR cluster without access to the primary. Data on DR is consistent up to the last completed replication cycle (within RPO window).</div>';
+    out += '</div>';
+  }
+
+  // ── SECTION 11: Cloud Tiering (conditional) ────────────────────────────────
+  if (tierEnabled) {
+    out += '<div class="doc-section">';
+    out += '<h2>' + sn() + '. Cloud Cold Storage Tiering</h2>';
+    out += '<p>This design includes <strong>VAST Cloud Tiering</strong> to automatically move cold or infrequently-accessed data to lower-cost object storage, freeing NVMe capacity for active workloads. The VAST namespace remains unified — tiered data is accessible at the same paths via NFS, SMB, and S3 without manual retrieval steps.</p>';
+    out += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Configured Value</th><th>Notes</th></tr></thead><tbody>';
+    out += '<tr><td>Cloud Provider</td><td><strong>' + _esc(tierPrvLbl) + '</strong></td><td>VAST creates objects in the configured bucket; VAST manages all object lifecycle operations</td></tr>';
+    out += '<tr><td>Target Bucket</td><td><code>' + _esc(tierBucket) + '</code></td><td>Bucket must be pre-created; VAST requires PutObject, GetObject, DeleteObject, ListBucket permissions</td></tr>';
+    out += '<tr><td>Storage Class</td><td>' + _esc(tierClassLbl) + '</td><td>Higher tier classes (Cool, IA) have lower retrieval cost and latency vs. Glacier/Archive</td></tr>';
+    out += '<tr><td>Tiering Policy</td><td>' + _esc(tierPolLbl) + '</td><td>VAST DataStore engine enforces the policy automatically — no manual admin action required</td></tr>';
+    out += '<tr><td>Network Requirement</td><td>Outbound TCP 443 (HTTPS) from all C-Nodes</td><td>C-Nodes write directly to cloud endpoint; no proxy required; IAM credentials stored in VAST KMS</td></tr>';
+    out += '<tr><td>Client Transparency</td><td>Full — no client changes</td><td>Tiered data appears at the same path; VAST retrieves on first access; archive class incurs retrieval latency</td></tr>';
+    out += '</tbody></table>';
+    out += '<div class="highlight-box"><strong>IAM Permissions Required:</strong> The cloud IAM user/role attached to VAST requires: <code>s3:PutObject</code>, <code>s3:GetObject</code>, <code>s3:DeleteObject</code>, <code>s3:ListBucket</code>, <code>s3:GetBucketLocation</code>. For encryption: <code>kms:GenerateDataKey</code>, <code>kms:Decrypt</code>. Credentials are stored encrypted in the VAST built-in KMS.</div>';
+    out += '</div>';
+  }
+
+  return out;
+
+  } catch(e) {
+    return '<div class="doc-section"><p style="color:#F87171;">Error generating HLD: ' + (e.message||String(e)) + '</p></div>';
+  }
 
 }
 
