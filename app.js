@@ -2658,9 +2658,8 @@ function _propagateCatalogToUI() {
 
     if (typeof renderIntegrationConfigs==='function') try { renderIntegrationConfigs(); } catch(e){}
 
-    if (typeof generateAllDocuments  === 'function') try { generateAllDocuments();      } catch(e){}
-
-    if (typeof _buildInlineDeliverables==='function') try { _buildInlineDeliverables(); } catch(e){}
+    /* Deliverable generators (panels 8-10) run lazily on panel visit, not here */
+catch(e){}
 
     /* Refresh Catalog modal if open */
 

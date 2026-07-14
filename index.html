@@ -2269,7 +2269,7 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783994186"></script>
+<script src="app.js?v=1783994389"></script>
 <script>
 /* ── v2.0 UI Helpers ─────────────────────────────────────── */
 function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}
@@ -2462,12 +2462,15 @@ function switchStep(n){
   if(n>=8){_triggerDeliverables();}
 }
 function _triggerDeliverables(){
-  /* Call app.js generator if available, else use inline fallback */
-  if(typeof generateAllDocuments==='function'){
-    try{generateAllDocuments();}catch(e){console.warn('genAllDocs err',e);_buildInlineDeliverables();}
-  } else {
-    _buildInlineDeliverables();
-  }
+  /* Yield to browser first, then generate — prevents main-thread hang */
+  setTimeout(function(){
+    try{
+      if(typeof generateAllDocuments==='function') generateAllDocuments();
+    }catch(e){ console.warn('genAllDocs err',e); }
+    try{
+      if(typeof _buildInlineDeliverables==='function') _buildInlineDeliverables();
+    }catch(e){ console.warn('inlineDel err',e); }
+  }, 0);
 }
 function navigateStep(dir){
   var ind=document.getElementById('current-step-indicator');
@@ -2885,8 +2888,7 @@ document.addEventListener('DOMContentLoaded',function(){
   /* Initial run to populate all summary boxes */
   updateAll();
 
-  /* Populate deliverables after app.js has had time to init */
-  setTimeout(function(){_triggerDeliverables();}, 1200);
+  /* Deliverables generate lazily when panels 8-10 are visited (not on load) */
 
   /* Add suggested CSS for preset cards */
   var style=document.createElement('style');
