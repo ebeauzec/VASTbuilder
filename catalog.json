@@ -3,15 +3,14 @@
     "catalogVersion": "5.5.0",
     "lastUpdated": "2026-07-14",
     "source": "vastdata.com | github.com/vast-data | storagenewsletter.com | GlobeNewswire",
-    "maintainer": "VASTbuilder — https://github.com/ebeauzec/VASTbuilder",
+    "maintainer": "VASTbuilder \u2014 https://github.com/ebeauzec/VASTbuilder",
     "notes": "Update this file and push to main to distribute new product data to all VASTbuilder users without redeployment. Fetched by Update KB button via raw.githubusercontent.com."
   },
-
   "cboxModels": [
     {
       "id": "cbox-standard",
       "name": "VAST CBox (Standard) Gen 6",
-      "description": "4-CNode chassis — 2U, AMD EPYC Turin",
+      "description": "4-CNode chassis \u2014 2U, AMD EPYC Turin",
       "ruSize": 2,
       "cnodesIncluded": 4,
       "cpu": "AMD EPYC 9555P Turin 64-core",
@@ -26,7 +25,7 @@
     {
       "id": "cbox-standard-gen5",
       "name": "VAST CBox (Standard) Gen 5",
-      "description": "4-CNode chassis — prior gen (still supported)",
+      "description": "4-CNode chassis \u2014 prior gen (still supported)",
       "ruSize": 2,
       "cnodesIncluded": 4,
       "cpu": "AMD EPYC 9454P Genoa 48-core",
@@ -41,7 +40,7 @@
     {
       "id": "cbox-x",
       "name": "VAST CNode-X (GPU-Accelerated)",
-      "description": "AI inference node with Blackwell GPUs — 2U",
+      "description": "AI inference node with Blackwell GPUs \u2014 2U",
       "ruSize": 2,
       "cnodesIncluded": 1,
       "cpu": "AMD EPYC 9005 series",
@@ -54,12 +53,11 @@
       "notes": "Runs CUDA-accelerated VAST AI OS services: vector search, SQL analytics, RAG pipelines, NIM microservices. Announced Feb 2026 at VAST Forward."
     }
   ],
-
   "dboxModels": [
     {
       "id": "ceres-df3015",
       "name": "VAST Ceres DF-3015V2",
-      "description": "High-density 1U NVMe D-Node — 338TB QLC",
+      "description": "High-density 1U NVMe D-Node \u2014 338TB QLC",
       "ruSize": 1,
       "qlcCapacityTB": 338,
       "qlcDriveCount": 22,
@@ -79,7 +77,7 @@
     {
       "id": "ceres-df3060",
       "name": "VAST Ceres DF-3060V2",
-      "description": "Maximum-density 1U NVMe D-Node — 1,352TB QLC",
+      "description": "Maximum-density 1U NVMe D-Node \u2014 1,352TB QLC",
       "ruSize": 1,
       "qlcCapacityTB": 1352,
       "scmCapacityTB": 12,
@@ -110,7 +108,7 @@
     {
       "id": "ebox-supermicro",
       "name": "VAST EBox (Supermicro) Gen 2",
-      "description": "Converged CNode+DNode — x86 EBox architecture",
+      "description": "Converged CNode+DNode \u2014 x86 EBox architecture",
       "ruSize": 2,
       "totalRawTB": 30,
       "qlcCapacityTB": 30,
@@ -138,58 +136,189 @@
       "notes": "Part of Cisco Secure AI Factory reference architecture. Cisco Nexus Hyperfabric AI integration."
     }
   ],
-
   "switchModels": [
-    { "id": "arista-7050cx3",   "name": "Arista 7050CX3-32S",        "ports": "32x100GbE QSFP28",   "fabricType": "RoCEv2",     "ruSize": 1, "bufferMB": 40,  "notes": "Standard VAST backend leaf switch. Enable PFC CoS3, ECN, MTU9000." },
-    { "id": "arista-7060cx2",   "name": "Arista 7060CX2-32S",        "ports": "32x100GbE QSFP28",   "fabricType": "RoCEv2",     "ruSize": 1, "bufferMB": 32,  "notes": "Validated VAST backend leaf. Enable arp gratuitous accept for VIP failover." },
-    { "id": "arista-7800r3",    "name": "Arista 7800R3",              "ports": "Modular 400GbE",     "fabricType": "RoCEv2",     "ruSize": 7, "bufferMB": 256, "notes": "Spine switch for large deployments. Deep buffer for lossless RDMA." },
-    { "id": "arista-7800r4",    "name": "Arista 7800R4",              "ports": "Modular 800GbE",     "fabricType": "RoCEv2",     "ruSize": 7, "bufferMB": 512, "notes": "2025-2026 generation spine. AI factory scale deployments. Arista Etherlink portfolio." },
-    { "id": "nvidia-sn5600",    "name": "NVIDIA Spectrum-4 SN5600",  "ports": "64x400GbE QSFP-DD",  "fabricType": "RoCEv2",     "ruSize": 1, "bufferMB": 64,  "notes": "Spectrum-X platform. Recommended for VAST CNode backend in NVIDIA AI reference architectures." },
-    { "id": "nvidia-spectrum3", "name": "NVIDIA Spectrum-3 MQM9700", "ports": "64x400GbE QSFP-DD",  "fabricType": "RoCEv2",     "ruSize": 1, "bufferMB": 64,  "notes": "Validated VAST Ethernet backend." },
-    { "id": "nvidia-qm8700",    "name": "NVIDIA QM8700 IB HDR",      "ports": "40x HDR 200Gb",      "fabricType": "InfiniBand", "ruSize": 1, "bufferMB": 64,  "notes": "HDR InfiniBand backend. For IB-fabric VAST clusters." },
-    { "id": "nvidia-qm9700",    "name": "NVIDIA QM9700 IB NDR",      "ports": "64x NDR 400Gb",      "fabricType": "InfiniBand", "ruSize": 1, "bufferMB": 64,  "notes": "NDR InfiniBand backend." },
-    { "id": "nvidia-qm9790",    "name": "NVIDIA QM9790 IB NDR",      "ports": "64x NDR 400Gb",      "fabricType": "InfiniBand", "ruSize": 1, "bufferMB": 64,  "notes": "2025 NDR model. Compute-cluster InfiniBand interconnect." },
-    { "id": "cisco-nexus-9336", "name": "Cisco Nexus 9336C-FX2",     "ports": "36x100GbE QSFP28",   "fabricType": "RoCEv2",     "ruSize": 1, "bufferMB": 32,  "notes": "Part of Cisco Secure AI Factory. Nexus Hyperfabric AI integration." },
-    { "id": "cisco-nexus-93600","name": "Cisco Nexus 93600CD-GX",    "ports": "100x100GbE+2x400GbE","fabricType": "RoCEv2",     "ruSize": 1, "bufferMB": 64,  "notes": "High-density Cisco AI POD design leaf." },
-    { "id": "generic-rocev2",   "name": "Generic RoCEv2 Eth Switch",  "ports": "32x100GbE",          "fabricType": "RoCEv2",     "ruSize": 1, "bufferMB": 16,  "notes": "Minimum requirement: PFC, ECN, MTU9000. Must pass VAST network validation test." }
+    {
+      "id": "arista-7050cx3",
+      "name": "Arista 7050CX3-32S",
+      "ports": "32x100GbE QSFP28",
+      "fabricType": "RoCEv2",
+      "ruSize": 1,
+      "bufferMB": 40,
+      "notes": "Standard VAST backend leaf switch. Enable PFC CoS3, ECN, MTU9000."
+    },
+    {
+      "id": "arista-7060cx2",
+      "name": "Arista 7060CX2-32S",
+      "ports": "32x100GbE QSFP28",
+      "fabricType": "RoCEv2",
+      "ruSize": 1,
+      "bufferMB": 32,
+      "notes": "Validated VAST backend leaf. Enable arp gratuitous accept for VIP failover."
+    },
+    {
+      "id": "arista-7800r3",
+      "name": "Arista 7800R3",
+      "ports": "Modular 400GbE",
+      "fabricType": "RoCEv2",
+      "ruSize": 7,
+      "bufferMB": 256,
+      "notes": "Spine switch for large deployments. Deep buffer for lossless RDMA."
+    },
+    {
+      "id": "arista-7800r4",
+      "name": "Arista 7800R4",
+      "ports": "Modular 800GbE",
+      "fabricType": "RoCEv2",
+      "ruSize": 7,
+      "bufferMB": 512,
+      "notes": "2025-2026 generation spine. AI factory scale deployments. Arista Etherlink portfolio."
+    },
+    {
+      "id": "nvidia-sn5600",
+      "name": "NVIDIA Spectrum-4 SN5600",
+      "ports": "64x400GbE QSFP-DD",
+      "fabricType": "RoCEv2",
+      "ruSize": 1,
+      "bufferMB": 64,
+      "notes": "Spectrum-X platform. Recommended for VAST CNode backend in NVIDIA AI reference architectures."
+    },
+    {
+      "id": "nvidia-spectrum3",
+      "name": "NVIDIA Spectrum-3 MQM9700",
+      "ports": "64x400GbE QSFP-DD",
+      "fabricType": "RoCEv2",
+      "ruSize": 1,
+      "bufferMB": 64,
+      "notes": "Validated VAST Ethernet backend."
+    },
+    {
+      "id": "nvidia-qm8700",
+      "name": "NVIDIA QM8700 IB HDR",
+      "ports": "40x HDR 200Gb",
+      "fabricType": "InfiniBand",
+      "ruSize": 1,
+      "bufferMB": 64,
+      "notes": "HDR InfiniBand backend. For IB-fabric VAST clusters."
+    },
+    {
+      "id": "nvidia-qm9700",
+      "name": "NVIDIA QM9700 IB NDR",
+      "ports": "64x NDR 400Gb",
+      "fabricType": "InfiniBand",
+      "ruSize": 1,
+      "bufferMB": 64,
+      "notes": "NDR InfiniBand backend."
+    },
+    {
+      "id": "nvidia-qm9790",
+      "name": "NVIDIA QM9790 IB NDR",
+      "ports": "64x NDR 400Gb",
+      "fabricType": "InfiniBand",
+      "ruSize": 1,
+      "bufferMB": 64,
+      "notes": "2025 NDR model. Compute-cluster InfiniBand interconnect."
+    },
+    {
+      "id": "cisco-nexus-9336",
+      "name": "Cisco Nexus 9336C-FX2",
+      "ports": "36x100GbE QSFP28",
+      "fabricType": "RoCEv2",
+      "ruSize": 1,
+      "bufferMB": 32,
+      "notes": "Part of Cisco Secure AI Factory. Nexus Hyperfabric AI integration."
+    },
+    {
+      "id": "cisco-nexus-93600",
+      "name": "Cisco Nexus 93600CD-GX",
+      "ports": "100x100GbE+2x400GbE",
+      "fabricType": "RoCEv2",
+      "ruSize": 1,
+      "bufferMB": 64,
+      "notes": "High-density Cisco AI POD design leaf."
+    },
+    {
+      "id": "generic-rocev2",
+      "name": "Generic RoCEv2 Eth Switch",
+      "ports": "32x100GbE",
+      "fabricType": "RoCEv2",
+      "ruSize": 1,
+      "bufferMB": 16,
+      "notes": "Minimum requirement: PFC, ECN, MTU9000. Must pass VAST network validation test."
+    }
   ],
-
   "vastosVersions": [
     {
       "version": "5.0.0",
       "releaseDate": "2024-Q1",
       "track": "on-prem",
-      "features": ["Global Sync NFSv3 failover", "Multi-Cluster Management", "VAST on Cloud (early)", "FIPS 140-3"]
+      "features": [
+        "Global Sync NFSv3 failover",
+        "Multi-Cluster Management",
+        "VAST on Cloud (early)",
+        "FIPS 140-3"
+      ]
     },
     {
       "version": "5.2.0",
       "releaseDate": "2024-Q4",
       "track": "on-prem",
-      "features": ["EBox architecture (x86 CNode+DNode)", "Supermicro/Cisco EBox validated", "NVMe/TCP Block", "VAST EBox Gen 1"]
+      "features": [
+        "EBox architecture (x86 CNode+DNode)",
+        "Supermicro/Cisco EBox validated",
+        "NVMe/TCP Block",
+        "VAST EBox Gen 1"
+      ]
     },
     {
       "version": "5.3.5",
       "releaseDate": "2025-Q1",
       "track": "on-prem",
-      "features": ["Quota Groups", "SMB open file management", "Granular AD/LDAP DC/GC filtering", "NVMe/TCP OpenStack Cinder", "Manila file driver"]
+      "features": [
+        "Quota Groups",
+        "SMB open file management",
+        "Granular AD/LDAP DC/GC filtering",
+        "NVMe/TCP OpenStack Cinder",
+        "Manila file driver"
+      ]
     },
     {
       "version": "5.4.0",
       "releaseDate": "2025-Q4",
       "track": "on-prem",
-      "features": ["MIT Kerberos", "SMB encryption", "S3 STS multi-tenancy", "VAST DataBase vector search", "Trino SQL on CNode", "Serverless triggers & functions", "Numbered BGP", "Kafka API auth", "~60 new features total"]
+      "features": [
+        "MIT Kerberos",
+        "SMB encryption",
+        "S3 STS multi-tenancy",
+        "VAST DataBase vector search",
+        "Trino SQL on CNode",
+        "Serverless triggers & functions",
+        "Numbered BGP",
+        "Kafka API auth",
+        "~60 new features total"
+      ]
     },
     {
       "version": "5.4.1-SP4",
       "releaseDate": "2026-Q1",
       "track": "on-prem",
-      "features": ["VAST AI OS branding", "DataEngine", "AgentEngine", "Kafka API", "Polaris preview", "Enhanced LDAP DC/GC allowlisting"]
+      "features": [
+        "VAST AI OS branding",
+        "DataEngine",
+        "AgentEngine",
+        "Kafka API",
+        "Polaris preview",
+        "Enhanced LDAP DC/GC allowlisting"
+      ]
     },
     {
       "version": "5.4.5",
       "releaseDate": "2026-06-14",
       "track": "cloud",
-      "features": ["Polaris-based VAST on Cloud (AWS)", "Cloud marketplace entitlement", "Cloud-native control plane"]
+      "features": [
+        "Polaris-based VAST on Cloud (AWS)",
+        "Cloud marketplace entitlement",
+        "Cloud-native control plane"
+      ]
     },
     {
       "version": "5.5.0",
@@ -210,12 +339,10 @@
       "latest": true
     }
   ],
-
   "csiDriverVersion": "2.6.5",
   "csiDriverReleaseDate": "2026-02",
   "csiDriverRepo": "https://github.com/vast-data/vast-csi",
   "csiHelmRepo": "https://vast-data.github.io/vast-csi",
-
   "thirdParty": {
     "VMware vSphere": {
       "version": "8.0 U3+",
@@ -274,19 +401,114 @@
       "source": "vastdata.com"
     }
   },
-
   "workloadPresets": {
-    "ai-ml-training":    { "name": "AI/ML Training",         "reductionRatio": 2.5, "readThroughputGBs": 200, "writeThroughputGBs": 40,  "clientNet": "200", "fabricType": "RoCEv2",     "notes": "GPUDirect Storage + NFS over RDMA. Use nconnect=16 on Linux mounts. elbencho for benchmarking." },
-    "ai-training":       { "name": "AI/ML Training",         "reductionRatio": 2.5, "readThroughputGBs": 200, "writeThroughputGBs": 40,  "clientNet": "200", "fabricType": "RoCEv2",     "notes": "GPUDirect Storage + NFS over RDMA. Use nconnect=16 on Linux mounts." },
-    "agentic-ai-rag":    { "name": "Agentic AI / RAG",       "reductionRatio": 2.0, "readThroughputGBs": 150, "writeThroughputGBs": 30,  "clientNet": "400", "fabricType": "RoCEv2",     "notes": "CNode-X recommended. Trillion-vector index (VastOS 5.5+). S3 over RDMA. PolicyEngine for agentic governance. RAG pipelines via VAST Foundation Stacks." },
-    "hpc-genomics":      { "name": "HPC & Genomics",         "reductionRatio": 3.0, "readThroughputGBs": 150, "writeThroughputGBs": 50,  "clientNet": "100", "fabricType": "RoCEv2",     "notes": "High parallel read from many HPC nodes. InfiniBand option for MPI-heavy workloads." },
-    "vmware-vsphere":    { "name": "VMware/vSphere",         "reductionRatio": 4.0, "readThroughputGBs": 40,  "writeThroughputGBs": 15,  "clientNet": "25",  "fabricType": "RoCEv2",     "notes": "VAAI-NAS offload. Multiple VIPs for NFS multipathing. Max 2 PiB per datastore. Enable arp gratuitous accept." },
-    "kubernetes-csi":    { "name": "Kubernetes CSI",         "reductionRatio": 3.0, "readThroughputGBs": 60,  "writeThroughputGBs": 20,  "clientNet": "100", "fabricType": "RoCEv2",     "notes": "VAST CSI v2.6.5. RWX + RWO. OperatorHub deploy. Helm chart available. K8s 1.22-1.31.6." },
-    "backup-archive":    { "name": "Backup & Archive",       "reductionRatio": 5.0, "readThroughputGBs": 20,  "writeThroughputGBs": 30,  "clientNet": "25",  "fabricType": "RoCEv2",     "notes": "High compression on backup streams. WORM for compliance. S3 API for backup target." },
-    "openstack":         { "name": "OpenStack",              "reductionRatio": 3.5, "readThroughputGBs": 50,  "writeThroughputGBs": 20,  "clientNet": "100", "fabricType": "RoCEv2",     "notes": "Cinder NVMe-TCP block + Manila NFS file. Requires VastOS 5.3+. Yoga+ validated." },
-    "media-vfx":         { "name": "Media & VFX",            "reductionRatio": 1.5, "readThroughputGBs": 100, "writeThroughputGBs": 30,  "clientNet": "100", "fabricType": "RoCEv2",     "notes": "Large sequential I/O. Low DRR (already-compressed media). NFSv3/SMB mix typical." },
-    "hybrid-dr":         { "name": "Hybrid / DR",            "reductionRatio": 3.0, "readThroughputGBs": 80,  "writeThroughputGBs": 30,  "clientNet": "100", "fabricType": "RoCEv2",     "notes": "Async/sync VAST Mirror replication. VAST on GCP/AWS/Azure as DR target. WAN bandwidth planning critical." },
-    "database-analytics":{ "name": "Database / Analytics",  "reductionRatio": 4.5, "readThroughputGBs": 80,  "writeThroughputGBs": 60,  "clientNet": "100", "fabricType": "RoCEv2",     "notes": "Native SQL via Trino on CNode (VastOS 5.4+). High write rate with strong compression on structured data." },
-    "file-share":        { "name": "Enterprise File Shares", "reductionRatio": 3.5, "readThroughputGBs": 40,  "writeThroughputGBs": 15,  "clientNet": "100", "fabricType": "RoCEv2",     "notes": "Mixed NFS/SMB workload. SMB encryption (5.4+). Kerberos auth (5.4+). Good all-round DRR." }
+    "ai-ml-training": {
+      "name": "AI/ML Training",
+      "reductionRatio": 2.5,
+      "readThroughputGBs": 200,
+      "writeThroughputGBs": 40,
+      "clientNet": "200",
+      "fabricType": "RoCEv2",
+      "notes": "GPUDirect Storage + NFS over RDMA. Use nconnect=16 on Linux mounts. elbencho for benchmarking."
+    },
+    "ai-training": {
+      "name": "AI/ML Training",
+      "reductionRatio": 2.5,
+      "readThroughputGBs": 200,
+      "writeThroughputGBs": 40,
+      "clientNet": "200",
+      "fabricType": "RoCEv2",
+      "notes": "GPUDirect Storage + NFS over RDMA. Use nconnect=16 on Linux mounts."
+    },
+    "agentic-ai-rag": {
+      "name": "Agentic AI / RAG",
+      "reductionRatio": 2.0,
+      "readThroughputGBs": 150,
+      "writeThroughputGBs": 30,
+      "clientNet": "400",
+      "fabricType": "RoCEv2",
+      "notes": "CNode-X recommended. Trillion-vector index (VastOS 5.5+). S3 over RDMA. PolicyEngine for agentic governance. RAG pipelines via VAST Foundation Stacks."
+    },
+    "hpc-genomics": {
+      "name": "HPC & Genomics",
+      "reductionRatio": 3.0,
+      "readThroughputGBs": 150,
+      "writeThroughputGBs": 50,
+      "clientNet": "100",
+      "fabricType": "RoCEv2",
+      "notes": "High parallel read from many HPC nodes. InfiniBand option for MPI-heavy workloads."
+    },
+    "vmware-vsphere": {
+      "name": "VMware/vSphere",
+      "reductionRatio": 4.0,
+      "readThroughputGBs": 40,
+      "writeThroughputGBs": 15,
+      "clientNet": "25",
+      "fabricType": "RoCEv2",
+      "notes": "VAAI-NAS offload. Multiple VIPs for NFS multipathing. Max 2 PiB per datastore. Enable arp gratuitous accept."
+    },
+    "kubernetes-csi": {
+      "name": "Kubernetes CSI",
+      "reductionRatio": 3.0,
+      "readThroughputGBs": 60,
+      "writeThroughputGBs": 20,
+      "clientNet": "100",
+      "fabricType": "RoCEv2",
+      "notes": "VAST CSI v2.6.5. RWX + RWO. OperatorHub deploy. Helm chart available. K8s 1.22-1.31.6."
+    },
+    "backup-archive": {
+      "name": "Backup & Archive",
+      "reductionRatio": 5.0,
+      "readThroughputGBs": 20,
+      "writeThroughputGBs": 30,
+      "clientNet": "25",
+      "fabricType": "RoCEv2",
+      "notes": "High compression on backup streams. WORM for compliance. S3 API for backup target."
+    },
+    "openstack": {
+      "name": "OpenStack",
+      "reductionRatio": 3.5,
+      "readThroughputGBs": 50,
+      "writeThroughputGBs": 20,
+      "clientNet": "100",
+      "fabricType": "RoCEv2",
+      "notes": "Cinder NVMe-TCP block + Manila NFS file. Requires VastOS 5.3+. Yoga+ validated."
+    },
+    "media-vfx": {
+      "name": "Media & VFX",
+      "reductionRatio": 1.5,
+      "readThroughputGBs": 100,
+      "writeThroughputGBs": 30,
+      "clientNet": "100",
+      "fabricType": "RoCEv2",
+      "notes": "Large sequential I/O. Low DRR (already-compressed media). NFSv3/SMB mix typical."
+    },
+    "hybrid-dr": {
+      "name": "Hybrid / DR",
+      "reductionRatio": 3.0,
+      "readThroughputGBs": 80,
+      "writeThroughputGBs": 30,
+      "clientNet": "100",
+      "fabricType": "RoCEv2",
+      "notes": "Async/sync VAST Mirror replication. VAST on GCP/AWS/Azure as DR target. WAN bandwidth planning critical."
+    },
+    "database-analytics": {
+      "name": "Database / Analytics",
+      "reductionRatio": 4.5,
+      "readThroughputGBs": 80,
+      "writeThroughputGBs": 60,
+      "clientNet": "100",
+      "fabricType": "RoCEv2",
+      "notes": "Native SQL via Trino on CNode (VastOS 5.4+). High write rate with strong compression on structured data."
+    },
+    "file-share": {
+      "name": "Enterprise File Shares",
+      "reductionRatio": 3.5,
+      "readThroughputGBs": 40,
+      "writeThroughputGBs": 15,
+      "clientNet": "100",
+      "fabricType": "RoCEv2",
+      "notes": "Mixed NFS/SMB workload. SMB encryption (5.4+). Kerberos auth (5.4+). Good all-round DRR."
+    }
   }
 }

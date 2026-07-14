@@ -279,11 +279,11 @@ const PRODUCT_CATALOG = {
 /* ── KB version helpers ─ always read from live PRODUCT_CATALOG ── */
 
 function _kbVer() {
-
-  var v = PRODUCT_CATALOG.vastosVersions.find(function(v){ return v.latest; });
-
-  return v ? v.version : '5.4.1-SP4';
-
+  var versions = PRODUCT_CATALOG.vastosVersions || [];
+  if (!versions.length) return '5.5.0';
+  /* Prefer entry with latest:true, otherwise use the last entry */
+  var tagged = versions.filter(function(v){ return v.latest; });
+  return tagged.length ? tagged[tagged.length-1].version : versions[versions.length-1].version;
 }
 
 function _kbCsiVer() {
@@ -2658,8 +2658,7 @@ function _propagateCatalogToUI() {
 
     if (typeof renderIntegrationConfigs==='function') try { renderIntegrationConfigs(); } catch(e){}
 
-    /* Deliverable generators (panels 8-10) run lazily on panel visit, not here */
-catch(e){}
+    /* Deliverable generators (panels 8-10) regenerate lazily when user visits panel */
 
     /* Refresh Catalog modal if open */
 
@@ -2755,43 +2754,62 @@ function _buildKBChangelog(oldCat, newCat) {
 
 /* Show changes in a modal (gracefully skipped if modal absent) */
 
-function _showKBChangeModal(changes, latestVer, fetchedAt) {
-
+function _showKBChangeModal(changes, latestVer, fetchedAt, oldVersionsList) {
   var cont = document.getElementById('kb-changes-content');
-
   if (!cont) return;
+  var h = '';
 
-  var h = '<p style="color:var(--color-text-muted);margin-bottom:1rem;font-size:.85rem;">Fetched ' + fetchedAt + ' • VastOS ' + latestVer + '</p>';
+  /* ── What's New in VAST AI OS ───────────────────────────────────────────── */
+  var allVers    = (PRODUCT_CATALOG && PRODUCT_CATALOG.vastosVersions) || [];
+  var oldVerNums = (oldVersionsList || []).map(function(v){ return v.version; });
+  var newVers    = allVers.filter(function(v){ return oldVerNums.indexOf(v.version) === -1; });
+  var latestEntry = allVers.filter(function(v){ return v.latest; });
+  if (!latestEntry.length && allVers.length) latestEntry = [allVers[allVers.length - 1]];
+  var toShow = newVers.length ? newVers : latestEntry;
 
-  if (!changes.length) {
-
-    h += '<p style="color:var(--accent-teal);">✔ Catalog is already up to date. No changes detected.</p>';
-
-  } else {
-
-    h += '<table class="cabling-table"><thead><tr><th>Change</th><th>Item</th><th>Detail</th></tr></thead><tbody>';
-
-    changes.forEach(function(c) {
-
-      var col = c.type === 'Added' ? 'var(--accent-teal)' : c.type === 'Updated' ? 'var(--accent-amber)' : '#f87171';
-
-      h += '<tr><td><span style="color:' + col + ';font-weight:700;">' + c.type + '</span></td>';
-
-      h += '<td>' + c.item + '</td>';
-
-      h += '<td style="font-size:.8rem;color:var(--color-text-muted);">' + c.detail + '</td></tr>';
-
+  if (toShow.length) {
+    var sectionLabel = newVers.length ? 'New in This Update' : 'Current Release';
+    h += '<div class="kb-whats-new">';
+    h += '<div class="kb-section-title">' + sectionLabel + ' &mdash; VAST AI OS</div>';
+    toShow.forEach(function(ver) {
+      h += '<div class="kb-ver-card">';
+      h += '<div class="kb-ver-card-header">';
+      h += '<span class="kb-ver-num">VastOS ' + ver.version + '</span>';
+      if (ver.latest) h += '<span class="kb-ver-latest">LATEST</span>';
+      if (ver.releaseDate) h += '<span class="kb-ver-date">' + ver.releaseDate + '</span>';
+      if (ver.track) h += '<span class="kb-ver-track">' + ver.track + '</span>';
+      h += '</div>';
+      var feats = ver.features || ver.highlights || [];
+      if (feats.length) {
+        h += '<div class="kb-feature-list">';
+        feats.forEach(function(f){ h += '<span class="kb-feature-pill">' + f + '</span>'; });
+        h += '</div>';
+      }
+      if (ver.notes) h += '<p class="kb-ver-notes">' + ver.notes + '</p>';
+      h += '</div>';
     });
-
-    h += '</tbody></table>';
-
+    h += '</div><hr class="kb-divider">';
   }
 
+  /* ── Catalog diff table ─────────────────────────────────────────────────── */
+  h += '<p style="color:var(--color-text-muted);margin-bottom:1rem;font-size:.82rem;">Fetched ' + fetchedAt + ' &#8226; VastOS ' + latestVer + '</p>';
+  if (!changes || !changes.length) {
+    h += '<p style="color:var(--accent-teal);display:flex;align-items:center;gap:.4rem;">'
+       + '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>'
+       + 'Hardware catalog and third-party versions are already up to date.</p>';
+  } else {
+    h += '<table class="cabling-table"><thead><tr><th>Change</th><th>Item</th><th>Detail</th></tr></thead><tbody>';
+    changes.forEach(function(c) {
+      var col = c.type === 'Added' ? 'var(--accent-teal)' : c.type === 'Updated' ? 'var(--accent-amber)' : '#f87171';
+      h += '<tr><td><span style="color:' + col + ';font-weight:700;font-size:.8rem;">' + c.type + '</span></td>';
+      h += '<td style="font-size:.82rem;">' + c.item + '</td>';
+      h += '<td style="font-size:.78rem;color:var(--color-text-muted);">' + c.detail + '</td></tr>';
+    });
+    h += '</tbody></table>';
+  }
   cont.innerHTML = h;
-
   var kbModal = document.getElementById('modal-kb-changes');
   if (kbModal) { kbModal.style.display = 'flex'; }
-
 }
 
 
@@ -2871,7 +2889,7 @@ async function checkForUpdates() {
   var changes = _buildKBChangelog(oldCatalog, newCatalog);
   var summary = changes.length ? changes.length + ' change' + (changes.length > 1 ? 's' : '') : 'no changes';
   showToast('KB updated -- VastOS ' + latestVer + ' | CSI ' + _kbCsiVer() + ' | ' + summary + '.', 4000);
-  _showKBChangeModal(changes, latestVer, fetchedAt);
+  _showKBChangeModal(changes, latestVer, fetchedAt, oldCatalog.vastosVersions || []);
   if (errors.length) console.warn('KB update warnings:', errors);
 }
 
