@@ -566,7 +566,12 @@ function calculateSizing() {
 
 
 
-  const results = { cnodeCount, dnodeCount, switchCount, cboxCount, effectiveTB, physicalTB, rawTB, scmTB, ru:totalRU, powerW, heatBTU, weightKg, dboxModel, dboxSpec, readThroughputGBs, writeThroughputGBs };
+  // Growth projections
+  const growthRate = parseFloat(_getVal('growth-rate')) || 20;
+  const grow1yr = rawTB * Math.pow(1 + growthRate/100, 1);
+  const grow3yr = rawTB * Math.pow(1 + growthRate/100, 3);
+
+  const results = { cnodeCount, dnodeCount, switchCount, cboxCount, effectiveTB, physicalTB, rawTB, scmTB, ru:totalRU, powerW, heatBTU, weightKg, dboxModel, dboxSpec, readThroughputGBs, writeThroughputGBs, growthRate, grow1yr, grow3yr };
 
   AppState.config.results = results;
 
@@ -787,6 +792,18 @@ function _calculateRemoteSite(targetType) {
   _setText('sum-wan-est-bandwidth', bw.toFixed(2) + ' Gbps');
 
   _setText('sum-wan-rec-link-speed', rl + ' (Port)');
+
+  // Store computed WAN sizing for use by BCDR runbook generator
+  if (!AppState.config.results) AppState.config.results = {};
+  AppState.config.results.wanComputedGbps      = parseFloat(bw.toFixed(2));
+  AppState.config.results.wanDailyDeltaTB      = parseFloat(dd.toFixed(1));
+  AppState.config.results.wanSyncWindowHours   = sw;
+  AppState.config.results.wanChangeRatePct     = cr;
+  AppState.config.results.wanRecLinkSpeed      = rl;
+  AppState.config.results.remoteCnodeCount     = cc;
+  AppState.config.results.remoteDnodeCount     = dc;
+  AppState.config.results.remoteDboxModel      = dm;
+  AppState.config.results.remoteEffectiveTB    = parseFloat(rTB.toFixed(1));
 
 }
 
@@ -4828,7 +4845,14 @@ function _buildHLD() {
   out += '<div class="doc-section">';
   out += '<h2>' + sn() + '. Introduction</h2>';
   out += '<p>This High-Level Design (HLD) document describes the architecture, design rationale, and configuration for a VAST Enterprise Storage deployment at <strong>' + org + '</strong>. The solution is based on the VAST Disaggregated Shared-Everything (DASE) architecture running <strong>VAST AI OS ' + _esc(latest.version) + '</strong>.</p>';
-  out += '<p>The design delivers <strong>' + eTB.toFixed(1) + ' TB</strong> of effective usable capacity with <strong>' + rGBs + ' GB/s</strong> aggregate read and <strong>' + wGBs + ' GB/s</strong> aggregate write throughput. A global data reduction ratio of <strong>' + _esc(String(s.reductionRatio || '3.0')) + ':1</strong> is projected based on the selected workload profile.</p>';
+  var _wpName = (function() {
+    try {
+      var _wpp = s.workloadProfile || _getSelect('workload-profile') || 'ai-training';
+      return (PRODUCT_CATALOG.workloadPresets[_wpp] || {}).name || _wpp.replace(/-/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();});
+    } catch(e) { return 'Enterprise Storage'; }
+  })();
+
+  out += '<p>This design is sized for <strong>' + _esc(_wpName) + '</strong> workloads and delivers <strong>' + eTB.toFixed(1) + ' TB</strong> effective usable capacity (' + (r.physicalTB ? r.physicalTB.toFixed(1) + ' TB physical / ' : '') + (r.rawTB ? r.rawTB.toFixed(1) + ' TB raw NVMe' : '') + ') with <strong>' + rGBs + ' GB/s</strong> aggregate read and <strong>' + wGBs + ' GB/s</strong> aggregate write throughput. Global data reduction at <strong>' + _esc(String(s.reductionRatio || '3.0')) + ':1</strong> (similarity detection + LZ4 + global deduplication) is projected based on the selected workload profile.</p>';
   out += '<table class="cabling-table"><thead><tr><th>Metric</th><th>Value</th><th>Notes</th></tr></thead><tbody>';
   out += '<tr><td>Effective Usable Capacity</td><td><strong>' + eTB.toFixed(1) + ' TB</strong></td><td>After ' + _esc(String(s.reductionRatio || '3.0')) + ':1 global data reduction</td></tr>';
   out += '<tr><td>Raw NVMe (QLC)</td><td>' + rawTB.toFixed(1) + ' TB</td><td>Across all DNode enclosures</td></tr>';
@@ -4836,6 +4860,12 @@ function _buildHLD() {
   out += '<tr><td>Aggregate Read</td><td>' + rGBs + ' GB/s</td><td>Sum across all C-Nodes at saturation</td></tr>';
   out += '<tr><td>Aggregate Write</td><td>' + wGBs + ' GB/s</td><td>SCM-acknowledged; committed to QLC asynchronously</td></tr>';
   out += '<tr><td>Rack Space</td><td>' + ru + ' RU</td><td>Including redundant switches; excludes customer racks</td></tr>';
+  out += '<tr><td>Power Draw</td><td>' + (r.powerW || 0).toLocaleString() + ' W</td><td>Peak draw at full load; provision 25% headroom on PDU circuits</td></tr>';
+  out += '<tr><td>Heat Dissipation</td><td>' + (r.heatBTU || 0).toLocaleString() + ' BTU/hr</td><td>Airflow requirement for cooling — confirm with data centre team</td></tr>';
+  out += '<tr><td>Total Weight</td><td>' + (r.weightKg || 0).toLocaleString() + ' kg</td><td>Distributed across rack(s); verify floor load rating</td></tr>';
+  out += '<tr><td>DBox Model</td><td>' + _esc(r.dboxModel === 'ceres-df3060' ? 'VAST Ceres DF-3060V2' : 'VAST Ceres DF-3015V2') + '</td><td>' + _esc(r.dboxSpec ? (r.dboxSpec.rawTB + ' TB raw NVMe + ' + r.dboxSpec.scmTB + ' TB SCM per unit') : 'NVMe + SCM per unit') + '</td></tr>';
+  out += '<tr><td>Data Reduction Ratio</td><td>' + _esc(String(s.reductionRatio || 3.0)) + ':1</td><td>Similarity + LZ4 compression + global deduplication applied cluster-wide</td></tr>';
+  out += '<tr><td>3-Year Growth Projection</td><td>' + (r.grow3yr ? r.grow3yr.toFixed(1) + ' TB raw' : '—') + '</td><td>At ' + (r.growthRate || 20) + '% annual growth — plan rack and power headroom accordingly</td></tr>';
   out += '</tbody></table>';
   out += '</div>';
 
@@ -5054,7 +5084,7 @@ function _buildHLD() {
   out += '<tr><td>Capacity Scale-Out</td><td>Add DBox / Ceres enclosures to backend fabric</td><td>Capacity expands online; existing data spreads automatically across new enclosures</td></tr>';
   out += '<tr><td>Fabric Expansion</td><td>Replace backend switches with higher-density models</td><td>Upgrade switches to add more ports; VAST supports mixed 100/200GbE backend speeds</td></tr>';
   out += '</tbody></table>';
-  out += '<div class="highlight-box"><strong>3-Year Growth Projection:</strong> At ' + _esc(String(s.growthRate || 20)) + '% annual growth, raw capacity requirements are approximately <strong>' + _esc(String(r.grow3yr || '—')) + ' TB</strong> at the 3-year mark. Current rack space allocation of <strong>' + ru + ' RU</strong> provides headroom for planned expansion.</div>';
+  out += '<div class="highlight-box"><strong>3-Year Growth Projection:</strong> At <strong>' + (r.growthRate || 20) + '%</strong> annual growth: Year&nbsp;1&nbsp;&rarr;&nbsp;<strong>' + (r.grow1yr ? r.grow1yr.toFixed(1) : '—') + '&nbsp;TB</strong> raw &nbsp;|&nbsp; Year&nbsp;3&nbsp;&rarr;&nbsp;<strong>' + (r.grow3yr ? r.grow3yr.toFixed(1) : '—') + '&nbsp;TB</strong> raw. Current rack allocation of <strong>' + ru + '&nbsp;RU</strong> and <strong>' + (r.powerW || '—').toLocaleString() + '&nbsp;W</strong> &mdash; plan headroom accordingly.</div>';
   out += '</div>';
 
   // ── SECTION 10: Replication (conditional) ──────────────────────────────────
@@ -5197,7 +5227,13 @@ function _buildATP() {
 
   out += '<p class="doc-meta">Customer: ' + org + ' &nbsp;|&nbsp; Cluster: ' + clN + ' &nbsp;|&nbsp; Date: ' + date + ' &nbsp;|&nbsp; Version: 1.0</p>';
 
-  out += '<p style="font-size:0.85rem;color:#9CA3AF;margin-bottom:2rem;">This ATP defines mandatory tests for the VAST Data storage cluster. All tests must be signed off before the engagement is complete. Reference: VAST AI OS Admin Guide | FIO: https://fio.readthedocs.io/</p>';
+  var _atpWpName = (function() {
+    try {
+      var _wp = s.workloadProfile || _getSelect('workload-profile') || 'ai-training';
+      return (PRODUCT_CATALOG.workloadPresets[_wp] || {}).name || _wp.replace(/-/g,' ');
+    } catch(e) { return 'Enterprise Storage'; }
+  })();
+  out += '<p style="font-size:0.85rem;color:#9CA3AF;margin-bottom:2rem;">Workload Profile: <strong style="color:#A7F3D0;">' + _esc(_atpWpName) + '</strong> &nbsp;|&nbsp; This ATP defines mandatory acceptance tests. All tests must be signed off before handover. Reference: VAST AI OS Admin Guide | FIO: https://fio.readthedocs.io/ | VAST KB: https://kb.vastdata.com/</p>';
 
 
 
@@ -5226,6 +5262,11 @@ function _buildATP() {
   out += '<tr><td>DARE Encryption</td><td>AES-256-GCM at rest</td><td>' + (dare ? '&#10003; Enabled' : '&#10007; Disabled') + '</td></tr>';
 
   out += '<tr><td>View Quota</td><td>Storage limit</td><td>' + quotaTB + ' TB</td></tr>';
+  out += '<tr><td>DBox Model</td><td>Storage enclosure</td><td>' + (r.dboxModel === 'ceres-df3060' ? 'VAST Ceres DF-3060V2 (1U &mdash; 1352 TB QLC + 12.4 TB SCM)' : 'VAST Ceres DF-3015V2 (1U &mdash; 338 TB QLC + 6.4 TB SCM)') + ' &times; ' + dc + '</td></tr>';
+  out += '<tr><td>Raw NVMe Capacity</td><td>Total cluster raw</td><td>' + (r.rawTB ? r.rawTB.toFixed(1) : '—') + ' TB NVMe + ' + (r.scmTB ? r.scmTB.toFixed(2) : '—') + ' TB SCM</td></tr>';
+  out += '<tr><td>Data Reduction</td><td>Global ratio</td><td>' + ((s.reductionRatio || 3.0).toFixed(1)) + ':1 (similarity + LZ4 + global dedup)</td></tr>';
+  out += '<tr><td>Power / Heat</td><td>Facility requirements</td><td>' + ((r.powerW || 0).toLocaleString()) + ' W peak | ' + ((r.heatBTU || 0).toLocaleString()) + ' BTU/hr</td></tr>';
+  out += '<tr><td>Rack Space</td><td>Total rack units</td><td>' + (r.ru || '—') + ' RU (incl. switches, patch panel, and cabling management)</td></tr>';
 
   out += '</tbody></table></div>';
 
@@ -5501,6 +5542,13 @@ function _buildBCDRRunbook() {
   // WAN: adv.bcWanBw (not bcWanBandwidthGbps)
   var wanGbps   = adv.bcWanBw || parseInt(_getVal('bc-wan-bandwidth') || '10') || 10;
 
+  // Computed WAN requirement from _calculateRemoteSite (stored in AppState.config.results)
+  var wanReqComp    = (r.wanComputedGbps  || 0);
+  var wanDailyDelta = (r.wanDailyDeltaTB  || 0);
+  var wanSyncWin    = (r.wanSyncWindowHours || parseInt(_getVal('wan-sync-window') || '4') || 4);
+  var wanChangePct  = (r.wanChangeRatePct || parseFloat(_getVal('wan-change-rate') || '10') || 10);
+  var wanRecLink    = r.wanRecLinkSpeed   || '10 Gbps';
+
   // Snapshot schedule/retention — NOT in saveState, read from DOM
   var snapSch   = _getSelect('bc-snapshot-schedule') || 'daily';
   var snapRet   = parseInt(_getVal('bc-snapshot-retention') || '30') || 30;
@@ -5548,11 +5596,11 @@ function _buildBCDRRunbook() {
 
   var eTB       = r.effectiveTB || s.targetUsableTB || 500;
 
-  var dailyChg  = (cfg.workload && cfg.workload.changeRate) || 10;
+  var dailyChg  = wanChangePct || 10;
 
-  var dailyGB   = Math.round(eTB * dailyChg / 100 * 1024);
+  var dailyGB   = wanDailyDelta > 0 ? Math.round(wanDailyDelta * 1024) : Math.round(eTB * dailyChg / 100 * 1024);
 
-  var wanReqGbps= (dailyGB / (24 * 3600) * 8).toFixed(2);
+  var wanReqGbps= wanReqComp > 0 ? wanReqComp.toFixed(2) : (dailyGB / (wanSyncWin * 3600) * 8 * 1.3).toFixed(2);
 
   var snapSchedVCLI = (snapSch === 'hourly') ? '1 hour' : (snapSch.indexOf('4') !== -1 ? '4 hours' : (snapSch === 'daily' ? '1 day' : '1 week'));
 
@@ -5592,8 +5640,20 @@ function _buildBCDRRunbook() {
 
   out += '<tr><td>Primary Site</td><td><strong>' + clN + '</strong> (' + cc + 'x CNodes, ' + dc + 'x DNodes)</td></tr>';
 
-  out += '<tr><td>DR Site</td><td><strong>' + _drSiteStr + '</strong></td></tr>';
-  if (repl) out += '<tr><td>DR Replication Target</td><td>' + _replTgtLabel + '</td></tr>';
+  var _drCN = r.remoteCnodeCount || _drCnodes || '';
+  var _drDN = r.remoteDnodeCount || _drDnodes || '';
+  var _drDM = r.remoteDboxModel  || '';
+  var _drEB = r.remoteEffectiveTB|| 0;
+  var _drSiteDisplay = repl
+    ? (_replTgtLabel.indexOf('Premises') >= 0
+       ? remoteClN + (_drCN ? ' (' + _drCN + 'C/' + _drDN + 'D)' : '') + ' &mdash; ' + remoteIP
+       : _replTgtLabel + ' (cloud-native target)')
+    : 'Not configured';
+  out += '<tr><td>DR Site</td><td><strong>' + _drSiteDisplay + '</strong></td></tr>';
+  if (repl) {
+    out += '<tr><td>DR Replication Target</td><td>' + _replTgtLabel + '</td></tr>';
+    if (_drCN) out += '<tr><td>DR Cluster Hardware</td><td>' + _drCN + ' C-Nodes + ' + _drDN + ' D-Nodes (' + (_drDM === 'ceres-df3060' ? 'Ceres DF-3060V2' : 'Ceres DF-3015V2') + ')' + (_drEB > 0 ? ' &mdash; ' + _drEB.toFixed(1) + ' TB effective' : '') + '</td></tr>';
+  }
 
   out += '<tr><td>Replication Type</td><td>' + (replType === 'sync' ? '<strong>Synchronous Mirror</strong> (RPO=0 &mdash; writes committed on both sites before ACK)' : '<strong>Asynchronous Mirror</strong> (RPO=~' + rpoMin + ' min &mdash; data replicated within RPO window)') + '</td></tr>';
 
@@ -5607,7 +5667,12 @@ function _buildBCDRRunbook() {
 
   out += '<tr><td>Daily Change Rate</td><td>' + dailyChg + '% = ~' + dailyGB.toLocaleString() + ' GB/day</td></tr>';
 
-  out += '<tr><td>WAN Required</td><td><strong>' + wanReqGbps + ' Gbps</strong> continuous | Available: ' + wanGbps + ' Gbps</td></tr>';
+  var _wanReqDisplay = wanReqComp > 0 ? wanReqComp.toFixed(2) : wanReqGbps;
+  var _wanOk = parseFloat(_wanReqDisplay) <= wanGbps;
+  out += '<tr><td>Daily Change Rate</td><td>' + wanChangePct + '% = ' + (wanDailyDelta > 0 ? wanDailyDelta.toFixed(1) : (eTB * wanChangePct / 100).toFixed(1)) + ' TB/day</td></tr>';
+  out += '<tr><td>Sync Window</td><td>' + wanSyncWin + ' hours</td></tr>';
+  out += '<tr><td>WAN Required (Computed)</td><td><strong>' + _wanReqDisplay + ' Gbps</strong>' + (wanRecLink ? ' &mdash; Recommended port: ' + _esc(wanRecLink) : '') + '</td></tr>';
+  out += '<tr><td>WAN Available (Configured)</td><td><strong style="color:' + (_wanOk ? '#10B981' : '#EF4444') + ';">' + wanGbps + ' Gbps</strong> &mdash; ' + (_wanOk ? '&#10003; Sufficient for continuous replication' : '&#9888; Insufficient &mdash; replication lag may exceed RPO') + '</td></tr>';
 
   out += '</tbody></table>';
 
