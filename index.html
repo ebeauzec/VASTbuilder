@@ -303,7 +303,17 @@
       <button id="catalog-btn" class="toolbar-btn" onclick="showModal('modal-catalog')">
         <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>Catalog
       </button>
-      <button id="update-kb-btn" class="toolbar-btn" onclick="checkForUpdates()">
+      <button id="update-kb-btn" class="toolbar-btn" onclick="
+        var b=this;
+        b.disabled=true;
+        b.style.opacity='0.6';
+        b.innerHTML='<svg width=\'12\' height=\'12\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2.5\' viewBox=\'0 0 24 24\'><path d=\'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15\'/></svg>Updating...';
+        (typeof checkForUpdates==='function'?checkForUpdates():Promise.resolve()).finally(function(){
+          b.disabled=false;
+          b.style.opacity='';
+          b.innerHTML='<svg width=\'12\' height=\'12\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2.5\' viewBox=\'0 0 24 24\'><path d=\'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15\'/></svg>Update KB';
+        });
+      ">
         <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Update KB
       </button>
       <span id="kb-status" title="Click Update KB to refresh">VastOS 5.5.0</span>
@@ -2269,7 +2279,7 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783994389"></script>
+<script src="app.js?v=1783994825"></script>
 <script>
 /* ── v2.0 UI Helpers ─────────────────────────────────────── */
 function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}

@@ -2789,7 +2789,8 @@ function _showKBChangeModal(changes, latestVer, fetchedAt) {
 
   cont.innerHTML = h;
 
-  if (typeof showModal === 'function') showModal('modal-kb-changes');
+  var kbModal = document.getElementById('modal-kb-changes');
+  if (kbModal) { kbModal.style.display = 'flex'; }
 
 }
 
@@ -2844,8 +2845,8 @@ async function checkForUpdates() {
       if (cached && cached.catalog) {
         _applyCatalog(cached.catalog);
         var d = new Date(cached.value).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-        showToast('Offline -- using catalog cached ' + d + '.', 'info');
-      } else { showToast('Offline -- using built-in catalog (' + _kbVer() + ').', 'info'); }
+        showToast('Offline -- using catalog cached ' + d + '.', 3000);
+      } else { showToast('Offline -- using built-in catalog (' + _kbVer() + ').', 3000); }
     } catch(_) {}
     updateKBStatus();
     return;
@@ -2869,7 +2870,7 @@ async function checkForUpdates() {
   /* Show diff */
   var changes = _buildKBChangelog(oldCatalog, newCatalog);
   var summary = changes.length ? changes.length + ' change' + (changes.length > 1 ? 's' : '') : 'no changes';
-  showToast('KB updated -- VastOS ' + latestVer + ' | CSI ' + _kbCsiVer() + ' | ' + summary + '.', 'success');
+  showToast('KB updated -- VastOS ' + latestVer + ' | CSI ' + _kbCsiVer() + ' | ' + summary + '.', 4000);
   _showKBChangeModal(changes, latestVer, fetchedAt);
   if (errors.length) console.warn('KB update warnings:', errors);
 }
