@@ -2213,78 +2213,11 @@ function _buildSolutionOverview() {
 
     </ul>
 
+
   </div>`;
 
-  // ── Replication section (conditional) ──────────────────────────────────────
-  var _replEnabled = _getCheck('bc-enable-replication') ||
-                     (_getSelect('replication-target-type') &&
-                      _getSelect('replication-target-type') !== 'none');
-
-  var _replMode  = _getSelect('bc-replication-type') === 'sync' ? 'Synchronous (Active-Active)' : 'Asynchronous';
-  var _replTgtRaw= _getSelect('bc-remote-site-type') || _getSelect('replication-target-type') || 'vast-onprem';
-  var _replTgtLbl= {
-    'vast-onprem':  'Remote VAST On-Premises Cluster',
-    'public-cloud': 'Public Cloud (via VAST Mirror)',
-    'aws':  'Amazon Web Services',
-    'azure':'Microsoft Azure',
-    'gcp':  'Google Cloud Platform'
-  }[_replTgtRaw] || 'Remote VAST Cluster';
-  var _rpoMin    = _getVal('bc-rpo-minutes')       || '15';
-  var _snapSched = _getSelect('bc-snapshot-schedule') || 'hourly';
-  var _snapSchedLbl = {'hourly':'Hourly','4h':'Every 4 Hours','daily':'Daily','weekly':'Weekly'}[_snapSched] || 'Hourly';
-  var _snapRet   = _getVal('bc-snapshot-retention') || '30';
-  var _wanGbps   = _getVal('bc-wan-bandwidth')      || '10';
-
-  var _hldRepl = '';
-  if (_replEnabled) {
-    _hldRepl += '<div class="doc-section">';
-    _hldRepl += '<h2>8. Business Continuity &amp; Replication</h2>';
-    _hldRepl += '<p>This design includes <strong>VAST Mirror ' + _replMode + '</strong> replication to provide resilience against site-level failures. VAST Mirror replicates at the file and directory level, maintaining a consistent secondary copy with an RPO target of <strong>' + _rpoMin + ' minutes</strong>.</p>';
-    _hldRepl += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Configured Value</th><th>Notes</th></tr></thead><tbody>';
-    _hldRepl += '<tr><td>Mirror Mode</td><td>' + _replMode + '</td><td>' + (_replMode.indexOf('Sync') >= 0 ? 'Requires &lt;5ms WAN RTT between sites' : 'Eventual consistency — suitable for most RPO targets') + '</td></tr>';
-    _hldRepl += '<tr><td>Replication Target</td><td>' + _replTgtLbl + '</td><td>Secondary cluster must be pre-configured identically</td></tr>';
-    _hldRepl += '<tr><td>RPO Target</td><td><strong>' + _rpoMin + ' minutes</strong></td><td>Maximum acceptable data loss window</td></tr>';
-    _hldRepl += '<tr><td>Snapshot Schedule</td><td>' + _snapSchedLbl + '</td><td>Point-in-time recovery anchors</td></tr>';
-    _hldRepl += '<tr><td>Snapshot Retention</td><td>' + _snapRet + ' days</td><td>Local snapshot copies retained on primary</td></tr>';
-    _hldRepl += '<tr><td>WAN Bandwidth Available</td><td>' + _wanGbps + ' Gbps</td><td>Must exceed daily change rate / RPO window</td></tr>';
-    _hldRepl += '<tr><td>Replication Port</td><td>TCP 443 (HTTPS)</td><td>Management network; no additional ports required</td></tr>';
-    _hldRepl += '</tbody></table>';
-    _hldRepl += '<div class="highlight-box"><strong>Failover:</strong> Documented in BC/DR Runbook (Panel 10). Planned failover: quiesce apps &rarr; force snapshot &rarr; <code>vcli admin&gt; protectedpath force-failover</code> on DR cluster. RTO depends on DNS propagation and client remount time.</div>';
-    _hldRepl += '</div>';
-  }
-
-  // ── Cold Tier section (conditional) ────────────────────────────────────────
-  var _tierEnabled  = _getCheck('cold-tier-enabled') || _getCheck('tier-enable');
-  var _tierPrvRaw   = _getSelect('cold-tier-provider') || _getSelect('tier-provider') || 'aws';
-  var _tierPrvLbl   = {'aws':'Amazon S3','azure':'Microsoft Azure Blob Storage','gcp':'Google Cloud Storage','onprem':'On-Premises S3 (MinIO / Ceph)'}[_tierPrvRaw] || 'Cloud Object Storage';
-  var _tierUsable   = _getVal('cold-tier-usable') || '—';
-  var _tierClassRaw = _getSelect('cold-tier-class') || 'cool';
-  var _tierClassLbl = {'cool':'Cool / Infrequent Access','cold':'Cold / Glacier','archive':'Archive (retrieval delay applies)'}[_tierClassRaw] || 'Cool';
-  var _tierBucket   = _getVal('tier-bucket') || 'vast-cold-tier-bucket';
-  var _tierPolRaw   = _getSelect('tier-policy') || _getSelect('cold-tier-policy') || 'capacity';
-  var _tierPolLbl   = {'age':'Age-based (moved after inactivity threshold)','capacity':'Capacity-based (triggered at watermark)','manual':'Manual (administrator-initiated)'}[_tierPolRaw] || 'Capacity-based';
-  var _tierSecNum   = _replEnabled ? '9' : '8';
-
-  var _hldCold = '';
-  if (_tierEnabled) {
-    _hldCold += '<div class="doc-section">';
-    _hldCold += '<h2>' + _tierSecNum + '. Cloud Tiering</h2>';
-    _hldCold += '<p>This design includes <strong>VAST Cloud Tiering</strong> to automatically move cold or infrequently-accessed data to lower-cost object storage, freeing NVMe capacity for hot data while maintaining a unified namespace. Tiered data remains accessible transparently to all clients — no application changes required.</p>';
-    _hldCold += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Configured Value</th><th>Notes</th></tr></thead><tbody>';
-    _hldCold += '<tr><td>Tier Provider</td><td>' + _tierPrvLbl + '</td><td>Target for cold data objects</td></tr>';
-    _hldCold += '<tr><td>Tier Capacity</td><td>' + _tierUsable + ' TB (logical)</td><td>Cold data quota; object storage billed per GB</td></tr>';
-    _hldCold += '<tr><td>Storage Class</td><td>' + _tierClassLbl + '</td><td>Note: Archive classes incur retrieval delay/cost</td></tr>';
-    _hldCold += '<tr><td>Tiering Policy</td><td>' + _tierPolLbl + '</td><td>Automatically enforced by VAST DataStore engine</td></tr>';
-    _hldCold += '<tr><td>Target Bucket</td><td><code>' + _tierBucket + '</code></td><td>Must exist; VAST creates objects, not the bucket</td></tr>';
-    _hldCold += '<tr><td>Connectivity Port</td><td>TCP 443 (HTTPS)</td><td>C-Nodes require outbound HTTPS to cloud endpoint</td></tr>';
-    _hldCold += '</tbody></table>';
-    _hldCold += '<div class="highlight-box"><strong>Transparency:</strong> Tiered data is accessible at the same path via NFS, SMB, and S3. VAST retrieves objects on-demand when accessed. Clients observe no namespace change — only potential first-access latency for archived data.</div>';
-    _hldCold += '</div>';
-  }
-
-  return _hldBase + _hldRepl + _hldCold;
-
 }
+
 
 
 
@@ -4677,6 +4610,71 @@ function _buildHLD() {
 
   </div>`;
 
+  // ── Replication section (conditional on Panel 4 or Panel 7 BC/DR tab) ──────
+  var _hldReplEnabled = _getCheck('bc-enable-replication') ||
+                        (_getSelect('replication-target-type') &&
+                         _getSelect('replication-target-type') !== 'none');
+  var _hldReplMode    = _getSelect('bc-replication-type') === 'sync' ? 'Synchronous (Active-Active)' : 'Asynchronous';
+  var _hldReplTgtRaw  = _getSelect('bc-remote-site-type') || _getSelect('replication-target-type') || 'vast-onprem';
+  var _hldReplTgtLbl  = {
+    'vast-onprem':  'Remote VAST On-Premises Cluster',
+    'public-cloud': 'Public Cloud (via VAST Mirror)',
+    'aws':  'Amazon Web Services',
+    'azure':'Microsoft Azure',
+    'gcp':  'Google Cloud Platform'
+  }[_hldReplTgtRaw] || 'Remote VAST Cluster';
+  var _hldRpoMin    = _getVal('bc-rpo-minutes')       || '15';
+  var _hldSnapSched = {'hourly':'Hourly','4h':'Every 4 Hours','daily':'Daily','weekly':'Weekly'}[_getSelect('bc-snapshot-schedule')] || 'Hourly';
+  var _hldSnapRet   = _getVal('bc-snapshot-retention') || '30';
+  var _hldWanGbps   = _getVal('bc-wan-bandwidth')      || '10';
+
+  var _hldReplSec = '';
+  if (_hldReplEnabled) {
+    _hldReplSec += '<div class="doc-section">';
+    _hldReplSec += '<h2>8. Business Continuity &amp; Replication</h2>';
+    _hldReplSec += '<p>This design includes <strong>VAST Mirror ' + _hldReplMode + '</strong> replication to provide resilience against site-level failures. VAST Mirror replicates at the file and directory level, maintaining a consistent secondary copy with an RPO target of <strong>' + _hldRpoMin + ' minutes</strong>.</p>';
+    _hldReplSec += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Configured Value</th><th>Notes</th></tr></thead><tbody>';
+    _hldReplSec += '<tr><td>Mirror Mode</td><td>' + _hldReplMode + '</td><td>' + (_hldReplMode.indexOf('Sync') >= 0 ? 'Requires &lt;5ms WAN RTT between sites' : 'Eventual consistency — suitable for most RPO targets') + '</td></tr>';
+    _hldReplSec += '<tr><td>Replication Target</td><td>' + _hldReplTgtLbl + '</td><td>Secondary cluster must be pre-configured identically</td></tr>';
+    _hldReplSec += '<tr><td>RPO Target</td><td><strong>' + _hldRpoMin + ' minutes</strong></td><td>Maximum acceptable data loss window</td></tr>';
+    _hldReplSec += '<tr><td>Snapshot Schedule</td><td>' + _hldSnapSched + '</td><td>Point-in-time recovery anchors on primary cluster</td></tr>';
+    _hldReplSec += '<tr><td>Snapshot Retention</td><td>' + _hldSnapRet + ' days</td><td>Local copies retained on primary</td></tr>';
+    _hldReplSec += '<tr><td>WAN Bandwidth Available</td><td>' + _hldWanGbps + ' Gbps</td><td>Must exceed: daily change rate / RPO window</td></tr>';
+    _hldReplSec += '<tr><td>Replication Port</td><td>TCP 443 (HTTPS)</td><td>Management network; no additional ports required</td></tr>';
+    _hldReplSec += '</tbody></table>';
+    _hldReplSec += '<div class="highlight-box"><strong>Failover Procedure:</strong> Documented in the BC/DR Runbook (Panel 10). Planned failover: quiesce applications &rarr; force a final snapshot &rarr; execute <code>vcli admin&gt; protectedpath force-failover</code> on the DR cluster. RTO depends on DNS propagation time and client remount latency.</div>';
+    _hldReplSec += '</div>';
+  }
+
+  // ── Cold Tier section (conditional) ────────────────────────────────────────
+  var _hldTierEnabled  = _getCheck('cold-tier-enabled') || _getCheck('tier-enable');
+  var _hldTierPrvRaw   = _getSelect('cold-tier-provider') || _getSelect('tier-provider') || 'aws';
+  var _hldTierPrvLbl   = {'aws':'Amazon S3','azure':'Microsoft Azure Blob Storage','gcp':'Google Cloud Storage','onprem':'On-Premises S3 (MinIO / Ceph)'}[_hldTierPrvRaw] || 'Cloud Object Storage';
+  var _hldTierUsable   = _getVal('cold-tier-usable') || '—';
+  var _hldTierClassLbl = {'cool':'Cool / Infrequent Access','cold':'Cold / Glacier','archive':'Archive (retrieval delay applies)'}[_getSelect('cold-tier-class')] || 'Cool';
+  var _hldTierBucket   = _getVal('tier-bucket') || 'vast-cold-tier-bucket';
+  var _hldTierPolLbl   = {'age':'Age-based (moved after inactivity threshold)','capacity':'Capacity-based (triggered at high-watermark)','manual':'Manual (administrator-initiated)'}[_getSelect('tier-policy') || _getSelect('cold-tier-policy')] || 'Capacity-based';
+  var _hldTierSecNum   = _hldReplEnabled ? '9' : '8';
+
+  var _hldColdSec = '';
+  if (_hldTierEnabled) {
+    _hldColdSec += '<div class="doc-section">';
+    _hldColdSec += '<h2>' + _hldTierSecNum + '. Cloud Tiering</h2>';
+    _hldColdSec += '<p>This design includes <strong>VAST Cloud Tiering</strong> to automatically move cold or infrequently-accessed data to lower-cost object storage, freeing NVMe capacity for active workloads while maintaining a unified namespace. Tiered data remains transparently accessible to all clients — no application changes required.</p>';
+    _hldColdSec += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Configured Value</th><th>Notes</th></tr></thead><tbody>';
+    _hldColdSec += '<tr><td>Tier Provider</td><td>' + _hldTierPrvLbl + '</td><td>Target object store for cold data</td></tr>';
+    _hldColdSec += '<tr><td>Cold Tier Capacity</td><td>' + _hldTierUsable + ' TB (logical)</td><td>Object storage billed per GB consumed</td></tr>';
+    _hldColdSec += '<tr><td>Storage Class</td><td>' + _hldTierClassLbl + '</td><td>Note: Archive classes incur retrieval delay and cost</td></tr>';
+    _hldColdSec += '<tr><td>Tiering Policy</td><td>' + _hldTierPolLbl + '</td><td>Automatically enforced by VAST DataStore engine</td></tr>';
+    _hldColdSec += '<tr><td>Target Bucket</td><td><code>' + _hldTierBucket + '</code></td><td>Bucket must exist; VAST creates object keys, not the bucket</td></tr>';
+    _hldColdSec += '<tr><td>Connectivity</td><td>TCP 443 (HTTPS) outbound</td><td>All C-Nodes require outbound HTTPS to cloud endpoint</td></tr>';
+    _hldColdSec += '</tbody></table>';
+    _hldColdSec += '<div class="highlight-box"><strong>Transparency:</strong> Tiered data appears at the same namespace path via NFS, SMB, and S3. VAST DataStore retrieves objects on-demand on first access — transparent to all clients, with potential first-access latency for archived tier data.</div>';
+    _hldColdSec += '</div>';
+  }
+
+  return _hldBase + _hldReplSec + _hldColdSec;
+
 }
 
 
@@ -4723,7 +4721,9 @@ function _buildATP() {
 
   var s3  = p.protoS3  || false;
 
-  var repl= adv.bcEnabled || false;
+  var repl= adv.bcEnabled || _getCheck('bc-enable-replication') ||
+             (_getSelect('replication-target-type') &&
+              _getSelect('replication-target-type') !== 'none') || false;
 
   var quotaTB = p.quotaTB || 100;
 
