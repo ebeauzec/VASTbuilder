@@ -806,7 +806,7 @@
             <div class="grid-2">
               <div class="form-group">
                 <label for="client-net">Client Interface Speed</label>
-                <select id="client-net" onchange="calculateSizing()">
+                <select id="client-net" onchange="calculateSizing();generateNetworkConfig();">
                   <option value="25">25GbE (SFP28)</option>
                   <option value="100" selected>100GbE (QSFP28)</option>
                   <option value="200">200GbE / HDR (QSFP56)</option>
@@ -814,7 +814,7 @@
               </div>
               <div class="form-group">
                 <label for="fabric-type">Backend Fabric Type</label>
-                <select id="fabric-type" onchange="calculateSizing()">
+                <select id="fabric-type" onchange="calculateSizing();generateNetworkConfig();">
                   <option value="RoCEv2">RoCEv2 Ethernet</option>
                   <option value="IB-HDR">InfiniBand HDR</option>
                   <option value="IB-NDR">InfiniBand NDR</option>
@@ -1030,7 +1030,7 @@
             <h3>Switch Selection</h3>
             <div class="form-group">
               <label for="sw-backend-model">Backend Fabric Switch</label>
-              <select id="sw-backend-model" onchange="markDirty()">
+              <select id="sw-backend-model" onchange="markDirty();generateNetworkConfig();">
                 <option value="arista-7050cx3">Arista 7050CX3-32S (32&times;100G)</option>
                 <option value="arista-7060cx2">Arista 7060CX2-32S (32&times;100G)</option>
                 <option value="cisco-n9336c">Cisco Nexus 9336C-FX2 (36&times;100G)</option>
@@ -1182,7 +1182,7 @@
           <div class="grid-2">
             <div class="form-group">
               <label for="prov-vip-start">VIP Range Start</label>
-              <input type="text" id="prov-vip-start" value="10.100.20.100" oninput="generateVcliCommands()">
+              <input type="text" id="prov-vip-start" value="10.100.20.100" oninput="generateVcliCommands();generateNetworkConfig();">
             </div>
             <div class="form-group">
               <label for="prov-vip-end">VIP Range End</label>
@@ -2314,7 +2314,7 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1784010544"></script>
+<script src="app.js?v=1784016123"></script>
 <script>
 /* ── v2.0 UI Helpers ─────────────────────────────────────── */
 function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}

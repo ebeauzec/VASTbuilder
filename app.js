@@ -992,53 +992,166 @@ function _portRow(component, port, destination, domain, vlan, mtu, ip) {
 
 function renderCablingDiagram(cnodeCount, dnodeCount) {
 
-  const svg = document.getElementById('cabling-svg');
-
+  var svg = document.getElementById('cabling-svg');
   if (!svg) return;
 
-  const nW=120, nH=38, W=700, colStart=40, colEnd=W-40-nW;
+  // ── Read live config values ───────────────────────────────────────────────
+  var fabricRaw   = _getSelect('fabric-type') || (AppState.config.sizing && AppState.config.sizing.fabricType) || 'RoCEv2';
+  var fabricLabel = fabricRaw === 'IB' ? 'InfiniBand NDR' : 'RoCEv2';
+  var swRaw       = _getSelect('sw-backend-model') || 'Arista 7050';
+  var swLabel     = swRaw.length > 14 ? swRaw.substring(0, 14) : swRaw;
+  var feSw        = _getSelect('sw-frontend-model') || 'L3 Frontend';
+  var feSwLabel   = (feSw && feSw !== 'Customer-provided L3') ? feSw.substring(0,13) : 'L3 Frontend';
+  var clientNet   = _getSelect('client-net') || '100';
+  var dboxRaw     = (AppState.config.results && AppState.config.results.dboxModel) ||
+                    (AppState.config.sizing && AppState.config.sizing.dboxModel) || 'ceres-df3015';
+  var dboxLabel   = {
+    'ceres-df3015':'Ceres DF-3015',
+    'ceres-df3060':'Ceres DF-3060',
+    'ebox-supermicro':'EBox AS-2115GT',
+    'ebox-cisco':'EBox C845A'
+  }[dboxRaw] || 'DBox NVMe';
+  var vipStart    = _getVal('prov-vip-start') || _getVal('net-vip-start') || '10.x.x.100';
+  var swColor     = fabricRaw === 'IB' ? '#F59E0B' : '#6366F1';
 
-  const maxCols = Math.max(cnodeCount, dnodeCount, 2);
+  cnodeCount = Math.max(1, cnodeCount || 4);
+  dnodeCount = Math.max(1, dnodeCount || 2);
 
-  const step = maxCols > 1 ? (colEnd-colStart)/(maxCols-1) : (colEnd-colStart)/2;
+  // ── Dynamic layout geometry ────────────────────────────────────────────────
+  var maxCols  = Math.max(cnodeCount, dnodeCount, 2);
+  var nH       = 38;
+  var W        = Math.max(680, maxCols * 145 + 80);
+  var nW       = Math.min(120, Math.max(60, Math.floor((W - 100) / maxCols - 12)));
+  var colStart = 40;
+  var colEnd   = W - 40 - nW;
+  var step     = maxCols > 1 ? (colEnd - colStart) / (maxCols - 1) : (colEnd - colStart) / 2;
+  var cY       = 90;
+  var swY      = 190;
+  var dY       = 285;
+  var topSwY   = 14;
+  var H        = 340;
+  var swAx     = colStart + (colEnd - colStart) * 0.28;
+  var swBx     = colStart + (colEnd - colStart) * 0.72;
+  var clientSwX= 20;
+  var mgmtSwX  = W - 20 - nW;
 
-  const cY=90, swY=185, dY=280, topSwY=18;
+  function cx(i) { return colStart + i * step; }
 
-  const swAx=colStart+(colEnd-colStart)*0.25, swBx=colStart+(colEnd-colStart)*0.75;
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.setAttribute('width', '100%');
+  svg.setAttribute('height', Math.min(H, 380));
 
-  const clientSwX=30, mgmtSwX=W-30-nW;
+  var h = '';
 
-  const cx = i => colStart + i * step;
+  // ── Frontend cables: client switch → each C-Node ──────────────────────────
+  for (var c = 0; c < cnodeCount; c++) {
+    var nx = cx(c) + nW / 2;
+    h += '<path d="M' + (clientSwX + nW / 2) + ',' + (topSwY + nH) +
+         ' L' + nx + ',' + cY + '" class="svg-cable active client-cables"' +
+         ' stroke="#38BDF8" stroke-width="1.5" opacity="0.8"/>';
+  }
 
-  let h='';
+  // ── OOB management cables: mgmt switch → each C-Node and D-Node ──────────
+  for (var c2 = 0; c2 < cnodeCount; c2++) {
+    var nx2 = cx(c2) + nW / 2;
+    h += '<path d="M' + (mgmtSwX + nW / 2) + ',' + (topSwY + nH) +
+         ' L' + nx2 + ',' + cY + '" class="svg-cable active mgmt-cables"' +
+         ' stroke="#10B981" stroke-width="1.2" stroke-dasharray="5,3" opacity="0.7"/>';
+  }
+  for (var d2 = 0; d2 < dnodeCount; d2++) {
+    var dx2 = cx(d2) + nW / 2;
+    h += '<path d="M' + (mgmtSwX + nW / 2) + ',' + (topSwY + nH) +
+         ' L' + dx2 + ',' + dY + '" class="svg-cable active mgmt-cables"' +
+         ' stroke="#10B981" stroke-width="1.2" stroke-dasharray="5,3" opacity="0.7"/>';
+  }
 
-  for(let c=0;c<cnodeCount;c++){const x=cx(c)+nW/2;h+='<path d="M'+(clientSwX+nW/2)+','+(topSwY+nH)+' L'+x+','+cY+'" class="svg-cable active client-cables" stroke="#38BDF8" stroke-width="1.5"/>';}
+  // ── Backend cables: each C-Node → Fabric Sw A + B (dual-home) ─────────────
+  for (var c3 = 0; c3 < cnodeCount; c3++) {
+    var nx3 = cx(c3) + nW / 2;
+    h += '<path d="M' + nx3 + ',' + (cY + nH) +
+         ' L' + (swAx + nW / 2) + ',' + swY + '" class="svg-cable active backend-cables"' +
+         ' stroke="' + swColor + '" stroke-width="1.5" opacity="0.8"/>';
+    h += '<path d="M' + nx3 + ',' + (cY + nH) +
+         ' L' + (swBx + nW / 2) + ',' + swY + '" class="svg-cable active backend-cables"' +
+         ' stroke="' + swColor + '" stroke-width="1.5" opacity="0.8"/>';
+  }
 
-  for(let c=0;c<cnodeCount;c++){const x=cx(c)+nW/2;h+='<path d="M'+(mgmtSwX+nW/2)+','+(topSwY+nH)+' L'+x+','+cY+'" class="svg-cable active mgmt-cables" stroke="#10B981" stroke-width="1.2" stroke-dasharray="5,3"/>';}
+  // ── Backend cables: each D-Node → Fabric Sw A + B (dual D-Tray) ──────────
+  for (var d3 = 0; d3 < dnodeCount; d3++) {
+    var dx3 = cx(d3) + nW / 2;
+    h += '<path d="M' + dx3 + ',' + dY +
+         ' L' + (swAx + nW / 2) + ',' + (swY + nH) + '" class="svg-cable active backend-cables"' +
+         ' stroke="' + swColor + '" stroke-width="1.5" opacity="0.8"/>';
+    h += '<path d="M' + dx3 + ',' + dY +
+         ' L' + (swBx + nW / 2) + ',' + (swY + nH) + '" class="svg-cable active backend-cables"' +
+         ' stroke="' + swColor + '" stroke-width="1.5" opacity="0.8"/>';
+  }
 
-  for(let d=0;d<dnodeCount;d++){const x=cx(d)+nW/2;h+='<path d="M'+(mgmtSwX+nW/2)+','+(topSwY+nH)+' L'+x+','+dY+'" class="svg-cable active mgmt-cables" stroke="#10B981" stroke-width="1.2" stroke-dasharray="5,3"/>';}
+  // ── ISL between fabric switches ────────────────────────────────────────────
+  h += '<path d="M' + (swAx + nW) + ',' + (swY + nH / 2) +
+       ' L' + swBx + ',' + (swY + nH / 2) + '" class="svg-cable active backend-cables"' +
+       ' stroke="' + swColor + '" stroke-width="2.5" stroke-dasharray="6,3" opacity="0.9"/>';
 
-  for(let c=0;c<cnodeCount;c++){const x=cx(c)+nW/2;h+='<path d="M'+x+','+(cY+nH)+' L'+(swAx+nW/2)+','+swY+'" class="svg-cable active backend-cables" stroke="#6366F1" stroke-width="1.5"/>';h+='<path d="M'+x+','+(cY+nH)+' L'+(swBx+nW/2)+','+swY+'" class="svg-cable active backend-cables" stroke="#6366F1" stroke-width="1.5"/>';}
+  // ── Node renderer helper ──────────────────────────────────────────────────
+  function nd(x, y, lbl, sub, sc) {
+    var fs1 = nW < 80 ? '8' : '10';
+    var fs2 = nW < 80 ? '7' : '8.5';
+    return '<rect x="' + x + '" y="' + y + '" width="' + nW + '" height="' + nH +
+           '" class="svg-node" fill="#0D1321" stroke="' + sc + '" rx="3"/>' +
+           '<text x="' + (x + nW / 2) + '" y="' + (y + 14) +
+           '" text-anchor="middle" class="svg-text" font-size="' + fs1 + '">' + lbl + '</text>' +
+           '<text x="' + (x + nW / 2) + '" y="' + (y + 27) +
+           '" text-anchor="middle" class="svg-text-sub" font-size="' + fs2 + '">' + sub + '</text>';
+  }
 
-  for(let d=0;d<dnodeCount;d++){const x=cx(d)+nW/2;h+='<path d="M'+x+','+dY+' L'+(swAx+nW/2)+','+(swY+nH)+'" class="svg-cable active backend-cables" stroke="#6366F1" stroke-width="1.5"/>';h+='<path d="M'+x+','+dY+' L'+(swBx+nW/2)+','+(swY+nH)+'" class="svg-cable active backend-cables" stroke="#6366F1" stroke-width="1.5"/>';}
+  // ── Fixed infrastructure nodes ─────────────────────────────────────────────
+  // Client switch
+  h += '<rect x="' + clientSwX + '" y="' + topSwY + '" width="' + nW + '" height="' + nH +
+       '" class="svg-node" fill="#1E293B" stroke="#38BDF8" rx="3"/>' +
+       '<text x="' + (clientSwX + nW / 2) + '" y="' + (topSwY + 14) +
+       '" text-anchor="middle" class="svg-text" font-size="10">Client Switch</text>' +
+       '<text x="' + (clientSwX + nW / 2) + '" y="' + (topSwY + 27) +
+       '" text-anchor="middle" class="svg-text-sub" font-size="8.5">' + feSwLabel + '</text>';
 
-  h+='<path d="M'+(swAx+nW)+','+(swY+nH/2)+' L'+swBx+','+(swY+nH/2)+'" class="svg-cable active backend-cables" stroke="#6366F1" stroke-width="2" stroke-dasharray="6,3"/>';
+  // VIP label under client switch
+  h += '<text x="' + (clientSwX + nW / 2) + '" y="' + (topSwY + nH + 12) +
+       '" text-anchor="middle" fill="#38BDF899" font-size="7.5" font-family="JetBrains Mono,monospace">' +
+       vipStart + '</text>';
 
-  const nd=(x,y,lbl,sub,sc)=>'<rect x="'+x+'" y="'+y+'" width="'+nW+'" height="'+nH+'" class="svg-node" fill="#0D1321" stroke="'+sc+'" rx="3"/><text x="'+(x+nW/2)+'" y="'+(y+15)+'" text-anchor="middle" class="svg-text">'+lbl+'</text><text x="'+(x+nW/2)+'" y="'+(y+27)+'" text-anchor="middle" class="svg-text-sub">'+sub+'</text>';
+  // OOB mgmt switch
+  h += '<rect x="' + mgmtSwX + '" y="' + topSwY + '" width="' + nW + '" height="' + nH +
+       '" class="svg-node" fill="#1E293B" stroke="#10B981" rx="3"/>' +
+       '<text x="' + (mgmtSwX + nW / 2) + '" y="' + (topSwY + 14) +
+       '" text-anchor="middle" class="svg-text" font-size="10">OOB Mgmt Sw</text>' +
+       '<text x="' + (mgmtSwX + nW / 2) + '" y="' + (topSwY + 27) +
+       '" text-anchor="middle" class="svg-text-sub" font-size="8.5">1GbE IPMI</text>';
 
-  h+='<rect x="'+clientSwX+'" y="'+topSwY+'" width="'+nW+'" height="'+nH+'" class="svg-node" fill="#1E293B" stroke="#38BDF8" rx="3"/><text x="'+(clientSwX+nW/2)+'" y="'+(topSwY+15)+'" text-anchor="middle" class="svg-text">Client Switch</text><text x="'+(clientSwX+nW/2)+'" y="'+(topSwY+27)+'" text-anchor="middle" class="svg-text-sub">L3 Frontend</text>';
+  // Fabric Switch A
+  h += nd(swAx, swY, 'Fabric Sw A', fabricLabel, swColor);
+  h += '<text x="' + (swAx + nW / 2) + '" y="' + (swY + nH + 11) +
+       '" text-anchor="middle" fill="' + swColor + '99" font-size="7" font-family="JetBrains Mono,monospace">' +
+       swLabel + '</text>';
 
-  h+='<rect x="'+mgmtSwX+'" y="'+topSwY+'" width="'+nW+'" height="'+nH+'" class="svg-node" fill="#1E293B" stroke="#10B981" rx="3"/><text x="'+(mgmtSwX+nW/2)+'" y="'+(topSwY+15)+'" text-anchor="middle" class="svg-text">OOB Mgmt Sw</text><text x="'+(mgmtSwX+nW/2)+'" y="'+(topSwY+27)+'" text-anchor="middle" class="svg-text-sub">1GbE IPMI</text>';
+  // Fabric Switch B
+  h += nd(swBx, swY, 'Fabric Sw B', fabricLabel, swColor);
+  h += '<text x="' + (swBx + nW / 2) + '" y="' + (swY + nH + 11) +
+       '" text-anchor="middle" fill="' + swColor + '99" font-size="7" font-family="JetBrains Mono,monospace">' +
+       swLabel + '</text>';
 
-  for(let c=0;c<cnodeCount;c++) h+=nd(cx(c),cY,'C-Node '+(c+1),c===0?'Lead Protocol':'Protocol Node','#10B981');
+  // C-Nodes — shorten label if narrow
+  for (var c4 = 0; c4 < cnodeCount; c4++) {
+    var clbl = nW < 85 ? 'C-' + (c4 + 1) : 'C-Node ' + (c4 + 1);
+    var csub = c4 === 0 ? (nW < 85 ? 'Lead' : 'Lead Protocol') : (nW < 85 ? 'Proto' : 'Protocol Node');
+    h += nd(cx(c4), cY, clbl, csub, '#10B981');
+  }
 
-  h+=nd(swAx,swY,'Fabric Sw A','RoCEv2 Rail 1','#6366F1');
+  // D-Nodes — show actual DBox model
+  for (var d4 = 0; d4 < dnodeCount; d4++) {
+    var dlbl = nW < 85 ? 'D-' + (d4 + 1) : 'D-Node ' + (d4 + 1);
+    h += nd(cx(d4), dY, dlbl, dboxLabel, '#F59E0B');
+  }
 
-  h+=nd(swBx,swY,'Fabric Sw B','RoCEv2 Rail 2','#6366F1');
-
-  for(let d=0;d<dnodeCount;d++) h+=nd(cx(d),dY,'D-Node '+(d+1),'SCM + QLC SSD','#F59E0B');
-
-  svg.innerHTML=h;
+  svg.innerHTML = h;
 
 }
 
@@ -2051,6 +2164,11 @@ function generateExportPanel() {
   const hldDoc = document.getElementById('del-content-hld-doc');
 
   if (hldDoc) hldDoc.innerHTML = _buildHLD();
+  // Refresh cabling diagram whenever sizing changes
+  try {
+    var _r = AppState.config.results || {};
+    renderCablingDiagram(_r.cnodeCount || 4, _r.dnodeCount || 2);
+  } catch(e) {}
 
   const lldDoc = document.getElementById('del-content-lld-doc');
 
