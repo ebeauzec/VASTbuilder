@@ -1260,23 +1260,105 @@ function setupDropzone() {
 
 // ============================================================
 // === SECTION 10: UPDATE ENGINE ===
+// Fetches catalog.json from GitHub raw on demand.
+// Falls back to IndexedDB cache, then built-in data.
 // ============================================================
 
-async function checkForUpdates() {
-  showToast('Knowledge base current. VastOS 5.4.1-SP4 catalog loaded.','info');
+const KB_CATALOG_URL = 'https://raw.githubusercontent.com/ebeauzec/VASTbuilder/main/catalog.json';
+
+/* Apply a fetched/cached catalog object to the live PRODUCT_CATALOG */
+function _applyCatalog(data) {
+  if (!data || typeof data !== 'object') return false;
+  if (data.cboxModels    && Array.isArray(data.cboxModels))    PRODUCT_CATALOG.cboxModels    = data.cboxModels;
+  if (data.dboxModels    && Array.isArray(data.dboxModels))    PRODUCT_CATALOG.dboxModels    = data.dboxModels;
+  if (data.switchModels  && Array.isArray(data.switchModels))  PRODUCT_CATALOG.switchModels  = data.switchModels;
+  if (data.vastosVersions&& Array.isArray(data.vastosVersions))PRODUCT_CATALOG.vastosVersions= data.vastosVersions;
+  if (data.workloadPresets && typeof data.workloadPresets === 'object')
+    Object.assign(PRODUCT_CATALOG.workloadPresets, data.workloadPresets);
+  return true;
+}
+
+/* Load cached catalog from IndexedDB on startup (before any UI renders) */
+async function loadCatalogFromCache() {
   try {
-    await DB.save('knowledgeBase', { key:'KB_LAST_CHECKED', value:new Date().toISOString(), catalogVersion:'5.4.1-SP4' });
-  } catch(_){}
-  updateKBStatus();
+    const rec = await DB.get('knowledgeBase', 'KB_LAST_CHECKED');
+    if (rec && rec.catalog) _applyCatalog(rec.catalog);
+  } catch (_) {}
+}
+
+async function checkForUpdates() {
+  const el = document.getElementById('kb-status');
+  if (el) { el.textContent = 'Checking for updates…'; el.style.color = 'var(--color-text-muted)'; }
+
+  try {
+    const res = await fetch(KB_CATALOG_URL, { cache: 'no-cache' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!data.vastosVersions) throw new Error('Invalid catalog schema');
+
+    _applyCatalog(data);
+
+    const latest = PRODUCT_CATALOG.vastosVersions.find(v => v.latest)
+                || PRODUCT_CATALOG.vastosVersions[PRODUCT_CATALOG.vastosVersions.length - 1];
+
+    await DB.save('knowledgeBase', {
+      key: 'KB_LAST_CHECKED',
+      value: new Date().toISOString(),
+      catalogVersion: latest.version,
+      source: 'github',
+      catalog: data
+    });
+
+    showToast('Knowledge base updated — VastOS ' + latest.version + ' catalog loaded.', 'success');
+    updateKBStatus();
+    /* Refresh catalog modal if it is open */
+    if (document.getElementById('modal-catalog') &&
+        document.getElementById('modal-catalog').style.display !== 'none') renderProductCatalog();
+
+  } catch (err) {
+    /* Offline or fetch failed — report clearly */
+    try {
+      const cached = await DB.get('knowledgeBase', 'KB_LAST_CHECKED');
+      if (cached && cached.catalog) {
+        const d = new Date(cached.value).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'});
+        showToast('Offline — using catalog cached on ' + d + '.', 'info');
+      } else {
+        showToast('Cannot reach update server. Using built-in catalog (VastOS 5.4.1-SP4).', 'info');
+      }
+    } catch (_) {
+      showToast('Update failed: ' + err.message, 'error');
+    }
+    updateKBStatus();
+  }
 }
 
 function updateKBStatus() {
-  DB.get('knowledgeBase','KB_LAST_CHECKED').then(rec => {
+  DB.get('knowledgeBase', 'KB_LAST_CHECKED').then(rec => {
     const el = document.getElementById('kb-status');
     if (!el) return;
-    if (rec) { const d=new Date(rec.value).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); el.textContent='Catalog current as of '+d+' (VastOS '+(rec.catalogVersion||'5.4.1-SP4')+')'; el.style.color='var(--accent-teal)'; }
-    else { el.textContent='Offline knowledge base -- VastOS 5.4.1-SP4'; el.style.color='var(--color-text-muted)'; }
-  }).catch(()=>{});
+    if (!rec) {
+      el.textContent = 'Built-in catalog — VastOS 5.4.1-SP4 (click Update KB to sync)';
+      el.style.color = 'var(--color-text-muted)';
+      return;
+    }
+    const checkedDate = new Date(rec.value);
+    const d = checkedDate.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+    const ageMs = Date.now() - checkedDate.getTime();
+    const ageDays = Math.floor(ageMs / 86400000);
+    const ver = rec.catalogVersion || '5.4.1-SP4';
+    const src = rec.source === 'github' ? 'GitHub' : 'cache';
+    if (ageDays <= 7) {
+      el.textContent = 'Catalog current as of ' + d + ' — VastOS ' + ver;
+      el.style.color = 'var(--accent-teal)';
+    } else if (ageDays <= 30) {
+      el.textContent = 'Catalog from ' + d + ' (' + ageDays + ' days old) — VastOS ' + ver;
+      el.style.color = 'var(--accent-amber)';
+    } else {
+      el.textContent = 'Catalog stale (' + ageDays + 'd) — VastOS ' + ver + ' — click Update KB';
+      el.style.color = '#f87171';
+    }
+    el.title = 'Source: ' + src + ' | Checked: ' + checkedDate.toISOString();
+  }).catch(() => {});
 }
 
 // ============================================================
@@ -2309,6 +2391,7 @@ function _buildBCDRRunbook() {
 
 async function initApp() {
   await DB.init();
+  await loadCatalogFromCache(); // Load any previously fetched catalog before UI renders
 
   // Restore most-recently saved config from IndexedDB
   try {

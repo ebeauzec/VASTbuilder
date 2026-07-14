@@ -1,0 +1,151 @@
+{
+  "_meta": {
+    "catalogVersion": "5.4.1-SP4",
+    "lastUpdated": "2026-07-14",
+    "source": "https://www.vastdata.com/technology",
+    "maintainer": "VASTbuilder — https://github.com/ebeauzec/VASTbuilder",
+    "notes": "Update this file and push to main to distribute new product data to all VASTbuilder users without redeployment."
+  },
+  "cboxModels": [
+    {
+      "id": "cbox-standard",
+      "name": "VAST CBox (Standard)",
+      "description": "Chassis with 4 CNodes (2U)",
+      "ruSize": 2,
+      "cnodesIncluded": 4,
+      "cpu": "AMD EPYC 9555P Turin 64-core",
+      "ramPerNode": "384GB DDR5-6400",
+      "networkPerNode": "4x200GbE NDR200",
+      "powerPerNode": 800,
+      "weightKg": 25,
+      "notes": "Stateless compute; no local storage"
+    },
+    {
+      "id": "cbox-x",
+      "name": "VAST CNode-X (GPU)",
+      "description": "GPU-accelerated AI inference node",
+      "ruSize": 2,
+      "cnodesIncluded": 1,
+      "cpu": "AMD EPYC 5th Gen",
+      "ramPerNode": "4TB DDR5",
+      "gpus": "8x NVIDIA RTX PRO 6000 96GB GDDR7",
+      "networkPerNode": "4x200GbE NDR BlueField-3",
+      "powerPerNode": 3000,
+      "weightKg": 40,
+      "notes": "Specialized for AI inference at the data layer"
+    }
+  ],
+  "dboxModels": [
+    {
+      "id": "ceres-df3015",
+      "name": "VAST Ceres DF-3015V2",
+      "description": "High-density 1U NVMe D-Node",
+      "ruSize": 1,
+      "qlcCapacityTB": 338,
+      "scmCapacityTB": 6.4,
+      "totalRawTB": 344.4,
+      "dpu": "NVIDIA BlueField-3",
+      "powerWatts": 1600,
+      "weightKg": 18,
+      "notes": "E1.L QLC SSDs PCIe Gen4 + SCM write buffers"
+    },
+    {
+      "id": "ceres-df3060",
+      "name": "VAST Ceres DF-3060V2",
+      "description": "Maximum-density 1U NVMe D-Node",
+      "ruSize": 1,
+      "qlcCapacityTB": 1352,
+      "scmCapacityTB": 12,
+      "totalRawTB": 1364,
+      "dpu": "NVIDIA BlueField-3",
+      "powerWatts": 1600,
+      "weightKg": 20,
+      "notes": "Highest density for capacity-optimized deployments"
+    },
+    {
+      "id": "voyager",
+      "name": "VAST Voyager",
+      "description": "4U High-capacity NVMe D-Node",
+      "ruSize": 4,
+      "qlcCapacityTB": 1920,
+      "scmCapacityTB": 8,
+      "totalRawTB": 1928,
+      "dpu": "NVIDIA BlueField-3",
+      "powerWatts": 3500,
+      "weightKg": 120,
+      "notes": "Primary sizing unit for large-scale deployments. 150+4 EC. Dual-rail NVMe-oF."
+    },
+    {
+      "id": "ebox-supermicro",
+      "name": "VAST EBox (Supermicro)",
+      "description": "Converged CNode+DNode EBox",
+      "ruSize": 2,
+      "totalRawTB": 30,
+      "qlcCapacityTB": 30,
+      "scmCapacityTB": 1,
+      "powerWatts": 1200,
+      "weightKg": 22,
+      "partnerModel": "Supermicro AS-2115GT-HNTF",
+      "notes": "EBox architecture; runs VAST AI OS on x86. VastOS 5.2+"
+    },
+    {
+      "id": "ebox-cisco",
+      "name": "VAST EBox (Cisco)",
+      "description": "Cisco AI Data Platform EBox",
+      "ruSize": 2,
+      "totalRawTB": 25,
+      "qlcCapacityTB": 25,
+      "scmCapacityTB": 1,
+      "powerWatts": 1100,
+      "weightKg": 20,
+      "partnerModel": "Cisco UCS C845A M8",
+      "notes": "Cisco AI Data Platform; validated for VAST AI OS"
+    }
+  ],
+  "switchModels": [
+    { "id": "arista-7050cx3",   "name": "Arista 7050CX3-32S",        "ports": "32x100GbE QSFP28",  "fabricType": "RoCEv2",     "ruSize": 1, "bufferMB": 40  },
+    { "id": "arista-7060cx2",   "name": "Arista 7060CX2-32S",        "ports": "32x100GbE QSFP28",  "fabricType": "RoCEv2",     "ruSize": 1, "bufferMB": 32  },
+    { "id": "arista-7800r3",    "name": "Arista 7800R3",              "ports": "Modular 400GbE",    "fabricType": "RoCEv2",     "ruSize": 7, "bufferMB": 256 },
+    { "id": "cisco-nexus-9336", "name": "Cisco Nexus 9336C-FX2",     "ports": "36x100GbE QSFP28",  "fabricType": "RoCEv2",     "ruSize": 1, "bufferMB": 32  },
+    { "id": "nvidia-spectrum3", "name": "NVIDIA Spectrum-3 MQM9700", "ports": "64x400GbE QSFP-DD", "fabricType": "RoCEv2",     "ruSize": 1, "bufferMB": 64  },
+    { "id": "nvidia-qm8700",    "name": "NVIDIA QM8700 IB HDR",      "ports": "40x HDR 200Gb",     "fabricType": "InfiniBand", "ruSize": 1, "bufferMB": 64  },
+    { "id": "nvidia-qm9700",    "name": "NVIDIA QM9700 IB NDR",      "ports": "64x NDR 400Gb",     "fabricType": "InfiniBand", "ruSize": 1, "bufferMB": 64  },
+    { "id": "generic-rocev2",   "name": "Generic RoCEv2 Eth Switch", "ports": "32x100GbE",         "fabricType": "RoCEv2",     "ruSize": 1, "bufferMB": 16  }
+  ],
+  "vastosVersions": [
+    {
+      "version": "5.0.0",
+      "releaseDate": "2024-Q1",
+      "features": ["Global Sync NFSv3 failover", "Multi-Cluster Mgmt", "VAST on Cloud", "FIPS 140-3"]
+    },
+    {
+      "version": "5.2.0",
+      "releaseDate": "2024-Q4",
+      "features": ["EBox architecture", "x86 support", "Supermicro/Cisco EBox", "NVMe/TCP Block"]
+    },
+    {
+      "version": "5.3.5",
+      "releaseDate": "2025-Q1",
+      "features": ["Quota Groups", "Enhanced SMB", "Granular AD/LDAP", "NVMe/TCP OpenStack"]
+    },
+    {
+      "version": "5.4.1-SP4",
+      "releaseDate": "2026-Q2",
+      "features": ["VAST AI OS", "DataEngine", "DataBase vector", "AgentEngine", "Kafka API", "Polaris"],
+      "latest": true
+    }
+  ],
+  "workloadPresets": {
+    "ai-ml-training":    { "name": "AI/ML Training",         "reductionRatio": 2.5, "readThroughputGBs": 200, "writeThroughputGBs": 40,  "clientNet": "200", "fabricType": "RoCEv2",     "notes": "GPUDirect Storage recommended for training." },
+    "ai-training":       { "name": "AI/ML Training",         "reductionRatio": 2.5, "readThroughputGBs": 200, "writeThroughputGBs": 40,  "clientNet": "200", "fabricType": "RoCEv2",     "notes": "GPUDirect Storage recommended for training." },
+    "hpc-genomics":      { "name": "HPC & Genomics",         "reductionRatio": 3.0, "readThroughputGBs": 150, "writeThroughputGBs": 50,  "clientNet": "100", "fabricType": "RoCEv2",     "notes": "High parallel read from many HPC nodes." },
+    "vmware-vsphere":    { "name": "VMware/vSphere",         "reductionRatio": 4.0, "readThroughputGBs": 40,  "writeThroughputGBs": 15,  "clientNet": "25",  "fabricType": "RoCEv2",     "notes": "VAAI-NAS offload; multiple VIPs for NFS multipathing." },
+    "kubernetes-csi":    { "name": "Kubernetes CSI",         "reductionRatio": 3.0, "readThroughputGBs": 60,  "writeThroughputGBs": 20,  "clientNet": "100", "fabricType": "RoCEv2",     "notes": "VAST CSI available on OperatorHub. Supports RWX and RWO." },
+    "backup-archive":    { "name": "Backup & Archive",       "reductionRatio": 5.0, "readThroughputGBs": 20,  "writeThroughputGBs": 30,  "clientNet": "25",  "fabricType": "RoCEv2",     "notes": "High compression on backup streams; WORM for compliance." },
+    "openstack":         { "name": "OpenStack",              "reductionRatio": 3.5, "readThroughputGBs": 50,  "writeThroughputGBs": 20,  "clientNet": "100", "fabricType": "RoCEv2",     "notes": "Cinder block + Manila file; NVMe/TCP requires VastOS 5.3+." },
+    "media-vfx":         { "name": "Media & VFX",            "reductionRatio": 1.5, "readThroughputGBs": 100, "writeThroughputGBs": 30,  "clientNet": "100", "fabricType": "RoCEv2",     "notes": "Large sequential I/O; low compression ratio on already-compressed media." },
+    "hybrid-dr":         { "name": "Hybrid / DR",            "reductionRatio": 3.0, "readThroughputGBs": 80,  "writeThroughputGBs": 30,  "clientNet": "100", "fabricType": "RoCEv2",     "notes": "Async/sync VAST Mirror replication; WAN bandwidth planning critical." },
+    "database-analytics":{ "name": "Database / Analytics",  "reductionRatio": 4.5, "readThroughputGBs": 80,  "writeThroughputGBs": 60,  "clientNet": "100", "fabricType": "RoCEv2",     "notes": "High write rate with strong compression on structured data." },
+    "file-share":        { "name": "Enterprise File Shares", "reductionRatio": 3.5, "readThroughputGBs": 40,  "writeThroughputGBs": 15,  "clientNet": "100", "fabricType": "RoCEv2",     "notes": "Mixed NFS/SMB workload; good all-round data reduction." }
+  }
+}
