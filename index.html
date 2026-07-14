@@ -259,7 +259,7 @@
   </div>
 
   <div class="sidebar-footer">
-    <div>Platform: <b>VastOS v5.3.x (Latest)</b></div>
+    <div>Platform: <b id="platform-vastOS-ver">VastOS v5.5</b></div>
     <div>Backend: <b>RoCEv2 100/200GbE</b></div>
     <div style="margin-top:.35rem;">
       <button class="config-btn" style="font-size:.68rem;" onclick="showModal('modal-catalog')">&#128230; Product Catalog</button>
@@ -2187,7 +2187,7 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
             <tr><td><strong>Arista 7060CX2-32S</strong></td><td><span class="badge badge-info">Switch</span></td><td>32&times;100GbE QSFP28, RDMA optimised, lossless</td><td>6.4Tbps fabric</td><td>N/A</td><td>1U</td></tr>
             <tr><td><strong>Cisco Nexus 9336C-FX2</strong></td><td><span class="badge badge-info">Switch</span></td><td>36&times;100GbE QSFP28, VXLAN, RDMA</td><td>7.2Tbps fabric</td><td>N/A</td><td>1U</td></tr>
             <tr><td><strong>NVIDIA QM8700</strong></td><td><span class="badge badge-info">Switch</span></td><td>40&times;HDR 200Gbps InfiniBand ports</td><td>16Tbps fabric</td><td>N/A</td><td>1U</td></tr>
-            <tr><td><strong>VastOS v5.3</strong></td><td><span class="badge" style="background:rgba(99,102,241,.15);color:var(--accent-violet);">Software</span></td><td>Unified storage OS, DASE runtime, global namespace</td><td>All protocols</td><td>Unlimited</td><td>&mdash;</td></tr>
+            <tr><td><strong>VAST AI OS v5.5</strong></td><td><span class="badge" style="background:rgba(99,102,241,.15);color:var(--accent-violet);">Software</span></td><td>Unified storage OS, DASE runtime, global namespace</td><td>All protocols</td><td>Unlimited</td><td>&mdash;</td></tr>
             <tr><td><strong>DataSpace Sync</strong></td><td><span class="badge" style="background:rgba(99,102,241,.15);color:var(--accent-violet);">Software</span></td><td>Async/Sync replication, global namespace federation</td><td>WAN-optimised</td><td>Unlimited</td><td>&mdash;</td></tr>
           </tbody>
         </table>
@@ -2269,7 +2269,7 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783968713"></script>
+<script src="app.js?v=1783993715"></script>
 <script>
 /* ── v2.0 UI Helpers ─────────────────────────────────────── */
 function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}
@@ -2976,7 +2976,7 @@ var PRESET_DATA = {
     rpo:'4hr',rto:'<4hr',dare:true,auditLog:true,
     protocols:['NFSv4.1','S3'],
     recs:[
-      'Deploy VAST CSI driver v2.x for dynamic PVC provisioning',
+      'Deploy VAST CSI driver '+(typeof _kbCsiVer==='function'?_kbCsiVer():'v2.6.5')+' for dynamic PVC provisioning',
       'Use ReadWriteMany (RWX) access mode for shared datasets across pods',
       'VAST StorageClass with volumeExpansion:true for elastic pod storage',
       'S3-compatible endpoint for object storage workloads (MinIO replacement)',
@@ -3626,7 +3626,7 @@ function _buildInlineDeliverables(){
       h+='<tr><td>C-Nodes (CBox)</td><td>VAST '+sz.cnModel+'</td><td>'+sz.cnCount+'</td><td>Protocol &amp; data reduction</td></tr>';
       h+='<tr><td>D-Nodes (DBox)</td><td>VAST '+sz.dnModel+'</td><td>'+sz.dnCount+'</td><td>NVMe flash + SCM buffers ('+_fmtTB(1920)+' raw each)</td></tr>';
       h+='<tr><td>Fabric Switches</td><td>'+sz.swName+'</td><td>'+sz.swCount+'</td><td>'+fabric+' backend fabric</td></tr>';
-      h+='<tr><td>VAST AI OS</td><td>v5.4.1-SP4</td><td>&mdash;</td><td>Included with hardware</td></tr>';
+      h+='<tr><td>VAST AI OS</td><td>v'+(typeof _kbVer==='function'?_kbVer():'5.5.0')+'</td><td>&mdash;</td><td>Included with hardware</td></tr>';
       h+='</tbody></table></div>';
       h+='<div class="doc-section"><h2>4. Network Architecture</h2>';
       h+='<p><strong>Frontend:</strong> '+cfg.clientNet+' client access via VIP pool ('+vipS+' &ndash; '+vipE+'). Protocols: '+protoStr+'.</p>';
@@ -3725,5 +3725,23 @@ function _buildInlineDeliverables(){
 function _esc2(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 </script>
+
+<!-- ═══════════════ KB CHANGES MODAL ════════════════════════════ -->
+<div id="modal-kb-changes" class="modal-overlay" style="display:none;" onclick="if(event.target===this)hideModal('modal-kb-changes')">
+  <div class="modal-box" style="max-width:700px;">
+    <div class="modal-header">
+      <h3 class="modal-title">Knowledge Base Update Log</h3>
+      <button class="modal-close" onclick="hideModal('modal-kb-changes')">&times;</button>
+    </div>
+    <div class="modal-body" id="kb-changes-content" style="max-height:60vh;overflow-y:auto;">
+      <p style="color:var(--color-text-muted);">Click &ldquo;Update KB&rdquo; to fetch the latest catalog.</p>
+    </div>
+    <div class="modal-footer" style="display:flex;gap:.75rem;justify-content:flex-end;padding:1rem 1.5rem;border-top:1px solid rgba(255,255,255,.07);">
+      <button class="btn btn-secondary" onclick="hideModal('modal-kb-changes')">Close</button>
+      <button class="btn btn-primary" onclick="hideModal('modal-kb-changes');if(typeof renderProductCatalog==='function')renderProductCatalog();showModal('modal-catalog');">View Full Catalog</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

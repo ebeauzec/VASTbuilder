@@ -6,6 +6,92 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.2.0] — 2026-07-14
+
+### Added
+
+#### `_kbVer()` / `_kbCsiVer()` — Live Version Helpers
+- All hardcoded `'5.4.1-SP4'` version strings in every generator replaced with `_kbVer()` call
+- `_kbVer()` reads from `PRODUCT_CATALOG.vastosVersions.find(v=>v.latest).version` at call time
+- `_kbCsiVer()` reads `PRODUCT_CATALOG.csiDriverVersion` (set from GitHub API on KB update)
+- Affected generators: BOM row, Proposal footer, VCLI runbook header, HLD fallback, ATP test row, Handover checklist table and check row, console.log banner
+- `index.html` inline deliverables (`_buildInlineDeliverables`): BOM HLD OS row now dynamic
+
+#### Update KB — Full Multi-Source Engine (`checkForUpdates()` rewrite)
+- **Source 1:** `catalog.json` from `raw.githubusercontent.com/ebeauzec/VASTbuilder/main/catalog.json`
+- **Source 2:** GitHub API `api.github.com/repos/vast-data/vast-csi/releases/latest` → live CSI driver version
+- Badge text changes to `"Fetching catalog.json…"` then `"Fetching CSI driver version…"` during fetch
+- Full offline fallback: loads IndexedDB cache, toast explains source + date
+- `PRODUCT_CATALOG.csiDriverVersion` set from GitHub API response `tag_name`
+- `PRODUCT_CATALOG.thirdParty` merged from catalog (new section)
+
+#### `_propagateCatalogToUI()` — Full Propagation After Update
+- Updates every DOM element with `data-kb-version` attribute
+- Updates every DOM element with `data-kb-csi-version` attribute  
+- Re-populates `hw-preset` select with any new hardware models from updated catalog
+- Re-runs: `calculateSizing()`, `generateNetworkConfig()`, `generateVcliCommands()`, `renderIntegrationConfigs()`, `generateAllDocuments()`, `_buildInlineDeliverables()`
+- Refreshes Catalog modal if open
+
+#### `_buildKBChangelog()` / `_showKBChangeModal()` — Change Diff Display
+- Computes human-readable diff between old and new catalog snapshots
+- Detects: VastOS version changes, new VastOS versions, CSI driver updates, new hardware models (C-Node/D-Node/Switch), third-party version changes
+- `modal-kb-changes` (`id="kb-changes-content"`) renders color-coded table: Added (teal) / Updated (amber) / Removed (red)
+- "View Full Catalog" button in modal footer opens the Catalog modal directly
+
+#### `catalog.json` — Fully Researched Update (July 2026)
+Based on public VAST Data sources (vastdata.com, GitHub, GlobeNewswire, storagenewsletter.com):
+
+**Hardware:**
+- `cbox-standard-gen5`: Added Gen 5 CBox (EPYC 9454P Genoa, still supported)
+- `cbox-x`: Updated GPU spec to 2x NVIDIA RTX PRO 6000 Blackwell Server Edition (96GB GDDR7)
+- Ceres DF-3015V2 / DF-3060V2: Added `powerActiveW: 728`, `powerMaxW: 850` (PSU vs. draw distinction)
+- Drive specs: `qlcDriveCount`, `qlcDriveForm`, `scmDriveCount`, `scmDriveForm` fields added
+- `voyager`: Added `status: "validate"` note (not confirmed in March 2026 datasheets)
+- EBox Supermicro: Updated to Gen 2 with EPYC 9555P / 9655P options
+
+**Switches (3 new):**
+- `arista-7800r4`: Modular 800GbE spine — 2025/2026 gen AI factory deployments
+- `nvidia-sn5600`: NVIDIA Spectrum-4 SN5600 (64×400GbE) — Spectrum-X platform, VAST reference arch
+- `nvidia-qm9790`: NVIDIA QM9790 IB NDR — 2025 NDR compute-cluster model
+
+**VastOS Versions (3 added):**
+- `5.4.0`: ~60 new features inc. MIT Kerberos, SMB encryption, VAST DataBase vector, Trino SQL, Serverless
+- `5.4.5`: Cloud track GA June 14, 2026 — Polaris-based VAST on Cloud (AWS)
+- `5.5.0` (now `latest:true`): Hyperscale Vector Index, Native SQL, K8s compute, S3/RDMA, PolicyEngine, TuningEngine, Foundation Stacks, CNode-X support
+
+**CSI Driver:**
+- `csiDriverVersion`: `"2.6.5"` (Feb 2026) — Prometheus metrics, K8s 1.22-1.31.6, hotfix CVE-2025-59375
+- `csiHelmRepo` and `csiDriverRepo` fields added
+
+**New section — `thirdParty`:**
+- VMware vSphere 8.0 U3+: VAAI-NAS + NVMe-TCP details, 2 PiB Storage DRS constraint
+- Kubernetes CSI 2.6.5: RWX/RWO, OperatorHub, Helm
+- OpenStack Cinder / Manila: Yoga+ validated
+- NVIDIA GPUDirect Storage: S3 over RDMA (5.5+)
+- CoreWeave: $1.17B deal Nov 2025
+- Google Cloud: Fully managed VAST AI OS Nov 2025
+- Microsoft Azure: Agentic AI partnership Nov 2025
+- AWS: 5.4.5 Polaris support
+
+**New workload preset:**
+- `agentic-ai-rag`: Agentic AI / RAG — CNode-X, trillion-vector, S3/RDMA, PolicyEngine, DRR 2:1, 150/30 GB/s
+
+#### `index.html` — Version String Fixes
+- `id="platform-vastOS-ver"`: `VastOS v5.3.x (Latest)` → `VastOS v5.5`
+- Component table: `VastOS v5.3` → `VAST AI OS v5.5`
+- CSI driver reference: `v2.x` → dynamic `_kbCsiVer()`
+- Inline BOM OS row: `v5.4.1-SP4` → dynamic `_kbVer()`
+- `modal-kb-changes` added (KB Change Log popup with table + "View Catalog" button)
+
+### Changed
+- `updateKBStatus()`: Now includes `| CSI vX.Y.Z` in badge text from `PRODUCT_CATALOG.csiDriverVersion`
+- Badge tooltip: `Source: github | Checked: <ISO timestamp>`
+- `_applyCatalog()`: Now merges `csiDriverVersion` and `thirdParty` sections
+- `loadCatalogFromCache()`: Unchanged; now also restores `thirdParty` via `_applyCatalog()`
+- `catalog.json` workload preset notes: Updated with specific protocol/tool references (nconnect, elbencho, VastOS version minimums)
+
+---
+
 ## [2.1.0] — 2026-07-13
 
 ### Added
