@@ -303,17 +303,7 @@
       <button id="catalog-btn" class="toolbar-btn" onclick="showModal('modal-catalog')">
         <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>Catalog
       </button>
-      <button id="update-kb-btn" class="toolbar-btn" onclick="
-        var b=this;
-        b.disabled=true;
-        b.style.opacity='0.6';
-        b.innerHTML='<svg width=\'12\' height=\'12\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2.5\' viewBox=\'0 0 24 24\'><path d=\'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15\'/></svg>Updating...';
-        (typeof checkForUpdates==='function'?checkForUpdates():Promise.resolve()).finally(function(){
-          b.disabled=false;
-          b.style.opacity='';
-          b.innerHTML='<svg width=\'12\' height=\'12\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2.5\' viewBox=\'0 0 24 24\'><path d=\'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15\'/></svg>Update KB';
-        });
-      ">
+      <button id="update-kb-btn" class="toolbar-btn" onclick="kbUpdate()">
         <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Update KB
       </button>
       <span id="kb-status" title="Click Update KB to refresh">VastOS 5.5.0</span>
@@ -2279,7 +2269,7 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783994825"></script>
+<script src="app.js?v=1783994948"></script>
 <script>
 /* ── v2.0 UI Helpers ─────────────────────────────────────── */
 function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}
@@ -2427,7 +2417,17 @@ function readConfigFile(file){
 function showToast(msg,dur=2800){
   const t=document.getElementById('toast');
   const tx=document.getElementById('toast-text');
-  if(t&&tx){tx.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
+  if(t&&tx){tx.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},dur);}
+}
+
+function kbUpdate(){
+  var btn=document.getElementById('update-kb-btn');
+  var svgHtml='<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>';
+  if(btn){btn.disabled=true;btn.style.opacity='0.6';btn.innerHTML=svgHtml+'Updating...';}
+  var p=(typeof checkForUpdates==='function')?checkForUpdates():Promise.resolve();
+  p.finally(function(){
+    if(btn){btn.disabled=false;btn.style.opacity='';btn.innerHTML=svgHtml+'Update KB';}
+  });
 }
 
 function exportHldText(){downloadText('VAST_HLD.txt',document.getElementById('del-content-hld-doc')?.innerText||'')}
