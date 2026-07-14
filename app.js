@@ -4778,6 +4778,26 @@ function _buildHLD() {
   out += '<tr><td>VIP Count</td><td>' + vipCount + ' VIPs (' + cc + ' CNodes &times; 4)</td><td>Minimum 4 VIPs per CNode for optimal load balancing</td></tr>';
   out += '<tr><td>VIP Distribution Policy</td><td>' + _esc(vipPolicy) + '</td><td>VIPs automatically migrate on CNode failure (no client remount required)</td></tr>';
   out += '</tbody></table>';
+  // VLAN configuration from Panel 5
+  var vlanMgmt  = _getVal('vlan-mgmt')     || '100';
+  var vlanBk    = _getVal('vlan-backend')  || '990';
+  var vlanFe    = _getVal('vlan-frontend') || '200';
+  var swFe      = _getSelect('sw-frontend-model') || 'Customer-provided L3';
+
+  out += '<h3 style="margin-top:1.25rem;">VLAN Configuration</h3>';
+  out += '<table class="cabling-table"><thead><tr><th>Network Plane</th><th>VLAN ID</th><th>Subnet</th><th>Notes</th></tr></thead><tbody>';
+  out += '<tr><td><strong>OOB Management</strong></td><td><code>' + _esc(vlanMgmt) + '</code></td><td>' + _esc(mgSubnet) + '</td><td>IPMI/BMC and VMS management interface — isolated, no data traffic</td></tr>';
+  out += '<tr><td><strong>Backend Storage Fabric</strong></td><td><code>' + _esc(vlanBk) + '</code></td><td>' + _esc(bkSubnet) + '</td><td>NVMe-oF (' + _esc(fabric) + ') — MUST be lossless with PFC/ECN; never shared</td></tr>';
+  out += '<tr><td><strong>Frontend / Client</strong></td><td><code>' + _esc(vlanFe) + '</code></td><td>' + _esc(feSubnet) + '</td><td>VIP traffic from clients; SVI with gateway ' + _esc(vipGw) + ' required</td></tr>';
+  out += '</tbody></table>';
+
+  out += '<h3 style="margin-top:1.25rem;">Switch Configuration Summary</h3>';
+  out += '<table class="cabling-table"><thead><tr><th>Switch Role</th><th>Model</th><th>Config Requirements</th></tr></thead><tbody>';
+  out += '<tr><td>Backend Fabric Switch A&nbsp;&amp;&nbsp;B</td><td>' + _esc(swModel ? swModel.name : 'Arista 7050CX3') + '</td><td>PFC on VLAN ' + _esc(vlanBk) + '; ECN WRED; DSCP mapping; MTU 9214; ISL between A and B</td></tr>';
+  out += '<tr><td>Frontend / Client Switch</td><td>' + _esc(swFe) + '</td><td>SVI for VIP gateway ' + _esc(vipGw) + '; VLAN ' + _esc(vlanFe) + '; MTU ' + _esc(mtu) + '; no PFC required</td></tr>';
+  out += '<tr><td>OOB Management Switch</td><td>1GbE unmanaged or managed</td><td>VLAN ' + _esc(vlanMgmt) + ' or flat L2; no routing required; connects to all BMC ports</td></tr>';
+  out += '</tbody></table>';
+
   out += '<div class="highlight-box"><strong>Backend Fabric Requirements (' + _esc(fabric) + '):</strong> Both fabric switches must be configured with Priority Flow Control (PFC) on the NVMe-oF VLAN, Explicit Congestion Notification (ECN) enabled, DSCP marking for storage traffic, and MTU 9214. Any packet drop on the backend fabric will cause RDMA connection resets and performance degradation. Do NOT share the backend VLAN with any other traffic class.</div>';
   out += '</div>';
 
@@ -4843,6 +4863,33 @@ function _buildHLD() {
   out += '<tr><td>View Export Path</td><td><code>' + _esc(viewPath) + '</code></td><td>Primary namespace root; sub-directories can have independent access policies</td></tr>';
   out += '<tr><td>View Quota</td><td>' + (parseInt(quotaTB) > 0 ? quotaTB + ' TB' : 'Unlimited') + '</td><td>Soft quota with configurable hard limit; alerts via VMS on threshold breach</td></tr>';
   out += '<tr><td>Multi-tenancy</td><td>Via VAST Views and VIP pools</td><td>Each tenant gets a dedicated View + VIP pool for full isolation; shared underlying storage</td></tr>';
+  out += '</tbody></table>';
+
+  // NFS squash and QoS from Panel 6
+  var nfsSquash = _getSelect('prov-nfs-squash') || 'none';
+  var qosMaxBw  = _getSelect('prov-qos-max-bw')  || 'unlimited';
+  var qosMaxIops= _getSelect('prov-qos-max-iops') || 'unlimited';
+  var nfsVer    = _getSelect('prov-nfs-version')  || '';
+  var adDomain  = _getVal('prov-ad-domain') || '';
+  var adServer  = _getVal('prov-ad-server') || '';
+
+  out += '<h3 style="margin-top:1.25rem;">NFS Export &amp; Quality of Service Tuning</h3>';
+  out += '<table class="cabling-table"><thead><tr><th>Parameter</th><th>Configured Value</th><th>Notes</th></tr></thead><tbody>';
+  if (nfs3 || nfs4) {
+    out += '<tr><td>NFS Versions Enabled</td><td>' + [(nfs3?'NFSv3':''), (nfs4?'NFSv4.1':'')].filter(Boolean).join(' + ') + '</td><td>Mounted simultaneously on same namespace — client selects via <code>vers=3</code> or <code>vers=4.1</code></td></tr>';
+    out += '<tr><td>Root Squash Policy</td><td>' + ({'none':'No squash (root maps to root — development environments)','root':'Root squash (root &rarr; UID 65534 anonymous — recommended for production)','all':'All squash (all UIDs &rarr; anonymous — highly restrictive)'}[nfsSquash] || nfsSquash || 'No squash') + '</td><td>Configure per View in VMS: <em>Filesystem &rarr; Views &rarr; Edit &rarr; NFS Export</em></td></tr>';
+    out += '<tr><td>Recommended Mount (NFSv3)</td><td><code>rsize=1048576,wsize=1048576,tcp,nconnect=16,noatime,hard</code></td><td>1 MB rsize/wsize saturates 100GbE; nconnect=16 opens 16 TCP streams per mount</td></tr>';
+    if (nfs4) out += '<tr><td>Recommended Mount (NFSv4.1)</td><td><code>rsize=1048576,wsize=1048576,tcp,nconnect=8,noatime,minorversion=1</code></td><td>minorversion=1 enables pNFS parallel data I/O (RFC 5661)</td></tr>';
+  }
+  if (smb) {
+    out += '<tr><td>SMB Multichannel</td><td>Enabled (automatic)</td><td>Windows clients with multiple NICs auto-aggregate bandwidth; ensure all client NICs are on VLAN ' + _esc(vlanFe||'200') + '</td></tr>';
+  }
+  out += '<tr><td>View QoS — Max Bandwidth</td><td>' + (qosMaxBw === 'unlimited' ? 'Unlimited (no throttle)' : qosMaxBw) + '</td><td>VAST per-View bandwidth cap — prevents noisy-neighbour saturation; set via VMS Policies</td></tr>';
+  out += '<tr><td>View QoS — Max IOPS</td><td>' + (qosMaxIops === 'unlimited' ? 'Unlimited (no throttle)' : qosMaxIops) + '</td><td>VAST per-View IOPS limit — set per workload tier for fair-share allocation</td></tr>';
+  if (authSrc === 'ldap' && adDomain) {
+    out += '<tr><td>Active Directory Domain</td><td><code>' + _esc(adDomain) + '</code></td><td>Join: <code>vcli admin&gt; activedirectory join --domain ' + _esc(adDomain) + ' --username Administrator</code></td></tr>';
+    if (adServer) out += '<tr><td>AD / KDC Server</td><td><code>' + _esc(adServer) + '</code></td><td>Preferred DC for LDAP + Kerberos KDC; configure NTP to same source as AD</td></tr>';
+  }
   out += '</tbody></table>';
   out += '</div>';
 
@@ -5319,21 +5366,67 @@ function _buildBCDRRunbook() {
 
   var date = new Date().toLocaleDateString('en-GB', {year:'numeric',month:'long',day:'numeric'});
 
-  var repl      = adv.bcEnabled || false;
+  // ── Correct AppState key names + DOM fallback ─────────────────────────────
+  // Panel 7 checkbox OR Panel 4 replication-target-type dropdown
+  var repl      = adv.bcEnabled ||
+                  _getCheck('bc-enable-replication') ||
+                  (adv.repTargetType && adv.repTargetType !== 'none') ||
+                  (_getSelect('replication-target-type') && _getSelect('replication-target-type') !== 'none') ||
+                  false;
 
-  var replType  = adv.bcReplicationType || 'async';
+  // adv.bcRepType (not bcReplicationType) — key from saveState() line ~2688
+  var replType  = adv.bcRepType || _getSelect('bc-replication-type') || 'async';
 
-  var remoteIP  = adv.bcRemoteClusterIP || '<DR-CLUSTER-IP>';
+  // RPO: adv.bcRpoMinutes (not bcRPOMinutes)
+  var rpoMin    = adv.bcRpoMinutes || parseInt(_getVal('bc-rpo-minutes') || '60') || 60;
 
-  var remoteClN = adv.bcRemoteClusterName || clN + '-dr';
+  // WAN: adv.bcWanBw (not bcWanBandwidthGbps)
+  var wanGbps   = adv.bcWanBw || parseInt(_getVal('bc-wan-bandwidth') || '10') || 10;
 
-  var rpoMin    = adv.bcRPOMinutes || 60;
+  // Snapshot schedule/retention — NOT in saveState, read from DOM
+  var snapSch   = _getSelect('bc-snapshot-schedule') || 'daily';
+  var snapRet   = parseInt(_getVal('bc-snapshot-retention') || '30') || 30;
 
-  var snapSch   = adv.bcSnapshotSchedule || 'hourly';
+  // Remote site type — from Panel 7 OR Panel 4
+  var _replTgtRaw = adv.bcRemoteSiteType || _getSelect('bc-remote-site-type') ||
+                    adv.repTargetType    || _getSelect('replication-target-type') || 'vast-onprem';
+  var _replTgtLabel = {
+    'vast-onprem':   'On-Premises VAST Cluster',
+    'remote-onprem': 'On-Premises VAST Cluster',
+    'aws':           'Amazon Web Services (VAST Mirror to S3)',
+    'azure':         'Microsoft Azure (VAST Mirror to Blob)',
+    'gcp':           'Google Cloud Platform (VAST Mirror to GCS)'
+  }[_replTgtRaw] || 'Remote VAST Cluster';
 
-  var snapRet   = adv.bcSnapshotRetentionDays || 30;
+  // DR cluster name — derive if not set explicitly
+  var remoteClN = adv.bcRemoteClusterName || (clN.replace(/-0+[0-9]+$/, '') + '-dr-01') || (clN + '-dr');
 
-  var wanGbps   = adv.bcWanBandwidthGbps || 10;
+  // DR site management IP — placeholder with guidance if not set
+  var remoteIP  = adv.bcRemoteClusterIP || '<DR-CLUSTER-MGMT-IP>';
+
+  // DR hardware from DOM display elements (populated by sizing engine)
+  var _drCnodes = '';
+  var _drDnodes = '';
+  try {
+    var _drCEl = document.getElementById('remote-cnode-count');
+    var _drDEl = document.getElementById('remote-dnode-count');
+    if (_drCEl) _drCnodes = _drCEl.innerText.trim() || _drCEl.textContent.trim();
+    if (_drDEl) _drDnodes = _drDEl.innerText.trim() || _drDEl.textContent.trim();
+  } catch(e) {}
+  // If DOM elements not populated, derive from primary sizing (DR typically 50-100% of primary)
+  if (!_drCnodes || _drCnodes === '0') {
+    _drCnodes = String(Math.max(2, Math.ceil(cc / 2)));
+  }
+  if (!_drDnodes || _drDnodes === '0') {
+    _drDnodes = String(dc); // DR has same DBox count as primary (must hold all replicated data)
+  }
+
+  // DR site display string
+  var _drSiteStr = repl
+    ? (_replTgtLabel.indexOf('Premises') >= 0
+       ? remoteClN + ' (' + _drCnodes + 'C/' + _drDnodes + 'D) &mdash; ' + remoteIP
+       : _replTgtLabel + ' (cloud-native target)')
+    : 'Not configured';
 
   var eTB       = r.effectiveTB || s.targetUsableTB || 500;
 
@@ -5381,9 +5474,10 @@ function _buildBCDRRunbook() {
 
   out += '<tr><td>Primary Site</td><td><strong>' + clN + '</strong> (' + cc + 'x CNodes, ' + dc + 'x DNodes)</td></tr>';
 
-  out += '<tr><td>DR Site</td><td><strong>' + (repl ? remoteClN + ' at ' + remoteIP : 'Not configured') + '</strong></td></tr>';
+  out += '<tr><td>DR Site</td><td><strong>' + _drSiteStr + '</strong></td></tr>';
+  if (repl) out += '<tr><td>DR Replication Target</td><td>' + _replTgtLabel + '</td></tr>';
 
-  out += '<tr><td>Replication Type</td><td>' + (replType === 'sync' ? 'Synchronous Mirror (RPO=0)' : 'Asynchronous Mirror (RPO=~' + rpoMin + ' min)') + '</td></tr>';
+  out += '<tr><td>Replication Type</td><td>' + (replType === 'sync' ? '<strong>Synchronous Mirror</strong> (RPO=0 &mdash; writes committed on both sites before ACK)' : '<strong>Asynchronous Mirror</strong> (RPO=~' + rpoMin + ' min &mdash; data replicated within RPO window)') + '</td></tr>';
 
   out += '<tr><td>RPO Target</td><td><strong>' + rpoMin + ' minutes</strong></td></tr>';
 
