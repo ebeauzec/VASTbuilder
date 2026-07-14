@@ -20,7 +20,8 @@
       "weightKg": 25,
       "generation": 6,
       "partnerModel": "Supermicro SMC 1U-1N-GEN6",
-      "notes": "Stateless compute. No local storage. Includes VAST AI OS. Recommended for all new deployments."
+      "notes": "Stateless compute. No local storage. Includes VAST AI OS. Recommended for all new deployments.",
+      "url": "https://vast.com/resources/datasheets/"
     },
     {
       "id": "cbox-standard-gen5",
@@ -35,7 +36,8 @@
       "weightKg": 24,
       "generation": 5,
       "partnerModel": "Supermicro SMC 1U-1N-GEN5",
-      "notes": "Previous generation. Supported under VAST 3-generation policy."
+      "notes": "Previous generation. Supported under VAST 3-generation policy.",
+      "url": "https://vast.com/resources/datasheets/"
     },
     {
       "id": "cbox-x",
@@ -50,7 +52,8 @@
       "powerPerNode": 3000,
       "weightKg": 40,
       "partnerModel": "Supermicro SYS-212GB-FNR, Cisco UCS C845A M8",
-      "notes": "Runs CUDA-accelerated VAST AI OS services: vector search, SQL analytics, RAG pipelines, NIM microservices. Announced Feb 2026 at VAST Forward."
+      "notes": "Runs CUDA-accelerated VAST AI OS services: vector search, SQL analytics, RAG pipelines, NIM microservices. Announced Feb 2026 at VAST Forward.",
+      "url": "https://vast.com/resources/datasheets/"
     }
   ],
   "dboxModels": [
@@ -72,7 +75,8 @@
       "powerActiveW": 728,
       "powerMaxW": 850,
       "weightKg": 18,
-      "notes": "PSU 2x1600W redundant. Active draw 400-728W typical. Standard-density D-Node."
+      "notes": "PSU 2x1600W redundant. Active draw 400-728W typical. Standard-density D-Node.",
+      "url": "https://vast.com/resources/datasheets/"
     },
     {
       "id": "ceres-df3060",
@@ -88,7 +92,8 @@
       "powerActiveW": 728,
       "powerMaxW": 850,
       "weightKg": 20,
-      "notes": "Highest density per rack unit. PSU 2x1600W redundant."
+      "notes": "Highest density per rack unit. PSU 2x1600W redundant.",
+      "url": "https://vast.com/resources/datasheets/"
     },
     {
       "id": "voyager",
@@ -103,7 +108,8 @@
       "powerWatts": 3500,
       "weightKg": 120,
       "status": "validate",
-      "notes": "Confirm availability with VAST. Primary DBox line is Ceres DF-30xx as of 2026 datasheets. Voyager may refer to a prior product generation or specific config."
+      "notes": "Confirm availability with VAST. Primary DBox line is Ceres DF-30xx as of 2026 datasheets. Voyager may refer to a prior product generation or specific config.",
+      "url": "https://vast.com/resources/datasheets/"
     },
     {
       "id": "ebox-supermicro",
@@ -118,7 +124,8 @@
       "cpu": "AMD EPYC 9555P (64-core, 1U) or EPYC 9655P (96-core, 2U)",
       "networkPerNode": "NVIDIA ConnectX-7/CX8 200GbE",
       "partnerModel": "Supermicro AS-2115GT-HNTF (1U) / AS-4115GS-TNR (2U)",
-      "notes": "EBox Gen 2 (2025-2026). Runs VAST AI OS on x86. Requires VastOS 5.2+. HPE GreenLake managed service available."
+      "notes": "EBox Gen 2 (2025-2026). Runs VAST AI OS on x86. Requires VastOS 5.2+. HPE GreenLake managed service available.",
+      "url": "https://vast.com/resources/datasheets/"
     },
     {
       "id": "ebox-cisco",
@@ -133,7 +140,8 @@
       "cpu": "AMD EPYC",
       "networkPerNode": "200GbE",
       "partnerModel": "Cisco UCS C225 M8, Cisco UCS C845A M8",
-      "notes": "Part of Cisco Secure AI Factory reference architecture. Cisco Nexus Hyperfabric AI integration."
+      "notes": "Part of Cisco Secure AI Factory reference architecture. Cisco Nexus Hyperfabric AI integration.",
+      "url": "https://vast.com/resources/datasheets/"
     }
   ],
   "switchModels": [
@@ -256,7 +264,8 @@
         "Multi-Cluster Management",
         "VAST on Cloud (early)",
         "FIPS 140-3"
-      ]
+      ],
+      "releaseNotesUrl": "https://support.vastdata.com/hc/en-us/categories/360003647839"
     },
     {
       "version": "5.2.0",
@@ -267,7 +276,8 @@
         "Supermicro/Cisco EBox validated",
         "NVMe/TCP Block",
         "VAST EBox Gen 1"
-      ]
+      ],
+      "releaseNotesUrl": "https://support.vastdata.com/hc/en-us/categories/360003647839"
     },
     {
       "version": "5.3.5",
@@ -279,7 +289,8 @@
         "Granular AD/LDAP DC/GC filtering",
         "NVMe/TCP OpenStack Cinder",
         "Manila file driver"
-      ]
+      ],
+      "releaseNotesUrl": "https://support.vastdata.com/hc/en-us/categories/360003647839"
     },
     {
       "version": "5.4.0",
@@ -295,7 +306,8 @@
         "Numbered BGP",
         "Kafka API auth",
         "~60 new features total"
-      ]
+      ],
+      "releaseNotesUrl": "https://support.vastdata.com/hc/en-us/categories/360003647839"
     },
     {
       "version": "5.4.1-SP4",
@@ -308,7 +320,8 @@
         "Kafka API",
         "Polaris preview",
         "Enhanced LDAP DC/GC allowlisting"
-      ]
+      ],
+      "releaseNotesUrl": "https://support.vastdata.com/hc/en-us/categories/360003647839"
     },
     {
       "version": "5.4.5",
@@ -318,7 +331,8 @@
         "Polaris-based VAST on Cloud (AWS)",
         "Cloud marketplace entitlement",
         "Cloud-native control plane"
-      ]
+      ],
+      "releaseNotesUrl": "https://support.vastdata.com/hc/en-us/categories/360003647839"
     },
     {
       "version": "5.5.0",
@@ -336,7 +350,8 @@
         "TuningEngine (continuous model tuning)",
         "Foundation Stacks (NVIDIA AI Blueprints integration)"
       ],
-      "latest": true
+      "latest": true,
+      "releaseNotesUrl": "https://support.vastdata.com/hc/en-us/categories/360003647839"
     }
   ],
   "csiDriverVersion": "2.6.5",
@@ -349,56 +364,65 @@
       "protocol": "NFS 4.1, NVMe/TCP",
       "status": "Validated",
       "notes": "VAAI-NAS: Full File Clone, Native Snapshot, Extended Stats, Reserve Space. VAAI Block (NVMe-TCP): XCOPY, VMFS ATS. Max 2 PiB per datastore for Storage DRS. Enable arp gratuitous accept on network.",
-      "source": "vastdata.com, broadcom.com"
+      "source": "vastdata.com, broadcom.com",
+      "url": "https://docs.vmware.com/en/VMware-vSphere/"
     },
     "Kubernetes CSI": {
       "version": "2.6.5",
       "k8sVersions": "1.22 - 1.31.6",
       "status": "Production",
       "notes": "RWX + RWO volumes. Dynamic provisioning. Prometheus metrics. OperatorHub deploy. Helm: helm repo add vastcsi https://vast-data.github.io/vast-csi",
-      "source": "github.com/vast-data/vast-csi, operatorhub.io"
+      "source": "github.com/vast-data/vast-csi, operatorhub.io",
+      "url": "https://github.com/vast-data/vast-csi"
     },
     "OpenStack Cinder": {
       "version": "Yoga+",
       "status": "Supported",
       "notes": "NVMe-TCP block driver. Requires VastOS 5.3+.",
-      "source": "vastdata.com, openstack.org"
+      "source": "vastdata.com, openstack.org",
+      "url": "https://docs.openstack.org/cinder/"
     },
     "OpenStack Manila": {
       "version": "Yoga+",
       "status": "Supported",
       "notes": "NFS share driver. Standard CRUD, access rules.",
-      "source": "vastdata.com, openstack.org"
+      "source": "vastdata.com, openstack.org",
+      "url": "https://docs.openstack.org/manila/"
     },
     "NVIDIA GPUDirect Storage": {
       "version": "2.x",
       "status": "Validated",
       "notes": "DMA from VAST NVMe storage directly to GPU VRAM. NFS over RDMA primary path. New in 5.5: S3 over RDMA for AI pipelines.",
-      "source": "nvidia.com, vastdata.com"
+      "source": "nvidia.com, vastdata.com",
+      "url": "https://developer.nvidia.com/gpudirect-storage"
     },
     "CoreWeave": {
       "version": "2025-11",
       "status": "Strategic Partner",
       "notes": "$1.17B multi-year commercial agreement (Nov 6, 2025). VAST AI OS is primary data foundation for CoreWeave AI cloud.",
-      "source": "vastdata.com, GlobeNewswire"
+      "source": "vastdata.com, GlobeNewswire",
+      "url": "https://docs.coreweave.com/"
     },
     "Google Cloud": {
       "version": "2025-11",
       "status": "Fully Managed Service",
       "notes": "First fully managed VAST AI OS on GCP (Nov 11, 2025). DataSpace unified global namespace. TPU VM integration.",
-      "source": "vastdata.com, GlobeNewswire"
+      "source": "vastdata.com, GlobeNewswire",
+      "url": "https://cloud.google.com/blog/topics/partners/vast-data-storage-on-google-cloud"
     },
     "Microsoft Azure": {
       "version": "2025-11",
       "status": "Production Partnership",
       "notes": "Agentic AI collaboration. Azure-native VAST experience. InsightEngine + AgentEngine on Azure.",
-      "source": "vastdata.com"
+      "source": "vastdata.com",
+      "url": "https://azure.microsoft.com/en-us/partners/directory/vast-data/"
     },
     "AWS": {
       "version": "5.4.5",
       "status": "Production",
       "notes": "VAST AI OS on AWS. Polaris on AWS in 5.4.5 (June 2026). Hybrid cloud scaling.",
-      "source": "vastdata.com"
+      "source": "vastdata.com",
+      "url": "https://aws.amazon.com/marketplace/seller-profile?id=vast-data"
     }
   },
   "workloadPresets": {

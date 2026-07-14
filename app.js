@@ -2759,8 +2759,7 @@ function _showKBChangeModal(changes, latestVer, fetchedAt, oldVersionsList, newV
   if (!cont) return;
   var h = '';
 
-  /* ── What's New section ────────────────────────────────────────── */
-  /* Use the directly-fetched list first; PRODUCT_CATALOG as fallback */
+  /* ── What's New in VAST AI OS ─────────────────────────────────── */
   var allVers = newVersionsList ||
     (typeof PRODUCT_CATALOG !== 'undefined' && PRODUCT_CATALOG.vastosVersions) || [];
   var oldVerNums = (oldVersionsList || []).map(function(v){ return v.version; });
@@ -2780,6 +2779,10 @@ function _showKBChangeModal(changes, latestVer, fetchedAt, oldVersionsList, newV
       if (ver.latest) h += '<span class="kb-ver-latest">LATEST</span>';
       if (ver.releaseDate) h += '<span class="kb-ver-date">' + ver.releaseDate + '</span>';
       if (ver.track) h += '<span class="kb-ver-track">' + ver.track + '</span>';
+      if (ver.releaseNotesUrl) {
+        h += '<a class="kb-source-link" href="' + ver.releaseNotesUrl + '" target="_blank" rel="noopener">';
+        h += 'Release Notes &#8599;</a>';
+      }
       h += '</div>';
       var feats = ver.features || ver.highlights || [];
       if (feats.length) {
@@ -2793,30 +2796,36 @@ function _showKBChangeModal(changes, latestVer, fetchedAt, oldVersionsList, newV
     h += '</div><hr class="kb-divider">';
   }
 
-  /* ── Catalog diff section ────────────────────────────────────────── */
+  /* ── Catalog diff ─────────────────────────────────────────────── */
   h += '<div class="kb-diff-header">';
   h += '<span style="font-size:.72rem;color:var(--color-text-muted);">Fetched ' + fetchedAt + ' &#8226; VastOS ' + latestVer + '</span>';
-  if (changes && changes.length) {
+  if (changes && changes.length)
     h += '<span class="kb-diff-count">' + changes.length + ' change' + (changes.length !== 1 ? 's' : '') + '</span>';
-  }
   h += '</div>';
 
   if (!changes || !changes.length) {
-    h += '<div class="kb-no-changes">';
-    h += '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>';
-    h += 'Hardware models and integrations are already up to date.';
-    h += '</div>';
+    h += '<div class="kb-no-changes"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>';
+    h += 'Hardware models and integrations are already up to date.</div>';
   } else {
+    /* Enrich changes with URLs from catalog */
+    var cat = (typeof PRODUCT_CATALOG !== 'undefined') ? PRODUCT_CATALOG : {};
+    var tp  = cat.thirdParty || {};
     h += '<div class="kb-diff-list">';
     changes.forEach(function(c) {
       var typeClass = c.type === 'Added' ? 'added' : c.type === 'Updated' ? 'updated' : 'removed';
-      /* Truncate long detail text */
       var detail = c.detail || '';
-      if (detail.length > 90) detail = detail.substring(0, 87) + '...';
+      if (detail.length > 110) detail = detail.substring(0, 107) + '...';
+      /* Look up source URL */
+      var srcUrl = '';
+      if (tp[c.item] && tp[c.item].url) srcUrl = tp[c.item].url;
       h += '<div class="kb-diff-item">';
       h += '<span class="kb-diff-badge kb-diff-' + typeClass + '">' + c.type + '</span>';
       h += '<div class="kb-diff-body">';
-      h += '<span class="kb-diff-name">' + c.item + '</span>';
+      if (srcUrl) {
+        h += '<a class="kb-diff-name kb-diff-link" href="' + srcUrl + '" target="_blank" rel="noopener">' + c.item + ' &#8599;</a>';
+      } else {
+        h += '<span class="kb-diff-name">' + c.item + '</span>';
+      }
       if (detail) h += '<span class="kb-diff-detail">' + detail + '</span>';
       h += '</div></div>';
     });

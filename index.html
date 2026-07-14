@@ -20,6 +20,21 @@
     #config-title:focus{border-color:var(--accent-teal);background:var(--bg-tertiary)}
     #kb-status{font-size:.7rem;font-family:var(--font-mono);background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);color:var(--accent-teal);padding:.2rem .65rem;border-radius:20px;white-space:nowrap;max-width:340px;overflow:hidden;text-overflow:ellipsis;cursor:default;flex-shrink:1;min-width:0}
 
+
+    /* -- KB modal opaque override ---- */
+    #modal-kb-changes{align-items:center;justify-content:center;background:rgba(0,0,0,.75);backdrop-filter:blur(8px)}
+    #modal-kb-changes .modal-box{background:#111827;border:1px solid rgba(255,255,255,.12);border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,.8);display:flex;flex-direction:column;max-height:90vh}
+    #modal-kb-changes .modal-header{background:#111827;border-bottom:1px solid rgba(255,255,255,.1);padding:1.1rem 1.5rem;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    #modal-kb-changes .modal-title{font-size:1rem;font-weight:700;color:#f1f5f9;margin:0;letter-spacing:.01em}
+    #modal-kb-changes .modal-close{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#94a3b8;font-size:1.1rem;cursor:pointer;border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;transition:all .18s}
+    #modal-kb-changes .modal-close:hover{background:rgba(248,113,113,.18);color:#f87171;border-color:rgba(248,113,113,.3)}
+    #modal-kb-changes .modal-body{background:#111827;padding:1.25rem 1.5rem;overflow-y:auto;flex:1;color:#cbd5e1}
+    #modal-kb-changes .modal-footer{background:#0f172a;border-top:1px solid rgba(255,255,255,.08);padding:.9rem 1.5rem;border-radius:0 0 14px 14px;display:flex;gap:.6rem;justify-content:flex-end;flex-shrink:0}
+    /* source links */
+    .kb-source-link{font-size:.68rem;color:var(--accent-teal);background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);padding:.1rem .45rem;border-radius:4px;text-decoration:none;margin-left:auto;transition:all .15s;white-space:nowrap}
+    .kb-source-link:hover{background:rgba(16,185,129,.2);color:#6ee7b7}
+    .kb-diff-link{color:#93c5fd!important;text-decoration:none!important;transition:color .15s}
+    .kb-diff-link:hover{color:#bfdbfe!important;text-decoration:underline!important}
     /* -- KB Whats New section ---- */
 
     /* -- KB diff card layout ---- */
@@ -27,14 +42,14 @@
     .kb-diff-count{font-size:.72rem;background:rgba(99,102,241,.15);color:var(--accent-violet);padding:.15rem .55rem;border-radius:20px;font-weight:600}
     .kb-no-changes{display:flex;align-items:center;gap:.5rem;color:var(--accent-teal);font-size:.85rem;padding:.6rem 0}
     .kb-diff-list{display:flex;flex-direction:column;gap:.45rem}
-    .kb-diff-item{display:flex;align-items:flex-start;gap:.7rem;padding:.55rem .7rem;background:rgba(255,255,255,.03);border-radius:7px;border:1px solid rgba(255,255,255,.06)}
+    .kb-diff-item{display:flex;align-items:flex-start;gap:.7rem;padding:.6rem .75rem;background:rgba(255,255,255,.05);border-radius:8px;border:1px solid rgba(255,255,255,.09)}
     .kb-diff-badge{flex-shrink:0;font-size:.65rem;font-weight:700;padding:.18rem .5rem;border-radius:4px;margin-top:.1rem;letter-spacing:.04em;text-transform:uppercase}
     .kb-diff-added{background:rgba(16,185,129,.18);color:#34d399}
     .kb-diff-updated{background:rgba(245,158,11,.15);color:#fbbf24}
     .kb-diff-removed{background:rgba(248,113,113,.15);color:#f87171}
     .kb-diff-body{display:flex;flex-direction:column;gap:.18rem;min-width:0}
-    .kb-diff-name{font-size:.83rem;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .kb-diff-detail{font-size:.74rem;color:var(--color-text-muted);line-height:1.4}
+    .kb-diff-name{font-size:.85rem;font-weight:600;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .kb-diff-detail{font-size:.76rem;color:#94a3b8;line-height:1.45}
     .kb-whats-new{margin-bottom:1.25rem}
     .kb-section-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-muted);margin-bottom:.8rem;text-align:center}
     .kb-ver-card{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.18);border-radius:10px;padding:.85rem 1rem;margin-bottom:.7rem}
@@ -2297,7 +2312,7 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783996423"></script>
+<script src="app.js?v=1783996695"></script>
 <script>
 /* ── v2.0 UI Helpers ─────────────────────────────────────── */
 function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}
