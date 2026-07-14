@@ -2269,7 +2269,7 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783995267"></script>
+<script src="app.js?v=1783995538"></script>
 <script>
 /* ── v2.0 UI Helpers ─────────────────────────────────────── */
 function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}
@@ -2399,7 +2399,6 @@ function handleConfigDrop(e){
 }
 function handleConfigFileInput(e){
   const f=e.target.files[0];
-  if(f) readConfigFile(f);
 }
 function readConfigFile(file){
   const r=new FileReader();
@@ -2421,47 +2420,49 @@ function showToast(msg,dur=2800){
 }
 
 function kbUpdate(){
-  var btn=document.getElementById('update-kb-btn');
-  var badge=document.getElementById('kb-status');
-  var SVG_ICO='<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>';
-  /* 1. Immediate sync visual change */
-  if(btn){btn.disabled=true;btn.style.opacity='0.6';btn.innerHTML=SVG_ICO+'Updating...';}
-  if(badge){badge.textContent='Fetching...';badge.style.color='var(--accent-amber)';}
-  /* 2. Use rAF to guarantee the browser paints the above before any async work */
-  requestAnimationFrame(function(){
-    requestAnimationFrame(function(){
-      /* 3. If app.js checkForUpdates exists, use it */
-      if(typeof checkForUpdates==='function'){
-        checkForUpdates().catch(function(err){
-          showToast('KB update error: '+(err?err.message||String(err):'unknown'),4000);
-        }).finally(function(){
-          setTimeout(function(){
-            if(btn){btn.disabled=false;btn.style.opacity='';btn.innerHTML=SVG_ICO+'Update KB';}
-          },400);
-        });
-        return;
-      }
-      /* 4. Fallback: fetch catalog.json directly (app.js not loaded) */
-      var CAT_URL='https://raw.githubusercontent.com/ebeauzec/VASTbuilder/main/catalog.json';
-      fetch(CAT_URL,{cache:'no-cache'}).then(function(r){
-        if(!r.ok)throw new Error('HTTP '+r.status);
-        return r.json();
-      }).then(function(cat){
-        if(typeof PRODUCT_CATALOG!=='undefined'&&cat){
-          Object.assign(PRODUCT_CATALOG,cat);
-        }
-        if(badge){badge.textContent='VastOS '+(cat&&cat.vastosVersions&&cat.vastosVersions[0]?cat.vastosVersions[0].version:'updated');badge.style.color='';}
-        showToast('KB refreshed successfully.',3000);
-      }).catch(function(err){
-        if(badge){badge.textContent='Update failed';badge.style.color='var(--accent-amber)';}
-        showToast('KB fetch failed: '+(err?err.message:String(err))+'. Check your connection.',5000);
-      }).finally(function(){
-        setTimeout(function(){
-          if(btn){btn.disabled=false;btn.style.opacity='';btn.innerHTML=SVG_ICO+'Update KB';}
-        },400);
+  var btn   = document.getElementById('update-kb-btn');
+  var badge = document.getElementById('kb-status');
+  var SVG   = '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>';
+  if(btn){btn.disabled=true;btn.style.opacity='0.6';btn.innerHTML=SVG+'Updating...';}
+  if(badge){badge.textContent='Fetching from GitHub...';badge.style.color='var(--accent-amber)';}
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){
+    var t0=Date.now();
+    var CAT_URL='https://raw.githubusercontent.com/ebeauzec/VASTbuilder/main/catalog.json';
+    var CSI_URL='https://api.github.com/repos/vast-data/vast-csi/releases/latest';
+    function finish(label,color){
+      if(badge){badge.textContent=label;badge.style.color=color||'';}
+      setTimeout(function(){if(btn){btn.disabled=false;btn.style.opacity='';btn.innerHTML=SVG+'Update KB';}},500);
+    }
+    fetch(CAT_URL).then(function(r){
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      return r.json();
+    }).then(function(cat){
+      var elapsed=((Date.now()-t0)/1000).toFixed(1);
+      var vers=cat&&cat.vastosVersions||[];
+      var ver=vers.length?vers[vers.length-1].version:'?';
+      if(typeof _applyCatalog==='function') try{_applyCatalog(cat);}catch(e){}
+      else if(typeof PRODUCT_CATALOG!=='undefined'&&cat) try{Object.assign(PRODUCT_CATALOG,cat);}catch(e){}
+      fetch(CSI_URL,{headers:{'Accept':'application/vnd.github.v3+json'}}).then(function(r2){
+        return r2.ok?r2.json():null;
+      }).then(function(csi){
+        var csiVer='';
+        if(csi&&csi.tag_name) csiVer=' | CSI '+csi.tag_name.replace(/^helm-vastblock-/i,'v');
+        finish('VastOS '+ver+csiVer,'');
+        showToast('Fetched from GitHub in '+elapsed+'s — VastOS '+ver+csiVer,5000);
+        if(typeof _propagateCatalogToUI==='function') try{_propagateCatalogToUI();}catch(e){}
+        if(typeof updateKBStatus==='function') try{updateKBStatus();}catch(e){}
+      }).catch(function(){
+        finish('VastOS '+ver,'');
+        showToast('Fetched from GitHub in '+elapsed+'s — VastOS '+ver,4000);
+        if(typeof updateKBStatus==='function') try{updateKBStatus();}catch(e){}
       });
+    }).catch(function(err){
+      var elapsed=((Date.now()-t0)/1000).toFixed(2);
+      var msg=err?err.message||String(err):'Failed to fetch';
+      finish('Fetch failed ('+elapsed+'s)','var(--accent-amber)');
+      showToast('GitHub fetch failed after '+elapsed+'s: '+msg,7000);
     });
-  });
+  }); });
 }
 
 function exportHldText(){downloadText('VAST_HLD.txt',document.getElementById('del-content-hld-doc')?.innerText||'')}
