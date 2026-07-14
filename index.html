@@ -2283,7 +2283,7 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783996011"></script>
+<script src="app.js?v=1783996236"></script>
 <script>
 /* ── v2.0 UI Helpers ─────────────────────────────────────── */
 function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}
@@ -2367,7 +2367,7 @@ function updateComplianceBadges(){
   con.innerHTML=fws.map(fw=>{
     const sel=document.getElementById('comp-'+fw)?.checked;
     const met=sel&&dare&&audit;
-    return `<span class="comp-badge ${met?'met':'unmet'}">${labs[fw]}</span>`;
+        return `<span class="comp-badge ${met?'met':'unmet'}">${labs[fw]}</span>`;
   }).join('');
 }
 
@@ -2377,7 +2377,21 @@ function generateK8sYaml(){
   const am=document.getElementById('int-k8s-access-mode')?.value||'RWX';
   const vip=document.getElementById('prov-vip-start')?.value||'10.100.20.100';
   const vp=document.getElementById('prov-view-path')?.value||'/data';
-  const y=`apiVersion: storage.k8s.io/v1\nkind: StorageClass\nmetadata:\n  name: ${sc}\n  namespace: ${ns}\nprovisioner: csi.vastdata.com\nparameters:\n  nfsVersion: "4"\n  vipPool: "${vip}"\n  viewPath: "${vp}"\nreclaimPolicy: Delete\nvolumeBindingMode: Immediate\nallowVolumeExpansion: true\naccessModes:\n  - ${am==='RWX'?'ReadWriteMany':am==='RWO'?'ReadWriteOnce':'ReadOnlyMany'}`;
+  const y=`apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ${sc}
+  namespace: ${ns}
+provisioner: csi.vastdata.com
+parameters:
+  nfsVersion: "4"
+  vipPool: "${vip}"
+  viewPath: "${vp}"
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+accessModes:
+  - ${am==='RWX'?'ReadWriteMany':am==='RWO'?'ReadWriteOnce':'ReadOnlyMany'}`;
   const o=document.getElementById('k8s-yaml-output');
   if(o) o.textContent=y;
 }
@@ -2413,6 +2427,7 @@ function handleConfigDrop(e){
 }
 function handleConfigFileInput(e){
   const f=e.target.files[0];
+  if(f) readConfigFile(f);
 }
 function readConfigFile(file){
   const r=new FileReader();
@@ -2437,6 +2452,11 @@ function kbUpdate(){
   var btn   = document.getElementById('update-kb-btn');
   var badge = document.getElementById('kb-status');
   var SVG   = '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>';
+  var oldVersions = [];
+  try {
+    if(typeof PRODUCT_CATALOG !== 'undefined' && PRODUCT_CATALOG.vastosVersions)
+      oldVersions = JSON.parse(JSON.stringify(PRODUCT_CATALOG.vastosVersions));
+  } catch(e){}
   if(btn){btn.disabled=true;btn.style.opacity='0.6';btn.innerHTML=SVG+'Updating...';}
   if(badge){badge.textContent='Fetching from GitHub...';badge.style.color='var(--accent-amber)';}
   requestAnimationFrame(function(){ requestAnimationFrame(function(){
@@ -2447,7 +2467,7 @@ function kbUpdate(){
       if(badge){badge.textContent=label;badge.style.color=color||'';}
       setTimeout(function(){if(btn){btn.disabled=false;btn.style.opacity='';btn.innerHTML=SVG+'Update KB';}},500);
     }
-    fetch(CAT_URL).then(function(r){
+    fetch(CAT_URL,{cache:'no-store'}).then(function(r){
       if(!r.ok)throw new Error('HTTP '+r.status);
       return r.json();
     }).then(function(cat){
@@ -2456,15 +2476,30 @@ function kbUpdate(){
       var ver=vers.length?vers[vers.length-1].version:'?';
       if(typeof _applyCatalog==='function') try{_applyCatalog(cat);}catch(e){}
       else if(typeof PRODUCT_CATALOG!=='undefined'&&cat) try{Object.assign(PRODUCT_CATALOG,cat);}catch(e){}
-      fetch(CSI_URL,{headers:{'Accept':'application/vnd.github.v3+json'}}).then(function(r2){
+      fetch(CSI_URL,{cache:'no-store',headers:{'Accept':'application/vnd.github.v3+json'}}).then(function(r2){
         return r2.ok?r2.json():null;
       }).then(function(csi){
         var csiVer='';
         if(csi&&csi.tag_name) csiVer=' | CSI '+csi.tag_name.replace(/^helm-vastblock-/i,'v');
+        var fetchedAt=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
         finish('VastOS '+ver+csiVer,'');
         showToast('Fetched from GitHub in '+elapsed+'s — VastOS '+ver+csiVer,5000);
         if(typeof _propagateCatalogToUI==='function') try{_propagateCatalogToUI();}catch(e){}
         if(typeof updateKBStatus==='function') try{updateKBStatus();}catch(e){}
+        if(typeof _showKBChangeModal==='function'){
+          var changes=[];
+          if(typeof _buildKBChangelog==='function') try{
+            changes=_buildKBChangelog(
+              {vastosVersions:oldVersions,cboxModels:[],dboxModels:[],switchModels:[]},cat
+            );
+          }catch(e){}
+          try{_showKBChangeModal(changes,ver,fetchedAt,oldVersions);}catch(e){}
+        } else {
+          var m=document.getElementById('modal-kb-changes');
+          var c=document.getElementById('kb-changes-content');
+          if(c) c.innerHTML='<p style="color:var(--accent-teal);">VastOS '+ver+' fetched in '+elapsed+'s'+csiVer+'</p>';
+          if(m) m.style.display='flex';
+        }
       }).catch(function(){
         finish('VastOS '+ver,'');
         showToast('Fetched from GitHub in '+elapsed+'s — VastOS '+ver,4000);
