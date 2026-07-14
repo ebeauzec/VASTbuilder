@@ -2269,7 +2269,7 @@ Configure BC/DR in Panel 7 to personalise this runbook.</div>
   <span id="toast-text">Done</span>
 </div>
 
-<script src="app.js?v=1783994948"></script>
+<script src="app.js?v=1783995267"></script>
 <script>
 /* ── v2.0 UI Helpers ─────────────────────────────────────── */
 function toggleStage(id){document.getElementById(id).classList.toggle('collapsed')}
@@ -2422,11 +2422,45 @@ function showToast(msg,dur=2800){
 
 function kbUpdate(){
   var btn=document.getElementById('update-kb-btn');
-  var svgHtml='<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>';
-  if(btn){btn.disabled=true;btn.style.opacity='0.6';btn.innerHTML=svgHtml+'Updating...';}
-  var p=(typeof checkForUpdates==='function')?checkForUpdates():Promise.resolve();
-  p.finally(function(){
-    if(btn){btn.disabled=false;btn.style.opacity='';btn.innerHTML=svgHtml+'Update KB';}
+  var badge=document.getElementById('kb-status');
+  var SVG_ICO='<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>';
+  /* 1. Immediate sync visual change */
+  if(btn){btn.disabled=true;btn.style.opacity='0.6';btn.innerHTML=SVG_ICO+'Updating...';}
+  if(badge){badge.textContent='Fetching...';badge.style.color='var(--accent-amber)';}
+  /* 2. Use rAF to guarantee the browser paints the above before any async work */
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      /* 3. If app.js checkForUpdates exists, use it */
+      if(typeof checkForUpdates==='function'){
+        checkForUpdates().catch(function(err){
+          showToast('KB update error: '+(err?err.message||String(err):'unknown'),4000);
+        }).finally(function(){
+          setTimeout(function(){
+            if(btn){btn.disabled=false;btn.style.opacity='';btn.innerHTML=SVG_ICO+'Update KB';}
+          },400);
+        });
+        return;
+      }
+      /* 4. Fallback: fetch catalog.json directly (app.js not loaded) */
+      var CAT_URL='https://raw.githubusercontent.com/ebeauzec/VASTbuilder/main/catalog.json';
+      fetch(CAT_URL,{cache:'no-cache'}).then(function(r){
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        return r.json();
+      }).then(function(cat){
+        if(typeof PRODUCT_CATALOG!=='undefined'&&cat){
+          Object.assign(PRODUCT_CATALOG,cat);
+        }
+        if(badge){badge.textContent='VastOS '+(cat&&cat.vastosVersions&&cat.vastosVersions[0]?cat.vastosVersions[0].version:'updated');badge.style.color='';}
+        showToast('KB refreshed successfully.',3000);
+      }).catch(function(err){
+        if(badge){badge.textContent='Update failed';badge.style.color='var(--accent-amber)';}
+        showToast('KB fetch failed: '+(err?err.message:String(err))+'. Check your connection.',5000);
+      }).finally(function(){
+        setTimeout(function(){
+          if(btn){btn.disabled=false;btn.style.opacity='';btn.innerHTML=SVG_ICO+'Update KB';}
+        },400);
+      });
+    });
   });
 }
 
